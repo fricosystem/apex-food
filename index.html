@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>APEX Food — Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/fontsource-inter@5.0.0/index.css" rel="stylesheet"/>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+        colors: {
+          bg: '#000000',
+          panel: '#080808',
+          card: '#0a0a0a',
+          card2: '#0d0d0d',
+          border: '#161616',
+          border2: '#1a1a1a',
+          muted: '#8a8a8a',
+          accent: '#ea580c',
+          accentHover: '#f97316',
+          green: '#22c55e',
+          red: '#ef4444',
+          yellow: '#eab308',
+          purple: '#a78bfa',
+          purpleLight: '#c4b5fd',
+          purpleDark: '#7c3aed',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { font-family: 'Inter', sans-serif; background: #000000; color: #e5e5e5; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1a1a1a; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #262626; }
+  .bar { transition: height 0.6s ease; }
+  .btn-press:active { transform: scale(0.97); }
+  .fade-in { animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .glow-orange { box-shadow: 0 0 30px rgba(234, 88, 12, 0.5), 0 0 60px rgba(234, 88, 12, 0.2); }
+  .card-gradient { background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 50%, #080808 100%); }
+
+  /* Tree-style sidebar */
+  .tree-group { position: relative; padding-left: 0; }
+  .tree-item { position: relative; padding-left: 2.25rem; }
+  .tree-item::before {
+    content: '';
+    position: absolute;
+    left: 0.75rem;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #1a1a1a;
+  }
+  .tree-item:last-child::before { bottom: 50%; }
+  .tree-item::after {
+    content: '';
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    width: 0.75rem;
+    height: 1px;
+    background: #1a1a1a;
+  }
+  .tree-item.active::before { background: rgba(234, 88, 12, 0.4); }
+  .tree-item.active::after { background: rgba(234, 88, 12, 0.4); }
+  .tree-item.active .tree-link { background: rgba(234, 88, 12, 0.15); color: #ea580c; }
+  .tree-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    color: #8a8a8a;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    text-decoration: none;
+  }
+  .tree-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
+  .tree-link.active { color: #ea580c; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0.5rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+  }
+  .section-header .section-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #8a8a8a;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+  .section-header .section-title .section-icon { color: #a3a3a3; }
+
+  .sidebar-drawer { transform: translateX(-100%); visibility: hidden; transition: transform 0.22s cubic-bezier(0.23, 1, 0.32, 1), visibility 0s linear 0.22s; will-change: transform; }
+  .sidebar-drawer.open { transform: translateX(0); visibility: visible; transition-delay: 0s; }
+  .sidebar-overlay { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.22s ease, visibility 0s linear 0.22s; }
+  .sidebar-overlay.open { opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+  body.menu-mobile-aberto { overflow: hidden; }
+  .sidebar-scroll { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
+  @media (max-width: 1024px) {
+    .sidebar-desktop { display: none !important; }
+    .sidebar-mobile { display: flex !important; }
+  }
+  @media (min-width: 1025px) {
+    .sidebar-mobile { display: none !important; }
+    .sidebar-overlay { display: none !important; }
+  }
+
+  .sidebar-scroll { overflow-y: auto; flex: 1; min-height: 0; }
+  .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+  .sidebar-scroll::-webkit-scrollbar-thumb { background: #1a1a1a; border-radius: 2px; }
+
+  .status-dot {
+    animation: statusPulse 2s ease-in-out infinite;
+  }
+  @keyframes statusPulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+    50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+  }
+  .progress-bar {
+    animation: progressFill 1.5s ease-out forwards;
+    transform-origin: left;
+  }
+  @keyframes progressFill {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  .metric-value {
+    animation: countUp 1s ease-out forwards;
+  }
+  @keyframes countUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+<link href="estilos/compartilhados/tokens-apex.css" rel="stylesheet"/></head>
+<body class="min-h-screen">
+<!-- Mobile Header -->
+<div class="lg:hidden flex items-center justify-between p-4 border-b border-border bg-panel sticky top-0 z-40">
+<button aria-label="Abrir menu" aria-controls="sidebarMobile" aria-expanded="false" class="p-2 rounded-lg hover:bg-card2 transition" id="menuBtn">
+<i class="w-5 h-5" data-lucide="menu"></i>
+</button>
+<div class="flex items-center gap-2 font-semibold">
+<div class="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
+<i class="w-4 h-4 text-white" data-lucide="utensils"></i>
+</div>
+<span>APEX Food</span>
+</div>
+<div class="flex items-center gap-1">
+<button aria-label="Ajuda" class="p-2 rounded-lg hover:bg-card2 text-muted">
+<i class="w-4 h-4" data-lucide="help-circle"></i>
+</button>
+<button aria-label="Notificações" class="p-2 rounded-lg hover:bg-card2 text-muted">
+<i class="w-4 h-4" data-lucide="bell"></i>
+</button>
+</div>
+</div>
+<!-- Mobile Sidebar Overlay -->
+<div aria-hidden="true" class="sidebar-overlay fixed inset-0 bg-black/70 z-40 lg:hidden" id="sidebarOverlay"></div>
+<!-- Mobile Sidebar Drawer -->
+<aside aria-hidden="true" class="sidebar-mobile sidebar-drawer fixed top-0 left-0 h-full w-[min(86vw,20rem)] bg-panel border-r border-border z-50 flex flex-col" id="sidebarMobile">
+<div class="flex items-center justify-between p-5 border-b border-border flex-shrink-0">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
+<i class="w-5 h-5 text-white" data-lucide="utensils"></i>
+</div>
+<span class="font-semibold">APEX Food</span>
+</div>
+<button aria-label="Fechar menu" class="p-1.5 rounded-md hover:bg-card2 text-muted transition" id="closeMenuBtn">
+<i class="w-4 h-4" data-lucide="x"></i>
+</button>
+</div>
+<div class="sidebar-scroll" id="sidebarContentMobile"></div>
+</aside>
+<!-- Desktop Sidebar -->
+<aside class="sidebar-desktop hidden lg:flex flex-col w-64 bg-panel border-r border-border fixed h-screen z-30">
+<div class="flex items-center justify-between p-5 border-b border-border flex-shrink-0">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
+<i class="w-5 h-5 text-white" data-lucide="utensils"></i>
+</div>
+<span class="font-semibold">APEX Food</span>
+</div>
+<button aria-label="ID" class="p-1.5 rounded-md hover:bg-card2 text-muted transition">
+<i class="w-4 h-4" data-lucide="id-card"></i>
+</button>
+</div>
+<div class="sidebar-scroll" id="sidebarContentDesktop"></div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 lg:ml-64 min-h-screen">
+<header class="hidden lg:flex sticky top-0 z-20 bg-bg/80 backdrop-blur-xl border-b border-border px-6 py-4 items-center justify-between">
+<h1 class="text-lg font-semibold" id="tituloHeader">Visão Geral</h1>
+<div class="flex items-center gap-2">
+<button aria-label="Ajuda" class="p-2 rounded-lg hover:bg-card2 text-muted transition">
+<i class="w-4 h-4" data-lucide="help-circle"></i>
+</button>
+<button aria-label="Notificações" class="p-2 rounded-lg hover:bg-card2 text-muted transition">
+<i class="w-4 h-4" data-lucide="bell"></i>
+</button>
+<button aria-label="Perfil" class="p-2 rounded-lg hover:bg-card2 transition">
+<div class="w-6 h-6 rounded-full bg-gradient-to-br from-accent to-orange-400 flex items-center justify-center text-xs font-bold text-white">A</div>
+</button>
+</div>
+</header>
+<div aria-live="polite" class="min-h-screen" id="conteudoPagina"></div>
+</main>
+<script>
+const sidebarSections = [
+    { title: 'GERAL', icon: 'layout-dashboard', items: [{ label: 'Visão Geral', icon: 'home', href: 'index.html', active: true, desc: 'Dashboard principal do restaurante' }] },
+    { title: 'DASHBOARDS', icon: 'bar-chart-3', items: [{ label: 'Operacional', icon: 'activity', href: 'paginas/operacional/operacional.html', desc: 'Pedidos ativos, fila da cozinha, ocupação' }, { label: 'Financeiro', icon: 'dollar-sign', href: 'paginas/financeiro/dashboard-financeiro.html', desc: 'Faturamento, ticket médio, metas' }, { label: 'Desempenho', icon: 'trending-up', href: 'paginas/desempenho/dashboard-desempenho.html', desc: 'Tempo de preparo, avaliações' }] },
+    { title: 'PEDIDOS', icon: 'receipt', items: [{ label: 'Novo Pedido', icon: 'plus-circle', href: 'paginas/pedidos/novo-pedido.html', desc: 'Fluxo de abertura de comanda' }, { label: 'Pedidos Ativos', icon: 'shopping-bag', href: 'paginas/pedidos/pedidos-ativos.html', desc: 'Pedidos em andamento por mesa' }, { label: 'Histórico de Pedidos', icon: 'history', href: 'paginas/pedidos/historico-pedidos.html', desc: 'Pedidos finalizados com detalhes' }, { label: 'Fila da Cozinha', icon: 'chef-hat', href: 'paginas/pedidos/fila-cozinha.html', desc: 'Pedidos aguardando preparo' }] },
+    { title: 'CARDÁPIO', icon: 'book-open', items: [{ label: 'Categorias', icon: 'folder', href: 'paginas/cardapio/categorias.html', desc: 'Entradas, principais, bebidas, etc.' }, { label: 'Produtos', icon: 'package', href: 'paginas/cardapio/produtos.html', desc: 'Cadastro de itens com preço e foto' }, { label: 'Promoções', icon: 'tag', href: 'paginas/cardapio/promocoes.html', desc: 'Ofertas do dia, combos, descontos' }, { label: 'Cardápio Digital', icon: 'qr-code', href: 'paginas/cardapio/cardapio-digital.html', desc: 'Preview do QR Code do cliente' }] },
+    { title: 'SALÃO', icon: 'armchair', items: [{ label: 'Mapa de Mesas', icon: 'layout-grid', href: 'paginas/salao/mapa-mesas.html', desc: 'Status de cada mesa' }, { label: 'Reservas', icon: 'calendar', href: 'paginas/salao/reservas.html', desc: 'Controle de reservas antecipadas' }, { label: 'Configuração de Mesas', icon: 'settings', href: 'paginas/salao/configuracao-mesas.html', desc: 'Adicionar/remover mesas e QR' }] },
+    { title: 'EQUIPE', icon: 'users', items: [{ label: 'Funcionários', icon: 'user-circle', href: 'paginas/equipe/funcionarios.html', desc: 'Garçons, cozinheiros, gerentes' }, { label: 'Escala de Trabalho', icon: 'calendar-clock', href: 'paginas/equipe/escala-trabalho.html', desc: 'Turnos e horários' }, { label: 'Comissões', icon: 'percent', href: 'paginas/equipe/comissoes.html', desc: 'Comissões por garçom' }] },
+    { title: 'FINANCEIRO', icon: 'wallet', items: [{ label: 'Fechamento de Caixa', icon: 'lock', href: 'paginas/financeiro/fechamento-caixa.html', desc: 'Encerrar expediente com relatório' }, { label: 'Fluxo de Caixa', icon: 'arrow-left-right', href: 'paginas/financeiro/fluxo-caixa.html', desc: 'Entradas e saídas do dia' }, { label: 'Contas a Pagar/Receber', icon: 'file-text', href: 'paginas/financeiro/contas-pagar-receber.html', desc: 'Fornecedores e contas fixas' }, { label: 'Relatórios Financeiros', icon: 'pie-chart', href: 'paginas/financeiro/relatorios-financeiros.html', desc: 'Extrato diário, semanal, mensal' }] },
+    { title: 'RELATÓRIOS', icon: 'file-bar-chart', items: [{ label: 'Vendas por Período', icon: 'bar-chart-3', href: 'paginas/relatorios/vendas-por-periodo.html', desc: 'Análise de vendas' }, { label: 'Produtos Mais Vendidos', icon: 'star', href: 'paginas/relatorios/produtos-mais-vendidos.html', desc: 'Top produtos' }, { label: 'Horários de Pico', icon: 'clock', href: 'paginas/relatorios/horarios-de-pico.html', desc: 'Melhores horários' }, { label: 'Avaliações dos Clientes', icon: 'message-square', href: 'paginas/relatorios/avaliacoes-clientes.html', desc: 'Feedback dos clientes' }, { label: 'Performance da Equipe', icon: 'award', href: 'paginas/relatorios/performance-equipe.html', desc: 'Desempenho dos funcionários' }] }
+  ];
+
+  function buildSidebar(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    sidebarSections.forEach((section, sIdx) => {
+      const sectionDiv = document.createElement('div');
+      sectionDiv.className = 'p-4' + (sIdx > 0 ? ' border-t border-border' : '');
+      const header = document.createElement('div');
+      header.className = 'section-header';
+      header.innerHTML = `<div class="section-title"><i data-lucide="${section.icon}" class="section-icon w-3.5 h-3.5"></i><span>${section.title}</span></div><i data-lucide="chevron-down" class="w-3 h-3 text-muted"></i>`;
+      sectionDiv.appendChild(header);
+      const nav = document.createElement('nav');
+      nav.className = 'tree-group space-y-1';
+      section.items.forEach((item, iIdx) => {
+        const treeItem = document.createElement('div');
+        treeItem.className = 'tree-item' + (item.active ? ' active' : '');
+        const link = document.createElement('a');
+        link.href = item.href || '#';
+        link.className = 'tree-link' + (item.active ? ' active' : '');
+        link.title = item.desc;
+        link.dataset.apexRota = item.href || '';
+        link.innerHTML = `<i data-lucide="${item.icon}" class="w-4 h-4 flex-shrink-0"></i><span>${item.label}</span>`;
+        link.addEventListener('click', (e) => {
+          if (!item.href) {
+            e.preventDefault();
+            closeMenu();
+            window.mostrarAvisoPedido?.(`${item.label}: módulo preparado para a próxima integração.`);
+            return;
+          }
+          document.querySelectorAll('.tree-link').forEach(l => l.classList.remove('active'));
+          document.querySelectorAll('.tree-item').forEach(i => i.classList.remove('active'));
+          link.classList.add('active');
+          treeItem.classList.add('active');
+          closeMenu();
+          e.preventDefault();
+          window.apexShell?.navegar(item.href);
+        });
+        treeItem.appendChild(link);
+        nav.appendChild(treeItem);
+      });
+      sectionDiv.appendChild(nav);
+      container.appendChild(sectionDiv);
+    });
+    lucide.createIcons();
+  }
+
+  buildSidebar('sidebarContentDesktop');
+  buildSidebar('sidebarContentMobile');
+
+  const menuBtn = document.getElementById('menuBtn');
+  const closeMenuBtn = document.getElementById('closeMenuBtn');
+  const sidebarMobile = document.getElementById('sidebarMobile');
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+  function setMenuState(aberto) {
+    sidebarMobile?.classList.toggle('open', aberto);
+    sidebarOverlay?.classList.toggle('open', aberto);
+    sidebarMobile?.setAttribute('aria-hidden', String(!aberto));
+    sidebarOverlay?.setAttribute('aria-hidden', String(!aberto));
+    menuBtn?.setAttribute('aria-expanded', String(aberto));
+    document.body.classList.toggle('menu-mobile-aberto', aberto);
+    document.body.style.overflow = aberto ? 'hidden' : '';
+  }
+  function openMenu() { setMenuState(true); }
+  function closeMenu() { setMenuState(false); }
+
+  if (menuBtn) menuBtn.addEventListener('click', openMenu);
+  if (closeMenuBtn) closeMenuBtn.addEventListener('click', closeMenu);
+  if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeMenu);
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeMenu(); });
+  window.addEventListener('resize', () => { if (window.innerWidth > 1024) closeMenu(); });
+
+  window.apexInicializarHome = function() {
+    const tabs = document.querySelectorAll('.xl\\:col-span-2 .flex.flex-wrap.items-center.gap-2.mb-6 button');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => { t.classList.remove('bg-card2'); t.classList.add('text-muted'); });
+        tab.classList.add('bg-card2');
+        tab.classList.remove('text-muted');
+      });
+    });
+  };
+</script>
+<script src="scripts/compartilhados/ferramentas-interface.js?v=fase12"></script><script src="scripts/shell/apex-shell.js?v=fase12"></script></body>
+</html>
+

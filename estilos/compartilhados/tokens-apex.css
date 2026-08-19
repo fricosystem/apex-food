@@ -1,0 +1,20 @@
+:root {
+  --apex-bg: #000000;
+  --apex-panel: #080808;
+  --apex-card: #0a0a0a;
+  --apex-card-secundario: #0d0d0d;
+  --apex-borda: #161616;
+  --apex-borda-secundaria: #1a1a1a;
+  --apex-texto-suave: #8a8a8a;
+  --apex-laranja: #ea580c;
+  --apex-laranja-hover: #f97316;
+  --apex-verde: #22c55e;
+  --apex-vermelho: #ef4444;
+  --apex-amarelo: #eab308;
+  --apex-roxo: #a78bfa;
+  --apex-fonte: 'Inter', system-ui, sans-serif;
+}
+
+.apex-fonte-padrao {
+  font-family: var(--apex-fonte);
+}

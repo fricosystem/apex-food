@@ -1,0 +1,490 @@
+<div class="p-4 sm:p-6 space-y-4 sm:space-y-6 fade-in">
+<!-- Filtro de período da Visão Geral -->
+<section class="home-periodo-bar rounded-xl bg-card border border-border p-3 sm:p-4 mb-4" aria-label="Filtro de período">
+  <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+    <div class="min-w-0"><div class="flex items-center gap-2"><i data-lucide="calendar-range" class="w-4 h-4 text-accent"></i><span class="text-sm font-semibold">Período da Visão Geral</span></div><p id="homePeriodoStatus" class="text-[11px] text-muted mt-1">Dia · 18/08/2026</p></div>
+    <div class="flex flex-col gap-3 xl:items-end">
+      <div class="home-periodo-botoes flex items-center gap-1 overflow-x-auto pb-0.5" role="group" aria-label="Selecionar período">
+        <button type="button" data-home-periodo="dia" class="home-periodo-btn ativo">Dia</button>
+        <button type="button" data-home-periodo="semana" class="home-periodo-btn">Semana</button>
+        <button type="button" data-home-periodo="mes" class="home-periodo-btn">Mês</button>
+        <button type="button" data-home-periodo="ano" class="home-periodo-btn">Ano</button>
+        <button type="button" data-home-periodo="personalizado" class="home-periodo-btn">Personalizado</button>
+      </div>
+      <div id="homePeriodoPersonalizado" class="hidden flex flex-col sm:flex-row sm:items-end gap-2" aria-label="Período personalizado">
+        <label class="flex flex-col gap-1 text-[10px] text-muted">Data inicial<input id="homeDataInicio" type="date" class="home-periodo-input bg-card2 border border-border2 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-accent/60"></label>
+        <label class="flex flex-col gap-1 text-[10px] text-muted">Data final<input id="homeDataFim" type="date" class="home-periodo-input bg-card2 border border-border2 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-accent/60"></label>
+        <button id="homeAplicarPeriodo" type="button" class="btn-press inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-accent hover:bg-accentHover text-white text-xs font-medium transition"><i data-lucide="check" class="w-3.5 h-3.5"></i> Aplicar</button>
+      </div>
+    </div>
+  </div>
+  <p id="homePeriodoNota" class="text-[10px] text-muted mt-3 pt-3 border-t border-border2">O período será aplicado aos indicadores de vendas, pedidos, reservas e evolução financeira.</p>
+</section>
+<!-- Top Actions -->
+<div class="flex flex-wrap items-center gap-2 sm:gap-3">
+<button data-home-rota="paginas/financeiro/fechamento-caixa.html" class="btn-press flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-card2 border border-border2 hover:border-accent/50 transition text-xs sm:text-sm font-medium">
+<i class="w-4 h-4" data-lucide="wallet"></i> <span class="hidden sm:inline">Gerenciar Caixa</span><span class="sm:hidden">Caixa</span>
+</button>
+<button data-home-rota="paginas/financeiro/relatorios-financeiros.html" class="btn-press flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-card2 border border-border2 hover:border-accent/50 transition text-xs sm:text-sm font-medium">
+<i class="w-4 h-4" data-lucide="download"></i> Relatório
+      </button>
+<button data-home-rota="paginas/pedidos/novo-pedido.html" class="btn-press flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-accent hover:bg-accentHover text-white text-xs sm:text-sm font-medium transition shadow-lg shadow-accent/20">
+<i class="w-4 h-4" data-lucide="plus"></i> Novo Pedido
+      </button>
+</div>
+<!-- Metrics Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+<div class="rounded-xl bg-card border border-border p-4 sm:p-5">
+<div class="text-xs text-muted mb-2"><span id="homeFaturamentoRotulo">Faturamento do Dia</span></div>
+<div class="flex items-end justify-between">
+<div id="homeFaturamentoDia" class="text-xl sm:text-2xl font-bold">R$ 4.872,50</div>
+<div class="flex items-center gap-1 px-2 py-1 rounded-md bg-card2 border border-border2 text-xs font-medium">
+<span class="text-green">+12%</span>
+</div>
+</div>
+</div>
+<div class="rounded-xl bg-card border border-border p-4 sm:p-5">
+<div class="text-xs text-muted mb-2">Ticket Médio</div>
+<div class="flex items-end justify-between">
+<div id="homeTicketMedio" class="text-xl sm:text-2xl font-bold">R$ 67,80</div>
+<div class="flex items-center gap-1 px-2 py-1 rounded-md bg-card2 border border-border2 text-xs font-medium">
+<span class="text-green">+5%</span>
+</div>
+</div>
+</div>
+<div class="rounded-xl bg-card border border-border p-4 sm:p-5 sm:col-span-2 lg:col-span-1">
+<div class="text-xs text-muted mb-2"><span id="homePedidosRotulo">Pedidos Hoje</span></div>
+<div class="flex items-end justify-between">
+<div id="homePedidosHoje" class="text-xl sm:text-2xl font-bold">72 pedidos</div>
+<div class="flex items-center gap-1 px-2 py-1 rounded-md bg-card2 border border-border2 text-xs font-medium">
+<span class="text-green">+8%</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Fase 10: visão consolidada -->
+<section class="rounded-xl bg-card border border-border p-4 sm:p-5">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4"><div><div class="text-sm font-semibold">Visão Consolidada</div><p class="text-xs text-muted mt-1">Indicadores principais dos módulos operacionais em um único resumo.</p></div><span id="homeAtualizacaoDados" class="text-[10px] text-muted">Atualizando dados...</span></div>
+<div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+<div class="rounded-lg bg-card2 border border-border2 p-3"><div class="flex items-center justify-between"><span class="text-[10px] text-muted">Operação</span><i data-lucide="activity" class="w-3.5 h-3.5 text-accent"></i></div><div id="homeResumoOperacao" class="text-lg font-bold mt-2">—</div><p id="homeResumoOperacaoSub" class="text-[10px] text-muted mt-1">pedidos ativos</p></div>
+<div class="rounded-lg bg-card2 border border-border2 p-3"><div class="flex items-center justify-between"><span class="text-[10px] text-muted">Financeiro</span><i data-lucide="wallet" class="w-3.5 h-3.5 text-green"></i></div><div id="homeResumoFinanceiro" class="text-lg font-bold text-green mt-2">—</div><p id="homeResumoFinanceiroSub" class="text-[10px] text-muted mt-1">resultado do caixa</p></div>
+<div class="rounded-lg bg-card2 border border-border2 p-3"><div class="flex items-center justify-between"><span class="text-[10px] text-muted">Salão</span><i data-lucide="armchair" class="w-3.5 h-3.5 text-blue"></i></div><div id="homeResumoSalao" class="text-lg font-bold text-blue mt-2">—</div><p id="homeResumoSalaoSub" class="text-[10px] text-muted mt-1">ocupação atual</p></div>
+<div class="rounded-lg bg-card2 border border-border2 p-3"><div class="flex items-center justify-between"><span class="text-[10px] text-muted">Cardápio</span><i data-lucide="trophy" class="w-3.5 h-3.5 text-yellow"></i></div><div id="homeResumoCardapio" class="text-sm font-bold text-yellow mt-2 truncate">—</div><p id="homeResumoCardapioSub" class="text-[10px] text-muted mt-1">produto líder</p></div>
+<div class="rounded-lg bg-card2 border border-border2 p-3"><div class="flex items-center justify-between"><span class="text-[10px] text-muted">Clientes</span><i data-lucide="star" class="w-3.5 h-3.5 text-yellow"></i></div><div id="homeResumoClientes" class="text-lg font-bold text-yellow mt-2">—</div><p id="homeResumoClientesSub" class="text-[10px] text-muted mt-1">nota média</p></div>
+<div class="rounded-lg bg-card2 border border-border2 p-3"><div class="flex items-center justify-between"><span class="text-[10px] text-muted">Equipe</span><i data-lucide="award" class="w-3.5 h-3.5 text-purple"></i></div><div id="homeResumoEquipe" class="text-sm font-bold text-purple mt-2 truncate">—</div><p id="homeResumoEquipeSub" class="text-[10px] text-muted mt-1">líder em vendas</p></div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4">
+<div class="rounded-lg bg-card2 border border-border2 p-3"><div class="flex items-center justify-between mb-2"><span class="text-xs font-semibold">Alertas da operação</span><i data-lucide="bell-ring" class="w-3.5 h-3.5 text-accent"></i></div><div id="homeAlertasResumo" class="space-y-2"></div></div>
+<div class="rounded-lg bg-card2 border border-border2 p-3"><div class="flex items-center justify-between mb-2"><span class="text-xs font-semibold">Próximas reservas</span><i data-lucide="calendar-clock" class="w-3.5 h-3.5 text-blue"></i></div><div id="homeReservasResumo" class="space-y-2"></div></div>
+<div class="rounded-lg bg-card2 border border-border2 p-3"><div class="flex items-center justify-between mb-2"><span class="text-xs font-semibold">Ritmo de atendimento</span><i data-lucide="gauge" class="w-3.5 h-3.5 text-green"></i></div><div id="homeRitmoResumo" class="space-y-2"></div></div>
+</div>
+</section>
+<div class="home-section-divider">Análise por módulo</div>
+<section class="home-modulos space-y-4" aria-label="Análise por módulo">
+<article class="home-modulo rounded-xl bg-card border border-border p-4 sm:p-5" style="--home-modulo-cor:#ea580c">
+<div class="home-modulo-header"><div><span class="home-modulo-kicker"><i data-lucide="activity" class="w-3.5 h-3.5"></i> Operação</span><h3 class="text-base font-semibold mt-1">Ritmo operacional</h3><p class="text-xs text-muted mt-1">Status dos pedidos e distribuição de demanda ao longo da semana.</p></div><a href="#/operacional" class="text-[10px] text-muted hover:text-white flex items-center gap-1">Abrir módulo <i data-lucide="arrow-up-right" class="w-3 h-3"></i></a></div>
+<div class="grid grid-cols-1 xl:grid-cols-[.8fr_1.2fr] gap-4 pt-4"><div class="space-y-3"><div class="flex items-center justify-between"><span class="text-xs text-muted">Pedidos ativos</span><strong id="homeOperacaoAtivos" class="text-sm">—</strong></div><div id="homeOperacaoStatus" class="space-y-2"></div><div class="rounded-lg bg-card2 border border-border2 p-3"><div class="flex items-center justify-between text-[10px] text-muted"><span>Tempo médio de atendimento</span><strong id="homeOperacaoTempo" class="text-white">—</strong></div><div class="home-mini-bar mt-2"><span id="homeOperacaoTempoBar" class="bg-accent" style="width:0%"></span></div></div></div><div class="home-modulo-chart home-chart-grid rounded-lg bg-card2 border border-border2 p-3"><div class="flex items-center justify-between mb-2"><span class="text-xs font-semibold">Mapa de demanda</span><span class="home-chip text-muted"><span class="w-1.5 h-1.5 rounded-full bg-accent"></span> intensidade</span></div><div id="homeOperacaoHeatmap" class="home-heatmap"></div></div></div>
+</article>
+<article class="home-modulo rounded-xl bg-card border border-border p-4 sm:p-5" style="--home-modulo-cor:#22c55e">
+<div class="home-modulo-header"><div><span class="home-modulo-kicker"><i data-lucide="wallet" class="w-3.5 h-3.5"></i> Financeiro</span><h3 class="text-base font-semibold mt-1">Vendas, despesas e canais</h3><p class="text-xs text-muted mt-1">Comparativo mensal e participação por origem de venda.</p></div><a href="#/relatorios-financeiros" class="text-[10px] text-muted hover:text-white flex items-center gap-1">Abrir módulo <i data-lucide="arrow-up-right" class="w-3 h-3"></i></a></div>
+<div class="grid grid-cols-1 xl:grid-cols-[1.3fr_.7fr] gap-4 pt-4"><div class="home-modulo-chart rounded-lg bg-card2 border border-border2 p-3"><div class="flex items-center justify-between mb-2"><span class="text-xs font-semibold">Evolução mensal</span><span id="homeFinanceiroResultado" class="text-[10px] text-green">—</span></div><div id="homeFinanceiroBars" class="home-chart-bars home-chart-grid"></div><div class="flex items-center gap-3 text-[10px] text-muted"><span id="homeFinanceiroLegendaVendas" class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-green"></span>Vendas</span><span id="homeFinanceiroLegendaDespesas" class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-red"></span>Despesas</span></div></div><div class="rounded-lg bg-card2 border border-border2 p-3"><div class="text-xs font-semibold mb-3">Canais de venda</div><div id="homeCanais" class="space-y-3"></div></div></div>
+</article>
+<article class="home-modulo rounded-xl bg-card border border-border p-4 sm:p-5" style="--home-modulo-cor:#60a5fa">
+<div class="home-modulo-header"><div><span class="home-modulo-kicker"><i data-lucide="armchair" class="w-3.5 h-3.5"></i> Salão</span><h3 class="text-base font-semibold mt-1">Ocupação e disponibilidade</h3><p class="text-xs text-muted mt-1">Visão rápida das mesas, reservas e capacidade utilizada.</p></div><a href="#/mapa-mesas" class="text-[10px] text-muted hover:text-white flex items-center gap-1">Abrir módulo <i data-lucide="arrow-up-right" class="w-3 h-3"></i></a></div>
+<div class="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-4 items-center pt-4"><div class="flex justify-center"><div id="homeSalaoDonut" class="home-donut" style="background:conic-gradient(#60a5fa 0deg,#60a5fa 0deg,#1a1a1a 0deg)"><div class="home-donut-center"><strong id="homeSalaoDonutValue">—</strong><span>ocupação</span></div></div></div><div id="homeSalaoLista" class="grid grid-cols-2 gap-2"></div></div>
+</article>
+<article class="home-modulo rounded-xl bg-card border border-border p-4 sm:p-5" style="--home-modulo-cor:#eab308">
+<div class="home-modulo-header"><div><span class="home-modulo-kicker"><i data-lucide="utensils" class="w-3.5 h-3.5"></i> Cardápio</span><h3 class="text-base font-semibold mt-1">Produtos que puxam o resultado</h3><p class="text-xs text-muted mt-1">Ranking de vendas e leitura das categorias mais relevantes.</p></div><a href="#/produtos-mais-vendidos" class="text-[10px] text-muted hover:text-white flex items-center gap-1">Abrir módulo <i data-lucide="arrow-up-right" class="w-3 h-3"></i></a></div>
+<div class="grid grid-cols-1 xl:grid-cols-[1.2fr_.8fr] gap-4 pt-4"><div id="homeCardapioRanking" class="space-y-3"></div><div class="rounded-lg bg-card2 border border-border2 p-3"><div class="text-xs font-semibold mb-3">Categorias por receita</div><div id="homeCardapioCategorias" class="space-y-3"></div></div></div>
+</article>
+<article class="home-modulo rounded-xl bg-card border border-border p-4 sm:p-5" style="--home-modulo-cor:#facc15">
+<div class="home-modulo-header"><div><span class="home-modulo-kicker"><i data-lucide="star" class="w-3.5 h-3.5"></i> Clientes</span><h3 class="text-base font-semibold mt-1">Satisfação e percepção</h3><p class="text-xs text-muted mt-1">Distribuição de notas e sinais de melhoria da experiência.</p></div><a href="#/avaliacoes-clientes" class="text-[10px] text-muted hover:text-white flex items-center gap-1">Abrir módulo <i data-lucide="arrow-up-right" class="w-3 h-3"></i></a></div>
+<div class="grid grid-cols-1 xl:grid-cols-[1fr_1fr] gap-4 pt-4"><div class="rounded-lg bg-card2 border border-border2 p-3"><div class="flex items-end justify-between mb-3"><div><span class="text-[10px] text-muted">Nota média</span><div id="homeClientesNota" class="text-2xl font-bold text-yellow mt-1">—</div></div><div id="homeClientesResposta" class="text-[10px] text-muted">—</div></div><div id="homeClientesStars" class="space-y-2"></div></div><div id="homeClientesInsights" class="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-2"></div></div>
+</article>
+<article class="home-modulo rounded-xl bg-card border border-border p-4 sm:p-5" style="--home-modulo-cor:#a78bfa">
+<div class="home-modulo-header"><div><span class="home-modulo-kicker"><i data-lucide="award" class="w-3.5 h-3.5"></i> Equipe</span><h3 class="text-base font-semibold mt-1">Performance por colaborador</h3><p class="text-xs text-muted mt-1">Vendas, pedidos e avaliações da equipe de atendimento.</p></div><a href="#/performance-equipe" class="text-[10px] text-muted hover:text-white flex items-center gap-1">Abrir módulo <i data-lucide="arrow-up-right" class="w-3 h-3"></i></a></div>
+<div class="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-4 pt-4"><div id="homeEquipeRanking" class="space-y-3"></div><div id="homeEquipeKpis" class="grid grid-cols-2 gap-2"></div></div>
+</article>
+</section>
+<!-- Charts Row + Right Column -->
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+<!-- Left Column: Sales Chart + System Overview -->
+<div class="xl:col-span-2 space-y-4">
+<!-- Vendas da Semana Chart -->
+<div class="rounded-xl bg-card border border-border p-4 sm:p-5">
+<div class="flex items-center justify-between mb-4">
+<div>
+<div class="text-xs text-muted mb-1"><span id="homeVendasRotulo">Vendas da Semana</span></div>
+<div id="homeVendasSemana" class="text-xl sm:text-2xl font-bold">R$ 28.450,00</div>
+</div>
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card2 border border-border2 text-xs sm:text-sm hover:border-accent/50 transition">
+              <span id="homeVendasPeriodoBotao">Dia</span> <i class="w-3.5 h-3.5" data-lucide="chevron-down"></i>
+</button>
+</div>
+<div class="flex flex-wrap items-center gap-2 mb-6">
+<button class="px-3 py-1.5 rounded-md bg-card2 text-xs font-medium">Restaurante</button>
+<button class="px-3 py-1.5 rounded-md text-xs font-medium text-muted hover:bg-card2">Delivery</button>
+<button class="px-3 py-1.5 rounded-md text-xs font-medium text-muted hover:bg-card2">Total</button>
+<div class="ml-auto flex items-center gap-2">
+<button aria-label="Gráfico" class="p-1.5 rounded-md hover:bg-card2 text-muted">
+<i class="w-4 h-4" data-lucide="bar-chart-3"></i>
+</button>
+<button aria-label="Atualizar" class="p-1.5 rounded-md hover:bg-card2 text-muted">
+<i class="w-4 h-4" data-lucide="refresh-cw"></i>
+</button>
+</div>
+</div>
+<!-- Bar Chart with Month Labels -->
+<div class="relative h-56 sm:h-64">
+<div class="absolute inset-0 flex flex-col justify-between pointer-events-none pb-6">
+<div class="border-t border-border2 w-full"></div>
+<div class="border-t border-border2 w-full"></div>
+<div class="border-t border-border2 w-full"></div>
+<div class="border-t border-border2 w-full"></div>
+</div>
+<div class="absolute left-0 top-0 h-[calc(100%-24px)] flex flex-col justify-between text-[10px] text-muted pr-2">
+<span>R$6k</span>
+<span>R$4k</span>
+<span>R$2k</span>
+<span>R$0</span>
+</div>
+<div class="ml-10 h-[calc(100%-24px)] flex items-end justify-between gap-1 pt-2 pb-6 relative">
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 45%"></div>
+<span class="text-[9px] sm:text-[10px] text-muted mt-1.5">Jan</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 55%"></div>
+<span class="text-[9px] sm:text-[10px] text-muted mt-1.5">Fev</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 35%"></div>
+<span class="text-[9px] sm:text-[10px] text-muted mt-1.5">Mar</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 65%"></div>
+<span class="text-[9px] sm:text-[10px] text-muted mt-1.5">Abr</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 50%"></div>
+<span class="text-[9px] sm:text-[10px] text-muted mt-1.5">Mai</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 75%"></div>
+<span class="text-[9px] sm:text-[10px] text-muted mt-1.5">Jun</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 60%"></div>
+<span class="text-[9px] sm:text-[10px] text-muted mt-1.5">Jul</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 70%"></div>
+<span class="text-[9px] sm:text-[10px] text-muted mt-1.5">Ago</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 55%"></div>
+<span class="text-[9px] sm:text-[10px] text-muted mt-1.5">Set</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 80%"></div>
+<span class="text-[9px] sm:text-[10px] text-muted mt-1.5">Out</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end relative">
+<div class="bar w-full relative" style="height: 90%">
+<div class="absolute inset-0 bg-gradient-to-t from-accent to-orange-400 rounded-t-md glow-orange"></div>
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] sm:text-[10px] font-semibold whitespace-nowrap">R$5.420</div>
+<div class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-white shadow-lg"></div>
+</div>
+<span class="text-[9px] sm:text-[10px] text-accent font-medium mt-1.5">Nov</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 75%"></div>
+<span class="text-[9px] sm:text-[10px] text-muted mt-1.5">Dez</span>
+</div>
+</div>
+</div>
+</div>
+<!-- System Overview Card -->
+<div class="rounded-xl bg-card border border-border p-4 sm:p-5">
+<div class="relative">
+<!-- Header -->
+<div class="flex items-center justify-between mb-6">
+<div class="text-sm font-semibold text-white">Visão Geral do Sistema</div>
+<div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green/10 border border-green/30">
+<div class="w-2 h-2 rounded-full bg-green status-dot"></div>
+<span class="text-[10px] sm:text-xs text-green font-medium">Sistema de IA Operacional</span>
+</div>
+</div>
+<!-- Gráfico de Visão Geral do Sistema -->
+<div class="relative h-44 sm:h-52 mb-6">
+<div class="absolute inset-0 flex flex-col justify-between pointer-events-none pb-6">
+<div class="border-t border-border2 w-full"></div>
+<div class="border-t border-border2 w-full"></div>
+<div class="border-t border-border2 w-full"></div>
+<div class="border-t border-border2 w-full"></div>
+</div>
+<div class="absolute left-0 top-0 h-[calc(100%-24px)] flex flex-col justify-between text-[10px] text-muted pr-2">
+<span>100%</span>
+<span>75%</span>
+<span>50%</span>
+<span>25%</span>
+</div>
+<div class="ml-10 h-[calc(100%-24px)] flex items-end justify-between gap-1 pt-2 pb-6 relative">
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 55%"></div>
+<span class="text-[8px] sm:text-[10px] text-muted mt-1.5 text-center leading-tight">Ingestão de Dados</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 40%"></div>
+<span class="text-[8px] sm:text-[10px] text-muted mt-1.5 text-center leading-tight">Processamento de IA</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end relative">
+<div class="bar w-full relative" style="height: 80%">
+<div class="absolute inset-0 bg-gradient-to-t from-accent to-orange-400 rounded-t-md glow-orange"></div>
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] sm:text-[10px] font-semibold whitespace-nowrap">80%</div>
+<div class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-white shadow-lg"></div>
+</div>
+<span class="text-[8px] sm:text-[10px] text-accent font-medium mt-1.5 text-center leading-tight">Saída</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 50%"></div>
+<span class="text-[8px] sm:text-[10px] text-muted mt-1.5 text-center leading-tight">Validação</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 65%"></div>
+<span class="text-[8px] sm:text-[10px] text-muted mt-1.5 text-center leading-tight">Monitoramento</span>
+</div>
+<div class="flex flex-col items-center flex-1 h-full justify-end">
+<div class="bar w-full bg-gradient-to-t from-card2 to-border rounded-t-md" style="height: 45%"></div>
+<span class="text-[8px] sm:text-[10px] text-muted mt-1.5 text-center leading-tight">Feedback</span>
+</div>
+</div>
+</div>
+<!-- Métricas -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-border">
+<div class="metric-value">
+<div class="text-[10px] text-muted mb-2 uppercase tracking-wider">Poder de Processamento</div>
+<div class="text-xl sm:text-2xl font-bold text-white mb-2">78%</div>
+<div class="h-1.5 rounded-full bg-card2 overflow-hidden">
+<div class="progress-bar h-full bg-gradient-to-r from-accent to-orange-400 rounded-full" style="width: 78%"></div>
+</div>
+</div>
+<div class="metric-value" style="animation-delay: 0.2s;">
+<div class="text-[10px] text-muted mb-2 uppercase tracking-wider">Uso de Memória</div>
+<div class="text-xl sm:text-2xl font-bold text-white mb-2">54%</div>
+<div class="h-1.5 rounded-full bg-card2 overflow-hidden">
+<div class="progress-bar h-full bg-gradient-to-r from-accent to-orange-400 rounded-full" style="width: 54%"></div>
+</div>
+</div>
+<div class="metric-value" style="animation-delay: 0.4s;">
+<div class="text-[10px] text-muted mb-2 uppercase tracking-wider">Chamadas de API</div>
+<div class="text-xl sm:text-2xl font-bold text-white mb-2">1.2M</div>
+<div class="h-1.5 rounded-full bg-card2 overflow-hidden">
+<div class="progress-bar h-full bg-gradient-to-r from-accent to-orange-400 rounded-full" style="width: 65%"></div>
+</div>
+</div>
+<div class="metric-value" style="animation-delay: 0.6s;">
+<div class="text-[10px] text-muted mb-2 uppercase tracking-wider">Dados Processados</div>
+<div class="text-xl sm:text-2xl font-bold text-white mb-2">8.7TB</div>
+<div class="h-1.5 rounded-full bg-card2 overflow-hidden">
+<div class="progress-bar h-full bg-gradient-to-r from-accent to-orange-400 rounded-full" style="width: 87%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column -->
+<div class="space-y-4">
+<div class="rounded-xl bg-card border border-border p-4 sm:p-5">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-green"></div>
+<span class="text-sm font-medium">Mesas Livres</span>
+<button class="px-3 py-1 rounded-md text-sm text-muted hover:bg-card2">Ocupadas</button>
+</div>
+<button class="btn-press flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accentHover text-white text-xs font-medium transition">
+<i class="w-3.5 h-3.5" data-lucide="plus"></i> <span class="hidden sm:inline">Nova Mesa</span><span class="sm:hidden">Nova</span>
+</button>
+</div>
+<!-- Card Visual - Mapa de Mesas -->
+<div class="rounded-xl overflow-hidden relative card-gradient p-4 sm:p-5 h-40 sm:h-44 border border-border2">
+<div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div class="flex justify-between items-start">
+<i class="w-5 sm:w-6 h-5 sm:h-6 text-white/80" data-lucide="armchair"></i>
+<div class="text-right">
+<div id="homeMesasTotal" class="text-xs text-white/70 font-mono">12 mesas</div>
+<div id="homeMesasOcupadas" class="text-[10px] text-white/50">8 ocupadas</div>
+</div>
+</div>
+<div class="flex items-center gap-2 mb-2">
+<div class="flex gap-1">
+<div class="w-6 h-6 rounded bg-green/20 border border-green/40"></div>
+<div class="w-6 h-6 rounded bg-green/20 border border-green/40"></div>
+<div class="w-6 h-6 rounded bg-red/20 border border-red/40"></div>
+<div class="w-6 h-6 rounded bg-red/20 border border-red/40"></div>
+</div>
+</div>
+<div class="flex justify-between items-end">
+<div>
+<div class="text-[10px] text-white/60 mb-0.5">Ocupação do Salão</div>
+<div id="homeOcupacaoSalao" class="text-sm font-semibold text-white">67% ocupado</div>
+</div>
+<div class="text-sm font-bold text-white italic">APEX</div>
+</div>
+</div>
+</div>
+<!-- Quick Actions -->
+<div class="mt-5">
+<div class="text-sm font-semibold mb-3">Ações Rápidas</div>
+<div class="grid grid-cols-4 gap-2">
+<button data-home-rota="paginas/pedidos/novo-pedido.html" class="btn-press flex flex-col items-center gap-1 p-2 rounded-lg bg-card2 hover:bg-border2 transition border border-border2">
+<i class="w-4 h-4" data-lucide="plus"></i>
+<span class="text-[10px]">Novo Pedido</span>
+</button>
+<button data-home-rota="paginas/pedidos/novo-pedido.html" class="btn-press flex flex-col items-center gap-1 p-2 rounded-lg bg-card2 hover:bg-border2 transition border border-border2">
+<i class="w-4 h-4" data-lucide="arrow-up-right"></i>
+<span class="text-[10px]">Delivery</span>
+</button>
+<button data-home-rota="paginas/salao/reservas.html" class="btn-press flex flex-col items-center gap-1 p-2 rounded-lg bg-card2 hover:bg-border2 transition border border-border2">
+<i class="w-4 h-4" data-lucide="arrow-down-left"></i>
+<span class="text-[10px]">Reserva</span>
+</button>
+<button data-home-rota="paginas/pedidos/historico-pedidos.html" class="btn-press flex flex-col items-center gap-1 p-2 rounded-lg bg-card2 hover:bg-border2 transition border border-border2">
+<i class="w-4 h-4" data-lucide="history"></i>
+<span class="text-[10px]">Histórico</span>
+</button>
+</div>
+</div>
+<!-- Daily Limit -->
+<div class="mt-5">
+<div class="text-sm font-semibold mb-1">Meta Diária</div>
+<div class="flex flex-wrap items-baseline gap-1 mb-2">
+<span class="text-xl font-bold">R$ 4.872</span>
+<span class="text-xs text-muted">atingidos</span>
+<span class="text-xs text-muted">de R$ 6.000</span>
+</div>
+<div class="h-2 rounded-full bg-card2 overflow-hidden border border-border2">
+<div class="h-full bg-gradient-to-r from-accent to-orange-400 rounded-full transition-all duration-500" style="width: 81%"></div>
+</div>
+</div>
+<!-- Smart Spending -->
+<div class="mt-5">
+<div class="text-sm font-semibold mb-3">Vendas por Categoria</div>
+<div class="h-2 rounded-full bg-card2 overflow-hidden flex mb-3 border border-border2">
+<div class="bg-accent transition-all" style="width: 35%"></div>
+<div class="bg-orange-400 transition-all" style="width: 28%"></div>
+<div class="bg-orange-300 transition-all" style="width: 22%"></div>
+<div class="bg-neutral-500 transition-all" style="width: 15%"></div>
+</div>
+<div class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+<div class="flex items-center gap-2"><span class="w-2 h-2 rounded-sm bg-accent"></span> Pratos Principais (35%)</div>
+<div class="flex items-center gap-2"><span class="w-2 h-2 rounded-sm bg-orange-400"></span> Bebidas (28%)</div>
+<div class="flex items-center gap-2"><span class="w-2 h-2 rounded-sm bg-orange-300"></span> Entradas (22%)</div>
+<div class="flex items-center gap-2"><span class="w-2 h-2 rounded-sm bg-neutral-500"></span> Sobremesas (15%)</div>
+</div>
+</div>
+<!-- Bill & Payment -->
+<div class="mt-5">
+<div class="flex items-center justify-between mb-3">
+<div class="text-sm font-semibold">Pedidos Recentes</div>
+<button aria-label="Adicionar" class="p-1 rounded-md bg-card2 hover:bg-border2 border border-border2">
+<i class="w-3.5 h-3.5" data-lucide="plus"></i>
+</button>
+</div>
+<div class="rounded-lg bg-card2 p-3 border border-border2 hover:border-accent/30 transition cursor-pointer">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-lg bg-red-600 flex items-center justify-center flex-shrink-0">
+<i class="w-4 h-4 text-white" data-lucide="pizza"></i>
+</div>
+<div class="flex-1 min-w-0">
+<div class="text-sm font-medium truncate">Pizza Margherita + Refri</div>
+<div class="text-xs text-muted">Mesa 7 • 14:32</div>
+</div>
+<i class="w-4 h-4 text-muted" data-lucide="chevron-right"></i>
+</div>
+<div class="flex items-center justify-between mt-3 pt-3 border-t border-border2">
+<span class="text-sm font-semibold">R$ 89,90</span>
+<span class="text-xs px-2.5 py-1 rounded-md bg-yellow/10 text-yellow font-medium border border-yellow/20">Em Preparo</span>
+</div>
+</div>
+<button class="btn-press w-full mt-3 py-2 rounded-lg bg-card2 hover:bg-border2 text-sm font-medium transition border border-border2">Ver Todos</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Payments Table -->
+<div class="rounded-xl bg-card border border-border overflow-hidden">
+<div class="flex flex-wrap items-center gap-3 p-4 sm:p-5 border-b border-border">
+<div class="relative flex-1 min-w-[200px]">
+<i class="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2" data-lucide="search"></i>
+<input class="w-full bg-card2 border border-border2 rounded-lg pl-9 pr-10 py-2 text-sm focus:outline-none focus:border-accent/50 transition" placeholder="Buscar pedido, mesa ou cliente..." type="text"/>
+<button aria-label="Filtrar" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-border2">
+<i class="w-3.5 h-3.5 text-muted" data-lucide="sliders-horizontal"></i>
+</button>
+</div>
+<button class="btn-press flex items-center gap-2 px-3 py-2 rounded-lg bg-card2 border border-border2 hover:border-accent/50 transition text-sm">
+<i class="w-4 h-4" data-lucide="download"></i> <span class="hidden sm:inline">Exportar</span>
+</button>
+<button class="btn-press flex items-center gap-2 px-3 py-2 rounded-lg bg-card2 border border-border2 hover:border-accent/50 transition text-sm">
+<i class="w-4 h-4" data-lucide="printer"></i> <span class="hidden sm:inline">Imprimir</span>
+</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-sm min-w-[640px]">
+<thead>
+<tr class="text-left text-xs text-muted border-b border-border bg-card2/50">
+<th class="p-4 font-medium w-12"><input aria-label="Selecionar todos" class="rounded bg-card2 border-border2" type="checkbox"/></th>
+<th class="p-4 font-medium">Pedido</th>
+<th class="p-4 font-medium">Cliente/Mesa</th>
+<th class="p-4 font-medium">Valor Total</th>
+<th class="p-4 font-medium">Horário</th>
+<th class="p-4 font-medium">Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="border-b border-border hover:bg-card2/50 transition">
+<td class="p-4"><input class="rounded bg-card2 border-border2" type="checkbox"/></td>
+<td class="p-4 font-mono text-xs">#PED-4521</td>
+<td class="p-4">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-xs font-semibold text-white">M7</div>
+<span>Mesa 7 - Carlos Silva</span>
+</div>
+</td>
+<td class="p-4 font-medium">R$ 156,80</td>
+<td class="p-4 text-muted">14:32</td>
+<td class="p-4"><span class="px-2.5 py-1 rounded-md bg-green/10 text-green text-xs font-medium border border-green/20">Pronto</span></td>
+</tr>
+<tr class="border-b border-border hover:bg-card2/50 transition">
+<td class="p-4"><input class="rounded bg-card2 border-border2" type="checkbox"/></td>
+<td class="p-4 font-mono text-xs">#PED-4522</td>
+<td class="p-4">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-xs font-semibold text-white">D</div>
+<span>Delivery - Ana Costa</span>
+</div>
+</td>
+<td class="p-4 font-medium">R$ 89,50</td>
+<td class="p-4 text-muted">14:45</td>
+<td class="p-4"><span class="px-2.5 py-1 rounded-md bg-yellow/10 text-yellow text-xs font-medium border border-yellow/20">Em Preparo</span></td>
+</tr>
+<tr class="hover:bg-card2/50 transition">
+<td class="p-4"><input class="rounded bg-card2 border-border2" type="checkbox"/></td>
+<td class="p-4 font-mono text-xs">#PED-4523</td>
+<td class="p-4">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-xs font-semibold text-white">M3</div>
+<span>Mesa 3 - João Santos</span>
+</div>
+</td>
+<td class="p-4 font-medium">R$ 234,70</td>
+<td class="p-4 text-muted">15:02</td>
+<td class="p-4"><span class="px-2.5 py-1 rounded-md bg-accent/10 text-accent text-xs font-medium border border-accent/20">Novo</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>

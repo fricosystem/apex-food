@@ -1,0 +1,83 @@
+<div class="p-4 sm:p-6 space-y-4 sm:space-y-6 fade-in">
+<div class="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+<div>
+<div class="flex items-center gap-2 text-xs text-muted mb-2">
+<a class="hover:text-white transition" href="#/home">Início</a>
+<i class="w-3 h-3" data-lucide="chevron-right"></i>
+<span>Salão</span>
+<i class="w-3 h-3" data-lucide="chevron-right"></i>
+<span class="text-accent">Mapa de Mesas</span>
+</div>
+<h2 class="text-xl sm:text-2xl font-bold">Mapa de Mesas</h2>
+<p class="text-xs sm:text-sm text-muted mt-1">Acompanhe reservas, ocupação e atendimento do salão em tempo real.</p>
+</div>
+<div class="flex flex-wrap items-center gap-2 text-xs">
+<span class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-card border border-border2">
+<span class="w-2.5 h-2.5 rounded-full bg-accent"></span> Ocupada
+          </span>
+<span class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-card border border-border2">
+<span class="w-2.5 h-2.5 rounded-full bg-green"></span> Disponível
+          </span>
+<span class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-card border border-border2">
+<span class="w-2.5 h-2.5 rounded-full bg-red"></span> Indisponível
+          </span>
+<span class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-card border border-border2">
+<span class="w-2.5 h-2.5 rounded-full bg-blue"></span> Reserva futura
+          </span>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+<div class="rounded-xl bg-card border border-border p-4 sm:p-5 flex items-center justify-between">
+<div><div class="text-xs text-muted mb-1">Mesas Ocupadas</div><div class="text-xl sm:text-2xl font-bold text-accent" id="statOcupadas">0</div></div>
+<div class="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center"><i class="w-5 h-5 text-accent" data-lucide="armchair"></i></div>
+</div>
+<div class="rounded-xl bg-card border border-border p-4 sm:p-5 flex items-center justify-between">
+<div><div class="text-xs text-muted mb-1">Mesas Disponíveis</div><div class="text-xl sm:text-2xl font-bold text-green" id="statDisponiveis">0</div></div>
+<div class="w-10 h-10 rounded-lg bg-green/10 flex items-center justify-center"><i class="w-5 h-5 text-green" data-lucide="check-circle-2"></i></div>
+</div>
+<div class="rounded-xl bg-card border border-border p-4 sm:p-5 flex items-center justify-between">
+<div><div class="text-xs text-muted mb-1">Mesas Indisponíveis</div><div class="text-xl sm:text-2xl font-bold text-red" id="statIndisponiveis">0</div></div>
+<div class="w-10 h-10 rounded-lg bg-red/10 flex items-center justify-center"><i class="w-5 h-5 text-red" data-lucide="ban"></i></div>
+</div>
+<div class="rounded-xl bg-card border border-border p-4 sm:p-5 flex items-center justify-between">
+<div><div class="text-xs text-muted mb-1">Reservas Confirmadas</div><div class="text-xl sm:text-2xl font-bold text-blue" id="statReservas">0</div></div>
+<div class="w-10 h-10 rounded-lg bg-blue/10 flex items-center justify-center"><i class="w-5 h-5 text-blue" data-lucide="calendar-check-2"></i></div>
+</div>
+</div>
+<section aria-label="Filtros do mapa de mesas" class="rounded-xl bg-card border border-border p-4 sm:p-5">
+<div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+<div>
+<h3 class="text-sm font-semibold">Visão do salão</h3>
+<p class="text-xs text-muted mt-1"><span id="resultadoMesas">18</span> mesas cadastradas no ambiente atual.</p>
+</div>
+<div class="flex flex-col sm:flex-row gap-2 w-full xl:w-auto">
+<label class="relative flex-1 sm:min-w-64">
+<span class="sr-only">Buscar mesa ou cliente</span>
+<i class="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2" data-lucide="search"></i>
+<input class="w-full bg-card2 border border-border2 rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-accent/60 transition" id="buscaMesa" placeholder="Buscar mesa, cliente ou comanda..." type="search"/>
+</label>
+<label class="sm:min-w-40">
+<span class="sr-only">Filtrar por status</span>
+<select class="w-full bg-card2 border border-border2 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-accent/60 transition" id="filtroStatus">
+<option value="todas">Todos os status</option>
+<option value="ocupada">Ocupadas</option>
+<option value="disponivel">Disponíveis</option>
+<option value="indisponivel">Indisponíveis</option>
+<option value="com-reserva">Com reserva</option>
+</select>
+</label>
+<button class="btn-press flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-card2 border border-border2 hover:border-accent/50 text-sm transition" id="limparFiltros" title="Limpar filtros" type="button">
+<i class="w-4 h-4" data-lucide="rotate-ccw"></i><span class="sm:hidden xl:inline">Limpar</span>
+</button>
+</div>
+</div>
+</section>
+<section>
+<div aria-live="polite" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4" id="tablesGrid"></div>
+<div class="hidden rounded-xl bg-card border border-border border-dashed py-14 text-center" id="estadoVazio">
+<div class="w-12 h-12 rounded-full bg-card2 border border-border2 mx-auto flex items-center justify-center mb-3"><i class="w-5 h-5 text-muted" data-lucide="search-x"></i></div>
+<h3 class="text-sm font-semibold">Nenhuma mesa encontrada</h3>
+<p class="text-xs text-muted mt-1">Tente buscar por outro termo ou remover os filtros aplicados.</p>
+</div>
+</section>
+</div>
