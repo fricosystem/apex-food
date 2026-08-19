@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Acesse o APEX Food para gerenciar seu restaurante com mais agilidade.">
+  <title>APEX Food — Acesso</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://cdn.jsdelivr.net/npm/fontsource-inter@5.0.0/index.css" rel="stylesheet">
+  <link rel="stylesheet" href="../estilos/auth/auth.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+  <script src="../scripts/auth/auth.js" defer></script>
+</head>
+<body>
+  <main class="auth-page">
+    <div class="auth-shell">
+      <section class="auth-brand-panel" aria-labelledby="auth-brand-title">
+        <a class="auth-brand" href="../index.html" aria-label="APEX Food — voltar para a Visão Geral">
+          <img src="../assets/apex-logo-original.png" alt="Logo APEX Food" class="auth-brand-mark" />
+          <span class="auth-brand-name">APEX Food</span>
+        </a>
+
+        <div class="auth-brand-copy">
+          <p class="auth-eyebrow">Gestão que acompanha o seu ritmo</p>
+          <h1 id="auth-brand-title">Mais controle para uma operação <span>mais inteligente.</span></h1>
+          <p>Centralize pedidos, salão, equipe e financeiro em uma experiência criada para deixar o seu restaurante mais eficiente todos os dias.</p>
+          <ul class="auth-features" aria-label="Recursos do APEX Food">
+            <li>Operação em tempo real</li>
+            <li>Decisões mais rápidas</li>
+            <li>Visão do seu negócio</li>
+          </ul>
+        </div>
+
+        <footer class="auth-brand-footer">
+          <span>© 2026 APEX Food</span>
+        </footer>
+      </section>
+
+      <section class="auth-form-panel" aria-labelledby="auth-form-title">
+        <div class="auth-form-wrap">
+          <a class="auth-brand auth-mobile-brand" href="../index.html" aria-label="APEX Food — voltar para a Visão Geral">
+            <img src="../assets/apex-logo-original.png" alt="Logo APEX Food" class="auth-brand-mark" />
+            <span class="auth-brand-name">APEX Food</span>
+          </a>
+
+          <div class="auth-form-heading">
+            <h2 id="auth-form-title">Bem-vindo de volta</h2>
+            <p id="auth-form-description">Entre na sua conta para continuar acompanhando o seu restaurante.</p>
+          </div>
+
+          <div class="auth-tabs" role="tablist" aria-label="Tipo de acesso">
+            <button class="auth-tab is-active" id="tab-login" type="button" role="tab" aria-selected="true" aria-controls="form-login" data-auth-tab="login">Entrar</button>
+            <button class="auth-tab" id="tab-register" type="button" role="tab" aria-selected="false" aria-controls="form-register" data-auth-tab="register">Criar conta</button>
+          </div>
+
+          <div class="auth-feedback" id="auth-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
+
+          <div class="auth-form-card" id="auth-form-card">
+            <form class="auth-form" id="form-login" data-auth-form="login" role="tabpanel" aria-labelledby="tab-login" novalidate>
+              <div class="auth-field">
+                <label for="login-identifier">Email</label>
+                <div class="auth-domain-control">
+                  <input class="auth-input auth-identifier-input" id="login-identifier" name="identifier" type="text" inputmode="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Digite seu email" aria-label="Email da conta. O domínio .apexfood.com é adicionado automaticamente." required>
+                  <span class="auth-domain-suffix" aria-hidden="true">.apexfood.com</span>
+                </div>
+                <span class="auth-field-message" data-error-for="login-identifier" aria-live="polite"></span>
+              </div>
+
+              <div class="auth-field">
+                <label for="login-password">Senha</label>
+                <div class="auth-input-wrap">
+                  <input class="auth-input has-toggle" id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" minlength="8" required>
+                  <button class="auth-password-toggle" type="button" data-toggle-password="login-password" aria-label="Mostrar senha" aria-pressed="false"><i data-lucide="eye" aria-hidden="true"></i></button>
+                </div>
+                <span class="auth-field-message" data-error-for="login-password" aria-live="polite"></span>
+              </div>
+
+              <div class="auth-form-meta">
+                <label class="auth-checkbox" for="remember-account">
+                  <input id="remember-account" name="remember" type="checkbox">
+                  <span>Manter conectado</span>
+                </label>
+                <button class="auth-text-button" type="button" data-action="forgot-password">Esqueci minha senha</button>
+              </div>
+
+              <button class="auth-submit" type="submit">
+                <span data-submit-label>Entrar na conta</span>
+                <i data-lucide="arrow-right" aria-hidden="true"></i>
+              </button>
+            </form>
+
+            <form class="auth-form" id="form-register" data-auth-form="register" role="tabpanel" aria-labelledby="tab-register" novalidate hidden>
+              <div class="auth-field">
+                <label for="register-name">Nome completo</label>
+                <div class="auth-input-wrap">
+                  <input class="auth-input" id="register-name" name="fullName" type="text" autocomplete="name" placeholder="Como podemos chamar você?" minlength="3" required>
+                </div>
+                <span class="auth-field-message" data-error-for="register-name" aria-live="polite"></span>
+              </div>
+
+              <div class="auth-field">
+                <label for="register-identifier">Email</label>
+                <div class="auth-domain-control">
+                  <input class="auth-input auth-identifier-input" id="register-identifier" name="identifier" type="text" inputmode="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Digite seu email" aria-label="Email da conta. O domínio .apexfood.com é adicionado automaticamente." required>
+                  <span class="auth-domain-suffix" aria-hidden="true">.apexfood.com</span>
+                </div>
+                <span class="auth-field-message" data-error-for="register-identifier" aria-live="polite"></span>
+              </div>
+
+              <div class="auth-field">
+                <label for="register-password">Senha</label>
+                <div class="auth-input-wrap">
+                  <input class="auth-input has-toggle" id="register-password" name="password" type="password" autocomplete="new-password" placeholder="Crie uma senha segura" minlength="8" required>
+                  <button class="auth-password-toggle" type="button" data-toggle-password="register-password" aria-label="Mostrar senha" aria-pressed="false"><i data-lucide="eye" aria-hidden="true"></i></button>
+                </div>
+                <span class="auth-field-message" data-error-for="register-password" aria-live="polite"></span>
+              </div>
+
+              <div class="auth-field">
+                <label for="register-confirm-password">Confirmar senha</label>
+                <div class="auth-input-wrap">
+                  <input class="auth-input has-toggle" id="register-confirm-password" name="confirmPassword" type="password" autocomplete="new-password" placeholder="Digite a senha novamente" minlength="8" required>
+                  <button class="auth-password-toggle" type="button" data-toggle-password="register-confirm-password" aria-label="Mostrar senha" aria-pressed="false"><i data-lucide="eye" aria-hidden="true"></i></button>
+                </div>
+                <span class="auth-field-message" data-error-for="register-confirm-password" aria-live="polite"></span>
+              </div>
+
+              <button class="auth-submit" type="submit">
+                <span data-submit-label>Criar minha conta</span>
+                <i data-lucide="arrow-right" aria-hidden="true"></i>
+              </button>
+            </form>
+          </div>
+
+          <p class="auth-legal">Ao continuar, você concorda com os <strong>termos de uso</strong> e a <strong>política de privacidade</strong> do APEX Food.</p>
+          <p class="auth-redirect-note" id="auth-redirect-note" hidden>Redirecionando para a Visão Geral...</p>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
