@@ -1,0 +1,35 @@
+# Segredos e ambientes locais
+.env
+.env.*
+!.env.example
+*.local
+
+# Credenciais Firebase/GCP
+service-account*.json
+firebase-adminsdk*.json
+*-firebase-adminsdk-*.json
+*.pem
+*.key
+*.p12
+
+# Configuração local do Firebase CLI
+.firebase/
+.firebaserc.local
+
+# Logs e relatórios locais
+*.log
+coverage/
+playwright-report/
+test-results/
+
+# Dependências e build
+node_modules/
+dist/
+build/
+.vercel/
+
+# Sistema/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

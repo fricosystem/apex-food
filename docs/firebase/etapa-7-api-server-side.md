@@ -18,7 +18,7 @@ A sessão é criada a partir de um ID token transitório recebido internamente d
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `package.json` | Dependência `firebase-admin` `14.2.0`, Node `22.x` e comando de testes. |
+| `package.json` | Dependência `firebase-admin` `13.6.0`, Node `22.x` e comando de testes. |
 | `package-lock.json` | Lockfile da dependência server-side. |
 | `vercel.json` | Cabeçalhos de segurança e `Cache-Control: no-store` para `/api`. |
 | `api/_lib/http.js` | Respostas JSON, parsing limitado, cookies, CORS e erros. |
@@ -145,8 +145,8 @@ O deploy remoto e a configuração de novas variáveis devem ocorrer antes da Et
 [3]: https://vercel.com/docs/functions "Vercel Functions documentation"
 [4]: https://firebase.google.com/docs/admin/setup "Add the Firebase Admin SDK to your server — Firebase"
 
-## 10. Auditoria de dependências
+## 10. Auditoria de dependências e correção do runtime
 
 A auditoria executada com `npm audit --omit=dev --audit-level=high` não encontrou vulnerabilidades de alta ou crítica severidade. A cadeia transitiva atual reportou seis ocorrências **moderadas** relacionadas ao pacote `uuid` em dependências de transporte usadas pelo Firebase Admin SDK. A correção automática proposta pelo NPM exigiria `npm audit fix --force` e faria downgrade do `firebase-admin` para a versão `10.3.0`, uma alteração de versão major que não será aplicada sem avaliação, testes de compatibilidade e decisão explícita.
 
-A dependência direta permanece fixada em `firebase-admin@14.2.0`. O risco moderado foi documentado para revisão no CI e em cada atualização do Admin SDK; não será mascarado por um downgrade forçado. O uso atual não expõe a API `uuid` diretamente ao navegador.
+A dependência direta foi ajustada para `firebase-admin@13.6.0` após o deploy `29f4e4a` apresentar `ERR_REQUIRE_ESM`: `jwks-rsa@4.1.0` carregava `jose@6.x` por `require()`, incompatível com o módulo ESM no runtime da Vercel. A série 13.6.0 usa `jwks-rsa@3.2.2` e `jose@4.15.9` CommonJS. O lockfile foi atualizado e a suíte local continuou com 8/8 testes aprovados. O risco moderado transitivo foi documentado para revisão no CI e em atualizações futuras; não será aplicado downgrade forçado sem testes.

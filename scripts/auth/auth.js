@@ -4,7 +4,7 @@
   const page = document.querySelector('.auth-page');
   if (!page) return;
 
-  const APEX_DOMAIN = '.apexfood.com';
+  const APEX_DOMAIN = '@apexfood.com';
 
   const state = {
     mode: 'login',
@@ -145,7 +145,7 @@
     if (!identifier) return 'Informe seu email.';
     if (identifier.length < 2 || identifier.length > 30) return 'O email deve ter entre 2 e 30 caracteres antes do domínio.';
     if (!/^[a-z0-9-]+$/i.test(identifier) || identifier.startsWith('-') || identifier.endsWith('-')) {
-      return 'Use somente letras, números e hífen antes do domínio.';
+      return 'Use somente letras, números e hífen antes do domínio @apexfood.com.';
     }
     return '';
   }
