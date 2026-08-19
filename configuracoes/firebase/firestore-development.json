@@ -1,0 +1,18 @@
+{
+  "ambiente": "development",
+  "projeto": "apex-food-6c1cb",
+  "status": "existente-e-confirmado-no-console",
+  "databaseId": "(default)",
+  "modoPretendido": "production",
+  "modoConfirmadoPorRegras": true,
+  "regrasArquivo": "firestore.rules",
+  "regrasPublicadas": true,
+  "regrasEstado": "deny-by-default",
+  "regiao": "nam5",
+  "regiaoRecomendadaInicialmente": "southamerica-east1",
+  "regiaoAlterada": false,
+  "indicesCompostosVersionados": 0,
+  "backupsProgramados": false,
+  "producaoConfigurada": false,
+  "observacao": "O banco já existia antes da inspeção da Etapa 5. A região nam5 foi preservada para evitar migração destrutiva. O Console exibiu as regras allow read, write: if false para todo documento."
+}

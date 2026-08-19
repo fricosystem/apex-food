@@ -1,0 +1,15 @@
+{
+  "name": "apex-food",
+  "version": "1.0.0",
+  "private": true,
+  "description": "APEX Food — frontend estático e API server-side na Vercel",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "test": "node --test testes/*.test.js"
+  },
+  "dependencies": {
+    "firebase-admin": "14.2.0"
+  }
+}

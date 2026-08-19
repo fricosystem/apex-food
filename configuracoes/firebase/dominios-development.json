@@ -1,0 +1,17 @@
+{
+  "ambiente": "development",
+  "projetoFirebase": "apex-food-6c1cb",
+  "productionAtivo": false,
+  "authorizedDomains": [
+    "localhost"
+  ],
+  "previewVercel": {
+    "status": "pendente-do-deploy",
+    "padrao": "<projeto-vercel>.vercel.app",
+    "adicionarSomenteAposConfirmacao": true
+  },
+  "origensCORS": [
+    "http://localhost:4173"
+  ],
+  "observacao": "Não adicionar domínio de produção ou URL vercel.app desconhecida nesta etapa."
+}

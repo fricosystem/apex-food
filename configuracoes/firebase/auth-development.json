@@ -1,0 +1,41 @@
+{
+  "ambiente": "development",
+  "projectId": "apex-food-6c1cb",
+  "providers": {
+    "password": {
+      "enabled": true,
+      "emailLinkEnabled": false
+    },
+    "google": {
+      "enabled": false
+    }
+  },
+  "passwordPolicy": {
+    "enforcement": "required",
+    "minimumLength": 12,
+    "requireUppercase": true,
+    "requireLowercase": true,
+    "requireSpecial": true,
+    "requireNumeric": true
+  },
+  "userActions": {
+    "allowSignUp": true,
+    "allowDelete": true,
+    "emailEnumerationProtection": true
+  },
+  "authorizedDomains": [
+    "localhost",
+    "apex-food-6c1cb.firebaseapp.com",
+    "apex-food-6c1cb.web.app"
+  ],
+  "signupQuotaPerHour": 100,
+  "mfa": {
+    "status": "pending",
+    "reason": "O Console informa que recursos avançados de MFA exigem upgrade para Identity Platform no plano atual."
+  },
+  "productionEnabled": false,
+  "notes": [
+    "Nenhum domínio .vercel.app foi adicionado porque o nome do projeto Vercel ainda não foi confirmado.",
+    "A integração real da página ocorrerá na Etapa 8 por API server-side e cookie HttpOnly."
+  ]
+}

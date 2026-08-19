@@ -1,0 +1,17 @@
+{
+  "ambiente": "development",
+  "projeto": "apex-food-6c1cb",
+  "runtime": "vercel-node-server-side",
+  "adaptador": "backend/firebase/admin.js",
+  "secretsConfiguradosNaVercel": true,
+  "variaveisEsperadas": [
+    "FIREBASE_PROJECT_ID",
+    "FIREBASE_CLIENT_EMAIL",
+    "FIREBASE_PRIVATE_KEY"
+  ],
+  "valoresSecretosArmazenadosNesteArquivo": false,
+  "frontendTemAcesso": false,
+  "serviceAccountJsonVersionada": false,
+  "producaoConfigurada": false,
+  "observacao": "Estado declarado pelo responsável do projeto; validar por endpoint server-side sem revelar configuração interna quando a API da Etapa 7 existir."
+}

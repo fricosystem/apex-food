@@ -1,0 +1,38 @@
+{
+  "ambiente": "development",
+  "projeto": "apex-food-6c1cb",
+  "versaoEstrutura": "1.0.0",
+  "status": "documental-sem-dados-criados",
+  "colecoesRaiz": [
+    "usuarios",
+    "restaurantes",
+    "registrosAuditoria"
+  ],
+  "papeis": [
+    "proprietario",
+    "administrador",
+    "gerente",
+    "financeiro",
+    "caixa",
+    "cozinha",
+    "garcom",
+    "analista",
+    "auditor"
+  ],
+  "subcolecaoMembros": "membros",
+  "camposControle": [
+    "idRestaurante",
+    "criadoEm",
+    "atualizadoEm",
+    "criadoPor",
+    "atualizadoPor",
+    "versao",
+    "estado"
+  ],
+  "datasSomenteServidor": true,
+  "auditoriaSomenteAcrescimo": true,
+  "regrasFirestoreAbertas": false,
+  "dadosOperacionaisCriados": false,
+  "frontendAlterado": false,
+  "observacao": "Contrato documental da Etapa 6. A API server-side, os membros reais, os testes e os dados descartáveis serão implementados em etapas posteriores."
+}

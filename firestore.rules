@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // API-only: nenhum acesso direto pelo SDK Web nesta fase.
+    // A autorização multi-tenant será implementada na API server-side.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
