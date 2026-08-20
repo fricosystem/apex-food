@@ -4,7 +4,7 @@
   "description": "Sistema de gestão para restaurantes APEX Food.",
   "lang": "pt-BR",
   "dir": "ltr",
-  "start_url": "/index.html",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

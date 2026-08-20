@@ -1,4 +1,5 @@
 {
+  "cleanUrls": true,
   "rewrites": [
     { "source": "/api/v1/cardapio", "destination": "/api/v1/operacional?modulo=cardapio" },
     { "source": "/api/v1/salao", "destination": "/api/v1/operacional?modulo=salao" },
