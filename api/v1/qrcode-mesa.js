@@ -8,7 +8,11 @@ const { verificarAppCheck } = require('../_lib/app-check');
 const {
   consultarQrPublico,
   abrirSessaoMesa,
+  obterContextoSessaoMesa,
   consultarSessaoMesa,
+  listarCardapioPublico,
+  consultarComandaPublica,
+  criarPedidoPublico,
   gerarQrMesa,
   revogarQrMesa,
 } = require('../_lib/qrcode-mesas');
@@ -57,6 +61,14 @@ module.exports = async function qrcodeMesa(req, res) {
       if (acao === 'sessao' || !acao) {
         return { corpo: await consultarSessaoMesa(req, res) };
       }
+      if (acao === 'cardapio') {
+        const contexto = await obterContextoSessaoMesa(req, res);
+        return { corpo: await listarCardapioPublico(contexto) };
+      }
+      if (acao === 'comanda') {
+        const contexto = await obterContextoSessaoMesa(req, res);
+        return { corpo: await consultarComandaPublica(contexto) };
+      }
       throw new ApiError(400, 'ACAO_INVALIDA', 'Ação pública inválida.');
     }
 
@@ -71,6 +83,9 @@ module.exports = async function qrcodeMesa(req, res) {
           res,
         }),
       };
+    }
+    if (corpo.acao === 'pedido') {
+      return { corpo: await criarPedidoPublico(req, res, corpo) };
     }
     return { corpo: await executarAcaoAdministrativa(corpo, req, idRequisicao) };
   });

@@ -11,7 +11,8 @@ const {
   apagarCookie,
 } = require('./http');
 const { cookiesSeguros, origemAplicacao } = require('./config');
-const { caminhoRestaurante } = require('./modulos-operacionais');
+const { caminhoRestaurante, textoOpcional, inteiroPositivo } = require('./modulos-operacionais');
+const { registrarAuditoria } = require('./auditoria');
 
 const NOME_COOKIE_MESA = 'apex_mesa';
 const TTL_SESSAO_MESA_SEGUNDOS = 4 * 60 * 60;
@@ -265,7 +266,7 @@ async function abrirSessaoMesa({ token, nomeCompleto, chaveIdempotencia, req, re
     const participanteRef = comandaRef.collection('participantes').doc();
     const sessaoRef = restauranteRef.collection('sessoesMesa').doc();
     const expiraEm = Date.now() + TTL_SESSAO_MESA_SEGUNDOS * 1000;
-    const cookieValor = codificarSessaoMesa(sessaoRef.id, expiraEm);
+    const cookieValor = codificarSessaoMesa(idRestaurante, sessaoRef.id, expiraEm);
     resultado = {
       idSessaoMesa: sessaoRef.id,
       idComanda: comandaRef.id,
@@ -358,7 +359,7 @@ async function abrirSessaoMesa({ token, nomeCompleto, chaveIdempotencia, req, re
   };
 }
 
-async function consultarSessaoMesa(req, res) {
+async function obterContextoSessaoMesa(req, res) {
   const cookie = lerSessaoMesaCookie(req);
   if (!cookie) throw new ApiError(401, 'SESSAO_MESA_NAO_ENCONTRADA', 'Abra o QR Code da mesa para iniciar o atendimento.');
   const restauranteRef = caminhoRestaurante(cookie.idRestaurante);
@@ -369,7 +370,9 @@ async function consultarSessaoMesa(req, res) {
     throw new ApiError(401, 'SESSAO_MESA_EXPIRADA', 'A sessão da mesa não está mais disponível.');
   }
   const sessao = sessaoDocumento.data() || {};
-  if (sessao.estadoSessao !== 'ativa' || sessao.expiraEm?.toDate?.().getTime?.() <= Date.now()) {
+  const expiraEmMs = sessao.expiraEm?.toDate ? sessao.expiraEm.toDate().getTime() : Number(sessao.expiraEm || 0);
+  if (sessao.estadoSessao !== 'ativa' || !Number.isFinite(expiraEmMs) || expiraEmMs <= Date.now()) {
+    try { await sessaoDocumento.ref.update({ estadoSessao: 'expirada', atualizadoEm: FieldValue.serverTimestamp() }); } catch {}
     limparCookieSessaoMesa(res);
     throw new ApiError(401, 'SESSAO_MESA_EXPIRADA', 'A sessão da mesa não está mais disponível.');
   }
@@ -378,9 +381,320 @@ async function consultarSessaoMesa(req, res) {
     restauranteRef.collection('comandas').doc(String(sessao.idComanda)).get(),
     restauranteRef.collection('comandas').doc(String(sessao.idComanda)).collection('participantes').doc(String(sessao.idParticipante)).get(),
   ]);
-  if (!mesaDocumento.exists || !comandaDocumento.exists) throw new ApiError(409, 'ATENDIMENTO_NAO_DISPONIVEL', 'O atendimento desta mesa não está disponível.');
-  await sessaoDocumento.ref.update({ ultimoAcessoEm: FieldValue.serverTimestamp() });
-  return dtoSessaoPublica(sessaoDocumento, mesaDocumento, comandaDocumento, participanteDocumento);
+  if (!mesaDocumento.exists || !comandaDocumento.exists || !participanteDocumento.exists) {
+    limparCookieSessaoMesa(res);
+    throw new ApiError(409, 'ATENDIMENTO_NAO_DISPONIVEL', 'O atendimento desta mesa não está disponível.');
+  }
+  const comanda = comandaDocumento.data() || {};
+  if (!ESTADOS_COMANDA_ATIVA.has(comanda.statusComanda || comanda.status)) {
+    throw new ApiError(409, 'COMANDA_ENCERRADA', 'A comanda desta mesa não está mais disponível.');
+  }
+  return {
+    cookie,
+    restauranteRef,
+    sessaoRef,
+    sessaoDocumento,
+    sessao,
+    expiraEmMs,
+    mesaDocumento,
+    comandaDocumento,
+    participanteDocumento,
+  };
+}
+
+async function consultarSessaoMesa(req, res) {
+  const contexto = await obterContextoSessaoMesa(req, res);
+  await contexto.sessaoDocumento.ref.update({ ultimoAcessoEm: FieldValue.serverTimestamp() });
+  return dtoSessaoPublica(contexto.sessaoDocumento, contexto.mesaDocumento, contexto.comandaDocumento, contexto.participanteDocumento);
+}
+
+function timestampParaMs(valor) {
+  if (!valor) return 0;
+  if (typeof valor.toDate === 'function') return valor.toDate().getTime();
+  if (valor instanceof Date) return valor.getTime();
+  if (typeof valor === 'number') return valor;
+  const data = new Date(valor);
+  return Number.isNaN(data.getTime()) ? 0 : data.getTime();
+}
+
+function produtoPublico(documento, exibirPrecos) {
+  const dados = documento.data() || {};
+  return {
+    id: documento.id,
+    idCategoria: String(dados.idCategoria || ''),
+    nome: String(dados.nome || 'Produto'),
+    descricao: String(dados.descricao || ''),
+    precoCentavos: exibirPrecos ? Number(dados.precoCentavos || 0) : null,
+    disponibilidade: dados.disponibilidade !== false,
+    tempoPreparo: Number(dados.tempoPreparo || 0),
+  };
+}
+
+function promocaoPublica(documento, exibirPrecos) {
+  const dados = documento.data() || {};
+  return {
+    id: documento.id,
+    nome: String(dados.nome || 'Promoção'),
+    descricao: String(dados.descricao || ''),
+    tipo: String(dados.tipo || 'Produto'),
+    desconto: String(dados.desconto || ''),
+    valorCentavos: exibirPrecos ? Number(dados.valorCentavos || 0) : null,
+  };
+}
+
+async function lerConfiguracaoCardapio(restauranteRef) {
+  const documento = await restauranteRef.collection('configuracoesCardapioDigital').doc('configuracao').get();
+  const dados = documento.exists ? documento.data() || {} : {};
+  return {
+    publicado: dados.publicado === true,
+    exibirPrecos: dados.exibirPrecos !== false,
+    aceitarPedidos: dados.aceitarPedidos === true,
+    mostrarPromocoes: dados.mostrarPromocoes !== false,
+  };
+}
+
+async function listarCardapioPublico(contexto) {
+  const configuracao = await lerConfiguracaoCardapio(contexto.restauranteRef);
+  if (!configuracao.publicado) throw new ApiError(409, 'CARDAPIO_NAO_PUBLICADO', 'O cardápio desta mesa ainda não está disponível.');
+  const [categorias, produtos, promocoes] = await Promise.all([
+    contexto.restauranteRef.collection('categoriasCardapio').limit(200).get(),
+    contexto.restauranteRef.collection('produtosCardapio').limit(500).get(),
+    configuracao.mostrarPromocoes ? contexto.restauranteRef.collection('promocoesCardapio').limit(100).get() : Promise.resolve({ docs: [] }),
+  ]);
+  const categoriasPublicas = categorias.docs
+    .filter(documento => { const dados = documento.data() || {}; return dados.estado !== 'excluido' && !dados.excluidoEm; })
+    .sort((a, b) => Number(a.data()?.ordem || 0) - Number(b.data()?.ordem || 0))
+    .map(documento => ({ id: documento.id, nome: String(documento.data()?.nome || 'Categoria'), descricao: String(documento.data()?.descricao || ''), cor: String(documento.data()?.cor || 'orange') }));
+  const categoriasIds = new Set(categoriasPublicas.map(item => item.id));
+  const produtosPublicos = produtos.docs
+    .filter(documento => { const dados = documento.data() || {}; return dados.estado !== 'excluido' && !dados.excluidoEm && categoriasIds.has(String(dados.idCategoria || '')); })
+    .sort((a, b) => String(a.data()?.nome || '').localeCompare(String(b.data()?.nome || ''), 'pt-BR'))
+    .map(documento => produtoPublico(documento, configuracao.exibirPrecos));
+  const promocoesPublicas = promocoes.docs
+    .filter(documento => { const dados = documento.data() || {}; return dados.estado === 'ativa' && !dados.excluidoEm; })
+    .map(documento => promocaoPublica(documento, configuracao.exibirPrecos));
+  return {
+    configuracao,
+    categorias: categoriasPublicas,
+    produtos: produtosPublicos,
+    promocoes: promocoesPublicas,
+  };
+}
+
+function pedidoPublico(documento, exibirPrecos) {
+  const dados = documento.data() || {};
+  const itens = Array.isArray(dados.itensResumo) ? dados.itensResumo.map(item => ({
+    idProduto: item.idProduto,
+    nomeProduto: item.nomeProduto,
+    quantidade: Number(item.quantidade || 0),
+    observacoes: String(item.observacoes || ''),
+  })) : [];
+  return {
+    id: documento.id,
+    numero: Number(dados.numero || 0),
+    statusPedido: String(dados.statusPedido || dados.status || 'aguardando_confirmacao_garcom'),
+    itens,
+    totalCentavos: exibirPrecos ? Number(dados.totalCentavos || 0) : null,
+    criadoEm: timestampParaMs(dados.criadoEm) ? new Date(timestampParaMs(dados.criadoEm)).toISOString() : null,
+  };
+}
+
+async function consultarComandaPublica(contexto) {
+  const configuracao = await lerConfiguracaoCardapio(contexto.restauranteRef);
+  if (!configuracao.publicado) throw new ApiError(409, 'CARDAPIO_NAO_PUBLICADO', 'O cardápio desta mesa ainda não está disponível.');
+  const pedidosConsulta = await contexto.restauranteRef.collection('pedidos').where('idComanda', '==', contexto.comandaDocumento.id).limit(200).get();
+  const pedidos = pedidosConsulta.docs
+    .filter(documento => String(documento.data()?.idParticipante || '') === contexto.participanteDocumento.id && documento.data()?.estado !== 'excluido')
+    .sort((a, b) => timestampParaMs(b.data()?.criadoEm) - timestampParaMs(a.data()?.criadoEm))
+    .map(documento => pedidoPublico(documento, configuracao.exibirPrecos));
+  const comanda = contexto.comandaDocumento.data() || {};
+  return {
+    comanda: {
+      id: contexto.comandaDocumento.id,
+      status: String(comanda.statusComanda || comanda.status || 'aberta'),
+      totalCentavos: configuracao.exibirPrecos ? Number(comanda.totalCentavos || 0) : null,
+      quantidadePedidosAbertos: Number(comanda.quantidadePedidosAbertos || 0),
+    },
+    participante: {
+      id: contexto.participanteDocumento.id,
+      nomeExibicao: String(contexto.participanteDocumento.data()?.nomeExibicao || contexto.sessao.nomeExibicao || ''),
+    },
+    pedidos,
+    configuracao: { exibirPrecos: configuracao.exibirPrecos, aceitarPedidos: configuracao.aceitarPedidos },
+  };
+}
+
+function validarItensPedidoPublico(itens) {
+  if (!Array.isArray(itens) || !itens.length || itens.length > 50) throw new ApiError(400, 'ITENS_INVALIDOS', 'Selecione ao menos um item para enviar o pedido.');
+  const ids = new Set();
+  return itens.map(item => {
+    const idProduto = validarId(String(item?.idProduto || ''), 'idProduto');
+    if (ids.has(idProduto)) throw new ApiError(400, 'ITENS_DUPLICADOS', 'Cada produto deve aparecer uma única vez no pedido.');
+    ids.add(idProduto);
+    return {
+      idProduto,
+      quantidade: inteiroPositivo(item?.quantidade, 'quantidade', 100),
+      observacoes: textoOpcional(item?.observacoes, 'observacoes', 500),
+    };
+  });
+}
+
+async function criarPedidoPublico(req, res, corpo) {
+  const contexto = await obterContextoSessaoMesa(req, res);
+  const itens = validarItensPedidoPublico(corpo.itens);
+  const observacoes = textoOpcional(corpo.observacoes, 'observacoes', 1000);
+  const chave = validarChaveIdempotencia(corpo.chaveIdempotencia);
+  const idOperacao = hashSha256(`${contexto.cookie.idRestaurante}:pedido-mesa:${contexto.sessaoDocumento.id}:${chave}`).slice(0, 40);
+  const idempotenciaRef = contexto.restauranteRef.collection('chavesIdempotencia').doc(idOperacao);
+  const pedidoRef = contexto.restauranteRef.collection('pedidos').doc();
+  const comandaRef = contexto.restauranteRef.collection('comandas').doc(contexto.comandaDocumento.id);
+  const mesaRef = contexto.restauranteRef.collection('mesas').doc(String(contexto.sessao.idMesa));
+  const configRef = contexto.restauranteRef.collection('configuracoesCardapioDigital').doc('configuracao');
+  const hashPayload = hashSha256(JSON.stringify({ itens, observacoes, idComanda: comandaRef.id, idParticipante: contexto.participanteDocumento.id }));
+  let resultado;
+  let repeticaoIdempotente = false;
+  const db = contexto.restauranteRef.firestore;
+
+  await db.runTransaction(async transacao => {
+    const idempotenciaDocumento = await transacao.get(idempotenciaRef);
+    if (idempotenciaDocumento.exists) {
+      const anterior = idempotenciaDocumento.data() || {};
+      if (anterior.hashPayload !== hashPayload) throw new ApiError(409, 'IDEMPOTENCIA_REUTILIZADA', 'A chave do pedido já foi utilizada com outros dados.');
+      resultado = anterior.resultado;
+      repeticaoIdempotente = true;
+      return;
+    }
+    const [configuracaoDocumento, comandaDocumento, mesaDocumento, participanteDocumento, sessaoDocumento] = await Promise.all([
+      transacao.get(configRef),
+      transacao.get(comandaRef),
+      transacao.get(mesaRef),
+      transacao.get(contexto.participanteDocumento.ref),
+      transacao.get(contexto.sessaoDocumento.ref),
+    ]);
+    const configuracao = configuracaoDocumento.data() || {};
+    const sessaoAtual = sessaoDocumento.data() || {};
+    if (!sessaoDocumento.exists || sessaoAtual.estadoSessao !== 'ativa' || timestampParaMs(sessaoAtual.expiraEm) <= Date.now()) throw new ApiError(401, 'SESSAO_MESA_EXPIRADA', 'A sessão da mesa não está mais disponível.');
+    if (!configuracao.publicado || configuracao.aceitarPedidos !== true) throw new ApiError(409, 'PEDIDOS_NAO_ACEITOS', 'O restaurante não está aceitando pedidos pelo cardápio digital.');
+    if (!comandaDocumento.exists || !ESTADOS_COMANDA_ATIVA.has(comandaDocumento.data()?.statusComanda || comandaDocumento.data()?.status)) throw new ApiError(409, 'COMANDA_ENCERRADA', 'A comanda desta mesa não está mais disponível.');
+    if (!mesaDocumento.exists || String(mesaDocumento.data()?.idComandaAberta || '') !== comandaRef.id || ESTADOS_MESA_BLOQUEADOS.has(mesaDocumento.data()?.estado)) throw new ApiError(409, 'MESA_INDISPONIVEL', 'A mesa desta sessão não está disponível.');
+    if (!participanteDocumento.exists || participanteDocumento.data()?.estadoParticipante !== 'ativo') throw new ApiError(409, 'PARTICIPANTE_ENCERRADO', 'Este participante não pode enviar novos pedidos.');
+    const produtoDocumentos = await Promise.all(itens.map(item => transacao.get(contexto.restauranteRef.collection('produtosCardapio').doc(item.idProduto))));
+    let subtotalCentavos = 0;
+    const itensPersistidos = itens.map((item, indice) => {
+      const documento = produtoDocumentos[indice];
+      const produto = documento.data() || {};
+      if (!documento.exists || produto.estado === 'excluido' || produto.disponibilidade === false) throw new ApiError(409, 'PRODUTO_INDISPONIVEL', `O produto ${item.idProduto} não está disponível.`);
+      const precoUnitarioCentavos = Number(produto.precoCentavos || 0);
+      if (!Number.isSafeInteger(precoUnitarioCentavos) || precoUnitarioCentavos < 0) throw new ApiError(409, 'PRECO_INVALIDO', 'Um produto possui preço inválido.');
+      const totalCentavos = precoUnitarioCentavos * item.quantidade;
+      subtotalCentavos += totalCentavos;
+      return {
+        idProduto: item.idProduto,
+        nome: String(produto.nome || item.idProduto),
+        nomeProduto: String(produto.nome || item.idProduto),
+        quantidade: item.quantidade,
+        precoUnitarioCentavos,
+        subtotalCentavos: totalCentavos,
+        totalCentavos,
+        observacoes: item.observacoes,
+        idParticipante: contexto.participanteDocumento.id,
+        estadoItem: 'ativo',
+      };
+    });
+    const pedidoNumero = Number(`${Date.now()}${String(Math.floor(Math.random() * 100)).padStart(2, '0')}`);
+    const statusPedido = 'aguardando_confirmacao_garcom';
+    const comanda = comandaDocumento.data() || {};
+    const mesa = mesaDocumento.data() || {};
+    const participante = participanteDocumento.data() || {};
+    resultado = { idPedido: pedidoRef.id, numero: pedidoNumero, statusPedido, totalCentavos: subtotalCentavos };
+    transacao.set(pedidoRef, {
+      idRestaurante: contexto.cookie.idRestaurante,
+      numero: pedidoNumero,
+      origem: 'cardapioDigital',
+      tipoAtendimento: 'mesa',
+      canal: 'salão',
+      idMesa: mesaRef.id,
+      idComanda: comandaRef.id,
+      idParticipante: contexto.participanteDocumento.id,
+      idSessaoMesa: contexto.sessaoDocumento.id,
+      nomeCliente: String(participante.nomeExibicao || participante.nomeCompleto || 'Cliente'),
+      idGarcomResponsavel: comanda.idGarcomResponsavel || null,
+      idGarcom: comanda.idGarcomResponsavel || null,
+      nomeMesa: String(mesa.nome || mesa.numero || mesaRef.id),
+      nomeGarcom: '',
+      statusPedido,
+      status: statusPedido,
+      prioridade: 'normal',
+      itens: itensPersistidos,
+      itensResumo: itensPersistidos.map(item => ({ idProduto: item.idProduto, nomeProduto: item.nomeProduto, quantidade: item.quantidade, observacoes: item.observacoes })),
+      observacoes,
+      subtotalCentavos,
+      descontoCentavos: 0,
+      totalCentavos: subtotalCentavos,
+      valorCentavos: subtotalCentavos,
+      pagamento: null,
+      versao: 1,
+      criadoPor: 'cliente_mesa',
+      atualizadoPor: 'cliente_mesa',
+      criadoEm: FieldValue.serverTimestamp(),
+      atualizadoEm: FieldValue.serverTimestamp(),
+    });
+    for (const item of itensPersistidos) {
+      transacao.create(pedidoRef.collection('itens').doc(), { ...item, criadoEm: FieldValue.serverTimestamp(), atualizadoEm: FieldValue.serverTimestamp() });
+    }
+    transacao.create(pedidoRef.collection('eventos').doc(), {
+      statusAnterior: 'rascunho',
+      statusNovo: statusPedido,
+      idAtor: `sessao:${contexto.sessaoDocumento.id}`,
+      papelAtor: 'cliente_mesa',
+      motivo: 'Pedido enviado pelo cardápio digital.',
+      idRequisicao: chave,
+      criadoEm: FieldValue.serverTimestamp(),
+      versaoEvento: 1,
+    });
+    transacao.update(comandaRef, {
+      statusComanda: 'em_consumo',
+      status: 'em_consumo',
+      quantidadePedidosAbertos: Number(comanda.quantidadePedidosAbertos || 0) + 1,
+      subtotalCentavos: Number(comanda.subtotalCentavos || 0) + subtotalCentavos,
+      totalCentavos: Number(comanda.totalCentavos || 0) + subtotalCentavos,
+      valorCentavos: Number(comanda.valorCentavos || comanda.totalCentavos || 0) + subtotalCentavos,
+      atualizadaEm: FieldValue.serverTimestamp(),
+      versao: Number(comanda.versao || 1) + 1,
+    });
+    transacao.update(mesaRef, {
+      estado: 'ocupada',
+      estadoAtendimento: 'aguardando_confirmacao',
+      atualizadoEm: FieldValue.serverTimestamp(),
+      versao: Number(mesa.versao || 1) + 1,
+    });
+    transacao.create(idempotenciaRef, {
+      idRestaurante: contexto.cookie.idRestaurante,
+      idAtor: `sessao:${contexto.sessaoDocumento.id}`,
+      endpoint: '/api/v1/qrcode-mesa',
+      tipoOperacao: 'pedido_mesa',
+      resultado,
+      hashPayload,
+      criadaEm: FieldValue.serverTimestamp(),
+      expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      versao: 1,
+    });
+  });
+  if (!repeticaoIdempotente) await registrarAuditoria({
+    idRestaurante: contexto.cookie.idRestaurante,
+    idAtor: `sessao:${contexto.sessaoDocumento.id}`,
+    papeisDoAtor: ['cliente_mesa'],
+    acao: 'mesa.pedido.enviado',
+    tipoRecurso: 'pedido',
+    idRecurso: resultado.idPedido,
+    idOperacao,
+    idRequisicao: chave,
+    resultado: 'criado',
+  });
+  return {
+    pedido: resultado,
+    comanda: { id: comandaRef.id, status: 'em_consumo' },
+  };
 }
 
 async function gerarQrMesa(identidade, { idMesa, chaveIdempotencia, req }) {
@@ -513,7 +827,12 @@ module.exports = {
   buscarMesaPorToken,
   consultarQrPublico,
   abrirSessaoMesa,
+  obterContextoSessaoMesa,
   consultarSessaoMesa,
+  listarCardapioPublico,
+  consultarComandaPublica,
+  validarItensPedidoPublico,
+  criarPedidoPublico,
   gerarQrMesa,
   revogarQrMesa,
 };

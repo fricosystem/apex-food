@@ -1,7 +1,7 @@
 (() => {
   const paginas = {
     home: { titulo: 'Visão Geral', fragmento: 'paginas/home.html', href: '/', estilos: ['estilos/home/home.css?v=cards-uniformes'], scripts: ['scripts/home/dados-visao-geral.js?v=fase4', 'scripts/home/home.js?v=31a9457'] },
-    mesa: { titulo: 'Atendimento da Mesa', fragmento: 'paginas/publico/mesa.html?v=etapa3-qr', href: '/mesa', estilos: ['estilos/publico/mesa.css?v=etapa3-qr'], scripts: ['scripts/publico/mesa.js?v=etapa3-qr'] },
+    mesa: { titulo: 'Atendimento da Mesa', fragmento: 'paginas/publico/mesa.html?v=etapa4-cardapio', href: '/mesa', estilos: ['estilos/publico/mesa.css?v=etapa4-cardapio'], scripts: ['scripts/publico/mesa.js?v=etapa4-cardapio'] },
     'novo-pedido': { titulo: 'Novo Pedido', fragmento: 'paginas/pedidos/novo-pedido.html?v=fase6b', href: '/novo-pedido', estilos: ['estilos/pedidos/pedidos.css?v=cards-uniformes'], scripts: ['scripts/pedidos/dados-pedidos.js?v=fase6b', 'scripts/pedidos/novo-pedido.js?v=fase6b'] },
     'pedidos-ativos': { titulo: 'Pedidos Ativos', fragmento: 'paginas/pedidos/pedidos-ativos.html?v=fase6b', href: '/pedidos-ativos', estilos: ['estilos/pedidos/pedidos.css?v=cards-uniformes'], scripts: ['scripts/pedidos/dados-pedidos.js?v=fase6b', 'scripts/pedidos/pedidos-ativos.js?v=fase6b'] },
     'historico-pedidos': { titulo: 'Histórico de Pedidos', fragmento: 'paginas/pedidos/historico-pedidos.html?v=fase6b', href: '/historico-pedidos', estilos: ['estilos/pedidos/pedidos.css?v=cards-uniformes'], scripts: ['scripts/pedidos/dados-pedidos.js?v=fase6b', 'scripts/pedidos/historico-pedidos.js?v=fase6b'] },
