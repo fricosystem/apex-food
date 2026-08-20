@@ -348,5 +348,6 @@
     carregar(true);
   }
 
+  window.addEventListener('apex:abrir-notificacoes', () => alternar(true));
   window.setTimeout(inicializar, 0);
 })();

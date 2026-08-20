@@ -129,6 +129,8 @@
   .sidebar-scroll { overflow-y: auto; flex: 1; min-height: 0; }
   .sidebar-scroll::-webkit-scrollbar { width: 4px; }
   .sidebar-scroll::-webkit-scrollbar-thumb { background: #1a1a1a; border-radius: 2px; }
+  .perfil-sidebar-menu { opacity: 0; transform: translateY(0.35rem) scale(0.98); pointer-events: none; visibility: hidden; transition: opacity 0.18s ease, transform 0.18s ease, visibility 0s linear 0.18s; }
+  .perfil-sidebar-menu.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; visibility: visible; transition-delay: 0s; }
 
   .status-dot {
     animation: statusPulse 2s ease-in-out infinite;
@@ -188,6 +190,7 @@
 </button>
 </div>
 <div class="sidebar-scroll" id="sidebarContentMobile"></div>
+<div class="relative flex-shrink-0 border-t border-border p-3" id="perfilSidebarMobile"></div>
 </aside>
 <!-- Desktop Sidebar -->
 <aside class="sidebar-desktop hidden lg:flex flex-col w-64 bg-panel border-r border-border fixed h-screen z-30">
@@ -201,6 +204,7 @@
 </button>
 </div>
 <div class="sidebar-scroll" id="sidebarContentDesktop"></div>
+<div class="relative flex-shrink-0 border-t border-border p-3" id="perfilSidebarDesktop"></div>
 </aside>
 <!-- Main Content -->
 <main class="flex-1 lg:ml-64 min-h-screen">
@@ -315,6 +319,6 @@ const sidebarSections = [
     });
   };
 </script>
-<script src="scripts/compartilhados/ferramentas-interface.js?v=fase12"></script><script src="scripts/api/modulos-client.js?v=etapa13-diagnostico-fcm"></script><script src="scripts/compartilhados/notificacoes.js?v=etapa13-diagnostico-fcm"></script><script src="configuracoes/firebase-messaging-publico.js?v=etapa11-fcm"></script><script src="scripts/compartilhados/notificacoes-sistema.js?v=etapa11-fcm"></script><script src="scripts/shell/apex-shell.js?v=etapa10-validacao"></script></body>
+<script src="scripts/compartilhados/ferramentas-interface.js?v=fase12"></script><script src="scripts/auth/api-client.js?v=etapa14-perfil"></script><script src="scripts/compartilhados/perfil-sidebar.js?v=etapa14-perfil"></script><script src="scripts/api/modulos-client.js?v=etapa13-diagnostico-fcm"></script><script src="scripts/compartilhados/notificacoes.js?v=etapa13-diagnostico-fcm"></script><script src="configuracoes/firebase-messaging-publico.js?v=etapa11-fcm"></script><script src="scripts/compartilhados/notificacoes-sistema.js?v=etapa11-fcm"></script><script src="scripts/shell/apex-shell.js?v=etapa10-validacao"></script></body>
 </html>
 
