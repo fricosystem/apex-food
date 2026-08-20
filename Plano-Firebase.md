@@ -8,7 +8,7 @@
 
 **Autor:** Manus AI
 
-**Status de implementação:** Etapas 0–11 concluídas e validadas em Development; Etapa 12 — hardening de segurança e preparação do go-live gradual — em implementação controlada, sem promoção para Production.
+**Status de implementação:** Etapas 0–12 concluídas e validadas em Development; a promoção para Production permanece desativada até homologação separada, rate limit distribuído, App Check em enforce, backup/restauração e aprovação operacional.
 
 > Este documento define a estratégia de integração do APEX Food com Firebase Authentication e Cloud Firestore para múltiplos clientes, com prioridade absoluta para isolamento de dados, não exposição de segredos, rastreabilidade, continuidade operacional e segurança de produção.
 

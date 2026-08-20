@@ -1,7 +1,9 @@
 # Política de Segurança do APEX Food
 
-**Status:** Etapa 12 em implementação controlada  
-**Ambiente autorizado nesta fase:** Development na Vercel  
+**Status:** Fase 12 revisada e concluída em Development
+
+**Ambiente autorizado nesta fase:** Development na Vercel; Production permanece desativada
+
 **Responsável técnico do documento:** Manus AI
 
 ## Princípio de segurança
