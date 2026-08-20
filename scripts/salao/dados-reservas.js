@@ -1,4 +1,4 @@
-window.dadosReservasApexFood = [
+const dadosReservasPreview = [
   { id: 'RES-081', cliente: 'Beatriz Ramos', telefone: '(11) 96666-3404', mesaId: 4, mesa: 'Mesa 04', pessoas: 2, data: '18/08/2026', horario: '19:30', duracao: '02h', status: 'confirmada', canal: 'Aplicativo', criadoEm: '16/08/2026', observacoes: 'Mesa tranquila para jantar. Cliente confirmou por mensagem.' },
   { id: 'RES-082', cliente: 'Lucas Martins', telefone: '(11) 92222-1010', mesaId: 10, mesa: 'Mesa 10', pessoas: 2, data: '18/08/2026', horario: '20:00', duracao: '01h 30min', status: 'confirmada', canal: 'Telefone', criadoEm: '17/08/2026', observacoes: 'Primeira visita ao restaurante.' },
   { id: 'RES-083', cliente: 'Grupo Oliveira', telefone: '(11) 97777-1717', mesaId: 17, mesa: 'Mesa 17', pessoas: 8, data: '18/08/2026', horario: '21:00', duracao: '02h 30min', status: 'confirmada', canal: 'WhatsApp', criadoEm: '12/08/2026', observacoes: 'Preparar duas mesas infantis ao lado.' },
@@ -11,13 +11,17 @@ window.dadosReservasApexFood = [
   { id: 'RES-090', cliente: 'Fernanda Souza', telefone: '(11) 94444-7707', mesaId: 7, mesa: 'Mesa 07', pessoas: 7, data: '18/08/2026', horario: '12:00', duracao: '02h 30min', status: 'chegou', canal: 'WhatsApp', criadoEm: '15/08/2026', observacoes: 'Grupo corporativo. Conta separada por pessoa.' }
 ];
 
+const ambienteReservasLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const estadoReservasVazio = [];
+window.dadosReservasApexFood = ambienteReservasLocal ? dadosReservasPreview : estadoReservasVazio;
+
 (() => {
   function carregarCliente() {
     if (window.apexModulosApi) return Promise.resolve(window.apexModulosApi);
     if (window.apexModulosClientPromise) return window.apexModulosClientPromise;
     window.apexModulosClientPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = '/scripts/api/modulos-client.js?v=etapa9';
+      script.src = '/scripts/api/modulos-client.js?v=fase7';
       script.dataset.apexModuloClient = 'true';
       script.onload = () => resolve(window.apexModulosApi);
       script.onerror = () => reject(new Error('Não foi possível carregar o cliente dos módulos.'));
@@ -40,7 +44,7 @@ window.dadosReservasApexFood = [
     return `${String(Math.floor(minutos / 60)).padStart(2, '0')}h ${String(minutos % 60).padStart(2, '0')}min`;
   }
   window.dadosReservasRemotoAtivo = false;
-  window.dadosReservasPronto = carregarCliente()
+  window.recarregarReservasReais = () => carregarCliente()
     .then((api) => api.listarSalao('reservas'))
     .then((dados) => {
       if (typeof dados?.meta?.idRestaurante !== 'string') return false;
@@ -64,4 +68,5 @@ window.dadosReservasApexFood = [
       return true;
     })
     .catch((erro) => { window.dadosReservasErro = erro; if (!['localhost', '127.0.0.1'].includes(window.location.hostname)) { window.dadosReservasApexFood = []; document.dispatchEvent(new CustomEvent('apex:reservas-indisponiveis')); } return false; });
+  window.dadosReservasPronto = window.recarregarReservasReais();
 })();

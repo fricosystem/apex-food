@@ -24,6 +24,12 @@ const {
 
 const RECURSOS_LEITURA = new Set(['mesas', 'reservas', 'configuracao']);
 const RECURSOS_ESCRITA = new Set(['reserva', 'mesa']);
+const TRANSICOES_RESERVA = {
+  aguardando: new Set(['aguardando', 'confirmada', 'cancelada']),
+  confirmada: new Set(['confirmada', 'chegou', 'cancelada']),
+  chegou: new Set(['chegou', 'cancelada']),
+  cancelada: new Set(['cancelada', 'confirmada']),
+};
 
 function normalizarRecurso(valor) {
   if (valor === 'configuracaoSalao') return 'configuracao';
@@ -44,13 +50,19 @@ function dataValida(valor, campo) {
   return data;
 }
 
+function dtoSalao(documento) {
+  const dto = dtoDocumento(documento);
+  delete dto.nomeNormalizado;
+  return dto;
+}
+
 function listarDto(recurso, documentos) {
   return documentos
     .filter((documento) => {
       const dados = documento.data() || {};
       return dados.estado !== 'excluido' && !dados.excluidoEm;
     })
-    .map(recurso === 'reservas' ? dtoReserva : dtoDocumento);
+    .map(recurso === 'reservas' ? dtoReserva : dtoSalao);
 }
 
 async function listarSalao(identidade, req) {
@@ -71,6 +83,24 @@ async function validarMesa(identidade, corpo) {
   return idDocumento(String(corpo.idMesa), 'idMesa');
 }
 
+function validarMesaDados(corpo, parcial = false) {
+  const dados = {};
+  if (!parcial || corpo.nome !== undefined) dados.nome = textoObrigatorio(corpo.nome, 'nome', 120);
+  if (!parcial || corpo.capacidade !== undefined) dados.capacidade = inteiroPositivo(corpo.capacidade, 'capacidade', 1000);
+  if (!parcial || corpo.area !== undefined) dados.area = textoOpcional(corpo.area, 'area', 80);
+  if (!parcial || corpo.observacoes !== undefined) dados.observacoes = textoOpcional(corpo.observacoes, 'observacoes', 500);
+  if (!parcial || corpo.estado !== undefined) {
+    const estado = corpo.estado === undefined ? 'disponivel' : corpo.estado;
+    if (!ESTADOS_MESA.has(estado)) throw new ApiError(400, 'ESTADO_INVALIDO', 'Estado da mesa inválido.');
+    dados.estado = estado;
+  }
+  return dados;
+}
+
+function nomeMesaNormalizado(nome) {
+  return nome.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim().toLocaleLowerCase('pt-BR');
+}
+
 function validarReserva(corpo) {
   const inicio = dataValida(corpo.inicioEm, 'inicioEm');
   const fim = dataValida(corpo.fimEm, 'fimEm');
@@ -85,6 +115,7 @@ function validarReserva(corpo) {
     fim,
     quantidadePessoas,
     estado,
+    canal: textoOpcional(corpo.canal, 'canal', 40) || 'interno',
     observacoes: textoOpcional(corpo.observacoes, 'observacoes', 1000),
   };
 }
@@ -129,6 +160,7 @@ async function criarReserva(identidade, corpo, idRequisicao) {
       fimEm: Timestamp.fromDate(dados.fim),
       quantidadePessoas: dados.quantidadePessoas,
       estado: dados.estado,
+      canal: dados.canal,
       observacoes: dados.observacoes,
       versao: 1,
       criadoPor: identidade.idUsuario,
@@ -141,6 +173,34 @@ async function criarReserva(identidade, corpo, idRequisicao) {
   return { status: 201, corpo: { recurso: 'reserva', id: referencia.id, criado: true } };
 }
 
+async function criarMesa(identidade, corpo, idRequisicao) {
+  const dados = validarMesaDados(corpo);
+  const restaurante = caminhoRestaurante(identidade.idRestaurante);
+  const referencia = restaurante.collection('mesas').doc();
+  await referencia.firestore.runTransaction(async (transacao) => {
+    const existentes = await transacao.get(restaurante.collection('mesas').where('nomeNormalizado', '==', nomeMesaNormalizado(dados.nome)));
+    if (existentes.docs.some((documento) => documento.data()?.estado !== 'excluido')) {
+      throw new ApiError(409, 'MESA_DUPLICADA', 'Já existe uma mesa com esse nome.');
+    }
+    transacao.set(referencia, {
+      idRestaurante: identidade.idRestaurante,
+      nome: dados.nome,
+      nomeNormalizado: nomeMesaNormalizado(dados.nome),
+      capacidade: dados.capacidade,
+      area: dados.area,
+      estado: dados.estado,
+      observacoes: dados.observacoes,
+      versao: 1,
+      criadoPor: identidade.idUsuario,
+      atualizadoPor: identidade.idUsuario,
+      criadoEm: FieldValue.serverTimestamp(),
+      atualizadoEm: FieldValue.serverTimestamp(),
+    });
+  });
+  await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: 'salao.mesa.criada', tipoRecurso: 'mesa', idRecurso: referencia.id });
+  return { status: 201, corpo: { recurso: 'mesa', id: referencia.id, criado: true } };
+}
+
 async function atualizarReserva(identidade, corpo, idRequisicao) {
   const id = idDocumento(corpo.id, 'id');
   const estado = corpo.estado;
@@ -149,6 +209,8 @@ async function atualizarReserva(identidade, corpo, idRequisicao) {
   await referencia.firestore.runTransaction(async (transacao) => {
     const documento = await transacao.get(referencia);
     if (!documento.exists || documento.data()?.estado === 'excluido') throw new ApiError(404, 'RESERVA_NAO_ENCONTRADA', 'Reserva não encontrada.');
+    const estadoAtual = documento.data()?.estado || 'aguardando';
+    if (!TRANSICOES_RESERVA[estadoAtual]?.has(estado)) throw new ApiError(409, 'TRANSICAO_INVALIDA', 'A mudança de estado da reserva não é permitida.');
     transacao.update(referencia, {
       estado,
       atualizadoPor: identidade.idUsuario,
@@ -162,26 +224,32 @@ async function atualizarReserva(identidade, corpo, idRequisicao) {
 
 async function atualizarMesa(identidade, corpo, idRequisicao) {
   const id = idDocumento(corpo.id, 'id');
-  if (typeof corpo.estado !== 'string' || !ESTADOS_MESA.has(corpo.estado)) throw new ApiError(400, 'ESTADO_INVALIDO', 'Estado da mesa inválido.');
+  const dados = validarMesaDados(corpo, true);
+  if (!Object.keys(dados).length) throw new ApiError(400, 'PAYLOAD_INVALIDO', 'Nenhuma alteração de mesa foi informada.');
   const referencia = caminhoRestaurante(identidade.idRestaurante).collection('mesas').doc(id);
+  let eventoEstado = null;
   await referencia.firestore.runTransaction(async (transacao) => {
     const documento = await transacao.get(referencia);
     if (!documento.exists || documento.data()?.estado === 'excluido') throw new ApiError(404, 'MESA_NAO_ENCONTRADA', 'Mesa não encontrada.');
-    transacao.update(referencia, {
-      estado: corpo.estado,
-      atualizadoPor: identidade.idUsuario,
-      atualizadoEm: FieldValue.serverTimestamp(),
-      versao: Number(documento.data()?.versao || 1) + 1,
-    });
+    const atual = documento.data() || {};
+    if (dados.nome && dados.nome !== atual.nome) {
+      const existentes = await transacao.get(referencia.parent.where('nomeNormalizado', '==', nomeMesaNormalizado(dados.nome)));
+      if (existentes.docs.some((item) => item.id !== id && item.data()?.estado !== 'excluido')) throw new ApiError(409, 'MESA_DUPLICADA', 'Já existe uma mesa com esse nome.');
+      dados.nomeNormalizado = nomeMesaNormalizado(dados.nome);
+    }
+    const atualizacoes = { ...dados, atualizadoPor: identidade.idUsuario, atualizadoEm: FieldValue.serverTimestamp(), versao: Number(atual.versao || 1) + 1 };
+    if (dados.estado && dados.estado !== atual.estado) eventoEstado = { anterior: atual.estado || null, novo: dados.estado };
+    transacao.update(referencia, atualizacoes);
   });
-  await caminhoRestaurante(identidade.idRestaurante).collection('eventosMesas').add({
+  if (eventoEstado) await caminhoRestaurante(identidade.idRestaurante).collection('eventosMesas').add({
     idRestaurante: identidade.idRestaurante,
     idMesa: id,
-    estado: corpo.estado,
+    estadoAnterior: eventoEstado.anterior,
+    estado: eventoEstado.novo,
     idAtor: identidade.idUsuario,
     criadoEm: FieldValue.serverTimestamp(),
   });
-  await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: 'salao.mesa.estadoAlterado', tipoRecurso: 'mesa', idRecurso: id });
+  await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: eventoEstado ? 'salao.mesa.estadoAlterado' : 'salao.mesa.atualizada', tipoRecurso: 'mesa', idRecurso: id });
   return { corpo: { recurso: 'mesa', id, atualizado: true } };
 }
 
@@ -194,8 +262,8 @@ module.exports = async function salao(req, res) {
     const corpo = await lerCorpoJson(req);
     const recurso = normalizarRecurso(corpo.recurso);
     if (metodo === 'POST') {
-      if (recurso !== 'reserva') throw new ApiError(400, 'RECURSO_INVALIDO', 'Somente criação de reserva está disponível neste recorte.');
-      return criarReserva(identidade, corpo, idRequisicao);
+      if (!['reserva', 'mesa'].includes(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso de salão inválido.');
+      return recurso === 'reserva' ? criarReserva(identidade, corpo, idRequisicao) : criarMesa(identidade, corpo, idRequisicao);
     }
     if (!RECURSOS_ESCRITA.has(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso de salão inválido.');
     return recurso === 'reserva' ? atualizarReserva(identidade, corpo, idRequisicao) : atualizarMesa(identidade, corpo, idRequisicao);

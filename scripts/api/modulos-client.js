@@ -116,6 +116,14 @@
     return requisitar('/salao', { method: 'POST', body: { recurso: 'reserva', ...payload } });
   }
 
+  async function criarMesa(payload) {
+    return requisitar('/salao', { method: 'POST', body: { recurso: 'mesa', ...payload } });
+  }
+
+  async function atualizarReserva(payload) {
+    return requisitar('/salao', { method: 'PATCH', body: { recurso: 'reserva', ...payload } });
+  }
+
   async function atualizarSalao(payload) {
     return requisitar('/salao', { method: 'PATCH', body: payload });
   }
@@ -177,6 +185,8 @@
     atualizarStatusPedido,
     listarSalao,
     criarReserva,
+    criarMesa,
+    atualizarReserva,
     atualizarSalao,
     listarEquipe,
     criarEquipe,

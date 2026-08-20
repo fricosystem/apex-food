@@ -1,4 +1,4 @@
-window.dadosMesas = [
+const dadosMesasPreview = [
   {
     id: 1,
     nome: 'Mesa 01',
@@ -392,13 +392,17 @@ window.dadosMesas = [
   }
 ];
 
+const ambienteMesasLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const estadoMesasVazio = [];
+window.dadosMesas = ambienteMesasLocal ? dadosMesasPreview : estadoMesasVazio;
+
 (() => {
   function carregarCliente() {
     if (window.apexModulosApi) return Promise.resolve(window.apexModulosApi);
     if (window.apexModulosClientPromise) return window.apexModulosClientPromise;
     window.apexModulosClientPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = '/scripts/api/modulos-client.js?v=etapa9';
+      script.src = '/scripts/api/modulos-client.js?v=fase7';
       script.dataset.apexModuloClient = 'true';
       script.onload = () => resolve(window.apexModulosApi);
       script.onerror = () => reject(new Error('Não foi possível carregar o cliente dos módulos.'));
@@ -422,7 +426,7 @@ window.dadosMesas = [
     };
   }
   window.dadosMesasRemotoAtivo = false;
-  window.dadosMesasPronto = carregarCliente()
+  window.recarregarMesasReais = () => carregarCliente()
     .then((api) => api.listarSalao('mesas'))
     .then((dados) => {
       if (typeof dados?.meta?.idRestaurante !== 'string') return false;
@@ -432,4 +436,5 @@ window.dadosMesas = [
       return true;
     })
     .catch((erro) => { window.dadosMesasErro = erro; if (!['localhost', '127.0.0.1'].includes(window.location.hostname)) { window.dadosMesas = []; document.dispatchEvent(new CustomEvent('apex:mesas-indisponiveis')); } return false; });
+  window.dadosMesasPronto = window.recarregarMesasReais();
 })();

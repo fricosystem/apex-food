@@ -257,12 +257,16 @@ document.getElementById('limparFiltros')?.addEventListener('click', () => {
 document.getElementById('modalClose')?.addEventListener('click', fecharModal);
 document.getElementById('modalCloseBtn')?.addEventListener('click', fecharModal);
 document.getElementById('modalBackdrop')?.addEventListener('click', fecharModal);
-document.getElementById('modalAcaoBtn')?.addEventListener('click', event => {
-  const id = event.currentTarget.dataset.mesaId;
+async function executarAcaoMesa(id) {
   const mesa = window.dadosMesas.find(item => String(item.id) === String(id));
   if (!mesa) return;
-  mostrarNotificacao(`${mesa.nome}: ação pronta para integração com o módulo de ${mesa.status === 'ocupada' ? 'comandas' : 'reservas'}.`);
-});
+  if (mesa.status === 'ocupada') { fecharModal(); window.apexShell?.navegar('pedidos-ativos'); return; }
+  if (mesa.reservaStatus === 'confirmada') { fecharModal(); window.apexShell?.navegar('reservas'); return; }
+  if (mesa.status === 'indisponivel') { mostrarNotificacao('A mesa está bloqueada para uso.'); return; }
+  if (!window.dadosMesasRemotoAtivo || !window.apexModulosApi?.atualizarSalao) { mostrarNotificacao('Não foi possível abrir a mesa. Tente novamente.'); return; }
+  try { await window.apexModulosApi.atualizarSalao({ recurso: 'mesa', id: String(mesa.id), estado: 'ocupada' }); fecharModal(); await window.recarregarMesasReais?.(); mostrarNotificacao(`${mesa.nome} aberta para atendimento.`); } catch (erro) { mostrarNotificacao(erro.message || 'Não foi possível abrir a mesa.'); }
+}
+document.getElementById('modalAcaoBtn')?.addEventListener('click', event => executarAcaoMesa(event.currentTarget.dataset.mesaId));
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && elementos.modal.classList.contains('is-open')) fecharModal();
 });
