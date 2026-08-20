@@ -1,0 +1,52 @@
+body.apex-publico-mesa > div:first-child,
+body.apex-publico-mesa > .sidebar-overlay,
+body.apex-publico-mesa > #sidebarMobile,
+body.apex-publico-mesa > .sidebar-desktop,
+body.apex-publico-mesa > main > header {
+  display: none !important;
+}
+
+body.apex-publico-mesa > main {
+  margin-left: 0 !important;
+}
+
+body.apex-publico-mesa > main,
+body.apex-publico-mesa #conteudoPagina {
+  min-height: 100vh;
+}
+
+.mesa-publica-shell {
+  background:
+    radial-gradient(circle at 50% -15%, rgba(255, 122, 24, 0.14), transparent 38%),
+    #0b0b0b;
+}
+
+.mesa-publica-card {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+}
+
+.mesa-publica-logo {
+  filter: drop-shadow(0 10px 24px rgba(255, 122, 24, 0.14));
+}
+
+.mesa-publica-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  border-top-color: #ff7a18;
+  border-radius: 999px;
+  animation: mesa-publica-giro 0.8s linear infinite;
+}
+
+.mesa-publica-icone {
+  border: 1px solid rgba(255, 122, 24, 0.2);
+}
+
+@keyframes mesa-publica-giro {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mesa-publica-spinner { animation: none; }
+}

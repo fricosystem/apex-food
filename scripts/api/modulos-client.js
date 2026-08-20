@@ -112,6 +112,14 @@
     return requisitar(`/salao${query({ recurso })}`);
   }
 
+  async function gerarQrMesa(payload) {
+    return requisitar('/qr-mesas', { method: 'POST', body: { acao: 'gerar', ...payload } });
+  }
+
+  async function revogarQrMesa(payload) {
+    return requisitar('/qr-mesas', { method: 'POST', body: { acao: 'revogar', ...payload } });
+  }
+
   async function criarReserva(payload) {
     return requisitar('/salao', { method: 'POST', body: { recurso: 'reserva', ...payload } });
   }
@@ -184,6 +192,8 @@
     criarPedido,
     atualizarStatusPedido,
     listarSalao,
+    gerarQrMesa,
+    revogarQrMesa,
     criarReserva,
     criarMesa,
     atualizarReserva,

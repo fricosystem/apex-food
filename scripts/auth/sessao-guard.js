@@ -3,10 +3,11 @@
 
   const caminhoAtual = window.location.pathname.replace(/\/+$/, '') || '/';
   const paginaAutenticacao = caminhoAtual === '/autenticacao' || caminhoAtual === '/paginas/autenticacao' || caminhoAtual === '/paginas/autenticacao.html';
+  const paginaMesaPublica = caminhoAtual === '/mesa';
   const apiUrl = '/api/v1/auth/session';
   const raiz = document.documentElement;
 
-  if (!paginaAutenticacao) raiz.style.visibility = 'hidden';
+  if (!paginaAutenticacao && !paginaMesaPublica) raiz.style.visibility = 'hidden';
 
   function revelar() {
     raiz.style.visibility = '';
@@ -32,6 +33,11 @@
       const possuiRestauranteAtivo = typeof dados?.restauranteAtivo?.idRestaurante === 'string'
         && dados.restauranteAtivo.idRestaurante.length > 0;
 
+      if (paginaMesaPublica) {
+        revelar();
+        return;
+      }
+
       if (paginaAutenticacao) {
         if (resposta.ok && possuiRestauranteAtivo) {
           window.location.replace('/');
@@ -47,6 +53,10 @@
       }
       revelar();
     } catch {
+      if (paginaMesaPublica) {
+        revelar();
+        return;
+      }
       if (!paginaAutenticacao) {
         window.location.replace('/autenticacao');
         return;

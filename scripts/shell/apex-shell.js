@@ -1,6 +1,7 @@
 (() => {
   const paginas = {
     home: { titulo: 'Visão Geral', fragmento: 'paginas/home.html', href: '/', estilos: ['estilos/home/home.css?v=cards-uniformes'], scripts: ['scripts/home/dados-visao-geral.js?v=fase4', 'scripts/home/home.js?v=31a9457'] },
+    mesa: { titulo: 'Atendimento da Mesa', fragmento: 'paginas/publico/mesa.html?v=etapa3-qr', href: '/mesa', estilos: ['estilos/publico/mesa.css?v=etapa3-qr'], scripts: ['scripts/publico/mesa.js?v=etapa3-qr'] },
     'novo-pedido': { titulo: 'Novo Pedido', fragmento: 'paginas/pedidos/novo-pedido.html?v=fase6b', href: '/novo-pedido', estilos: ['estilos/pedidos/pedidos.css?v=cards-uniformes'], scripts: ['scripts/pedidos/dados-pedidos.js?v=fase6b', 'scripts/pedidos/novo-pedido.js?v=fase6b'] },
     'pedidos-ativos': { titulo: 'Pedidos Ativos', fragmento: 'paginas/pedidos/pedidos-ativos.html?v=fase6b', href: '/pedidos-ativos', estilos: ['estilos/pedidos/pedidos.css?v=cards-uniformes'], scripts: ['scripts/pedidos/dados-pedidos.js?v=fase6b', 'scripts/pedidos/pedidos-ativos.js?v=fase6b'] },
     'historico-pedidos': { titulo: 'Histórico de Pedidos', fragmento: 'paginas/pedidos/historico-pedidos.html?v=fase6b', href: '/historico-pedidos', estilos: ['estilos/pedidos/pedidos.css?v=cards-uniformes'], scripts: ['scripts/pedidos/dados-pedidos.js?v=fase6b', 'scripts/pedidos/historico-pedidos.js?v=fase6b'] },
@@ -14,7 +15,7 @@
     'cardapio-digital': { titulo: 'Cardápio Digital', fragmento: 'paginas/cardapio/cardapio-digital.html?v=fase10', href: '/cardapio-digital', estilos: ['estilos/pedidos/pedidos.css?v=fase5b', 'estilos/cardapio/cardapio.css?v=fase5b'], scripts: ['scripts/pedidos/dados-pedidos.js?v=fase5b', 'scripts/cardapio/dados-cardapio.js?v=fase5b', 'scripts/cardapio/cardapio-digital.js?v=fase10'] },
     'mapa-mesas': { titulo: 'Mapa de Mesas', fragmento: 'paginas/salao/mapa-mesas.html?v=fase7', href: '/mapa-mesas', estilos: ['estilos/mapa-mesas.css?v=fase7'], scripts: ['scripts/salao/dados-mesas.js?v=fase7', 'scripts/salao/mapa-mesas.js?v=fase7'] },
     reservas: { titulo: 'Reservas', fragmento: 'paginas/salao/reservas.html?v=fase7', href: '/reservas', estilos: ['estilos/salao/salao.css?v=fase7'], scripts: ['scripts/salao/dados-mesas.js?v=fase7', 'scripts/salao/dados-reservas.js?v=fase7', 'scripts/salao/reservas.js?v=fase7'] },
-    'configuracao-mesas': { titulo: 'Configuração de Mesas', fragmento: 'paginas/salao/configuracao-mesas.html?v=fase7', href: '/configuracao-mesas', estilos: ['estilos/salao/salao.css?v=fase7'], scripts: ['scripts/salao/dados-mesas.js?v=fase7', 'scripts/salao/configuracao-mesas.js?v=fase7'] },
+    'configuracao-mesas': { titulo: 'Configuração de Mesas', fragmento: 'paginas/salao/configuracao-mesas.html?v=fase7', href: '/configuracao-mesas', estilos: ['estilos/salao/salao.css?v=fase7'], scripts: ['scripts/salao/dados-mesas.js?v=fase7', 'scripts/salao/configuracao-mesas.js?v=etapa3-qr'] },
     funcionarios: { titulo: 'Funcionários', fragmento: 'paginas/equipe/funcionarios.html?v=fase8', href: '/funcionarios', estilos: ['estilos/equipe/equipe.css?v=fase8'], scripts: ['scripts/equipe/dados-equipe.js?v=fase8', 'scripts/equipe/funcionarios.js?v=fase8'] },
     'escala-trabalho': { titulo: 'Escala de Trabalho', fragmento: 'paginas/equipe/escala-trabalho.html?v=fase8', href: '/escala-trabalho', estilos: ['estilos/equipe/equipe.css?v=fase8'], scripts: ['scripts/equipe/dados-equipe.js?v=fase8', 'scripts/equipe/escala-trabalho.js?v=fase8'] },
     comissoes: { titulo: 'Comissões', fragmento: 'paginas/equipe/comissoes.html?v=fase11', href: '/comissoes', estilos: ['estilos/equipe/equipe.css?v=fase8'], scripts: ['scripts/equipe/dados-equipe.js?v=fase11', 'scripts/equipe/comissoes.js?v=fase11'] },
@@ -68,6 +69,7 @@
   const atualizarNavegacao = chave => { document.querySelectorAll('[data-apex-rota]').forEach(link => { const ativo = Boolean(link.dataset.apexRota) && paginaPorHref(link.dataset.apexRota) === chave; link.classList.toggle('active', ativo); link.closest('.tree-item')?.classList.toggle('active', ativo); }); };
   async function carregar(chave) {
     const pagina = paginas[chave] || paginas.home;
+    document.body.classList.toggle('apex-publico-mesa', chave === 'mesa');
     const token = ++carregamentoAtual;
     const container = document.getElementById('conteudoPagina');
     if (!container) return;

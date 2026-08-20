@@ -53,6 +53,7 @@ function dataValida(valor, campo) {
 function dtoSalao(documento) {
   const dto = dtoDocumento(documento);
   delete dto.nomeNormalizado;
+  delete dto.qrHash;
   return dto;
 }
 
