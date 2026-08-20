@@ -52,6 +52,8 @@
     categoriaSelecionada: 'todas',
     carrinho: new Map(),
     pollingId: null,
+    pollingAtivo: false,
+    pollingFalhas: 0,
     enviandoPedido: false,
   };
 
@@ -67,9 +69,17 @@
       const erro = new Error(dados.mensagem || 'Não foi possível concluir o atendimento.');
       erro.status = resposta.status;
       erro.code = dados.erro || 'ERRO_ATENDIMENTO';
+      erro.aguardeSegundos = Number(dados.detalhes?.aguardeSegundos || 0) || 0;
+      erro.idRequisicao = dados.idRequisicao || '';
       throw erro;
     }
     return dados;
+  }
+
+  function mensagemErroAtendimento(erro, fallback = 'Não foi possível atualizar o atendimento.') {
+    if (erro?.status === 429) return `Muitas tentativas em sequência. Aguarde ${erro.aguardeSegundos || 60} segundos e tente novamente.`;
+    if (erro?.status === 503) return 'A proteção do atendimento está temporariamente indisponível. Tente novamente em instantes.';
+    return erro?.message || fallback;
   }
 
   async function obterCsrf() {
@@ -121,9 +131,19 @@
   }
 
   function pararPolling() {
-    if (!estado.pollingId) return;
-    window.clearInterval(estado.pollingId);
+    if (estado.pollingId) window.clearTimeout(estado.pollingId);
     estado.pollingId = null;
+  }
+
+  function agendarPolling(atraso = 15000) {
+    if (!estado.pollingAtivo || document.hidden || estado.pollingId) return;
+    const jitter = Math.floor(Math.random() * 1200);
+    estado.pollingId = window.setTimeout(async () => {
+      estado.pollingId = null;
+      const atualizou = await atualizarComanda({ silencioso: true, polling: true });
+      const intervaloBase = atualizou ? 15000 : Math.min(60000, Math.max(15000, atraso * 2));
+      agendarPolling(intervaloBase);
+    }, Math.max(250, atraso + jitter));
   }
 
   function mostrarErro(mensagem) {
@@ -352,7 +372,7 @@
       renderizarCarrinho();
     } catch (erro) {
       estado.cardapio = null;
-      elementos.cardapioVazioTexto.textContent = erro.code === 'CARDAPIO_NAO_PUBLICADO' ? erro.message : 'O cardápio não está disponível no momento. Tente atualizar o atendimento.';
+      elementos.cardapioVazioTexto.textContent = erro.code === 'CARDAPIO_NAO_PUBLICADO' ? erro.message : mensagemErroAtendimento(erro, 'O cardápio não está disponível no momento. Tente atualizar o atendimento.');
       alternar(elementos.cardapioVazio, true);
       alternar(elementos.cardapioCategorias, false);
       alternar(elementos.cardapioProdutos, false);
@@ -390,32 +410,38 @@
     });
   }
 
-  async function atualizarComanda({ silencioso = false } = {}) {
+  async function atualizarComanda({ silencioso = false, polling = false } = {}) {
     if (!silencioso) elementos.atualizarComanda.disabled = true;
     try {
       const dados = await requisitar('?acao=comanda');
+      estado.pollingFalhas = 0;
       elementos.comandaStatus.textContent = rotuloStatus(dados.comanda?.status);
       elementos.comandaTotal.textContent = dados.comanda?.totalCentavos === null ? 'Não informado' : formatarMoeda(dados.comanda?.totalCentavos);
       renderizarPedidos(dados.pedidos);
+      return true;
     } catch (erro) {
       if (erro.status === 401) {
+        estado.pollingAtivo = false;
         mostrarErro(erro.message || 'A sessão da mesa não está mais disponível.');
-        return;
+        return false;
       }
       if (erro.code === 'CARDAPIO_NAO_PUBLICADO') {
         elementos.comandaStatus.textContent = dadosMesa?.comanda?.status ? rotuloStatus(dadosMesa.comanda.status) : 'Aberta';
         elementos.comandaTotal.textContent = '—';
-        return;
+        return true;
       }
-      if (!silencioso) mostrarFeedback(elementos.pedidoFeedback, erro.message || 'Não foi possível atualizar a comanda.');
+      estado.pollingFalhas += 1;
+      if (!silencioso || erro.status === 429 || erro.status === 503) mostrarFeedback(elementos.pedidoFeedback, mensagemErroAtendimento(erro, 'Não foi possível atualizar a comanda.'), 'erro');
+      return false;
     } finally {
       if (!silencioso) elementos.atualizarComanda.disabled = false;
     }
   }
 
   function iniciarPolling() {
-    if (estado.pollingId) return;
-    estado.pollingId = window.setInterval(() => atualizarComanda({ silencioso: true }), 15000);
+    estado.pollingAtivo = true;
+    estado.pollingFalhas = 0;
+    agendarPolling(15000);
   }
 
   async function enviarPedido() {
@@ -450,7 +476,7 @@
         mostrarErro(erro.message || 'A sessão da mesa não está mais disponível.');
         return;
       }
-      mostrarFeedback(elementos.pedidoFeedback, erro.message || 'Não foi possível enviar o pedido.');
+      mostrarFeedback(elementos.pedidoFeedback, mensagemErroAtendimento(erro, 'Não foi possível enviar o pedido.'));
     } finally {
       estado.enviandoPedido = false;
       elementos.enviarPedido.textContent = 'Enviar pedido ao garçom';
@@ -500,7 +526,7 @@
       window.history.replaceState({}, '', '/mesa');
       mostrarAtendimento(dados);
     } catch (erro) {
-      elementos.feedback.textContent = erro.message || 'Não foi possível abrir o atendimento.';
+      elementos.feedback.textContent = mensagemErroAtendimento(erro, 'Não foi possível abrir o atendimento.');
       elementos.feedback.className = 'text-xs mt-3 text-red-200';
     } finally {
       elementos.continuar.disabled = false;
@@ -525,7 +551,14 @@
   });
   elementos.atualizarComanda?.addEventListener('click', () => atualizarComanda());
   elementos.enviarPedido?.addEventListener('click', enviarPedido);
-  window.addEventListener('beforeunload', pararPolling);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      pararPolling();
+      return;
+    }
+    if (estado.pollingAtivo) agendarPolling(500);
+  });
+  window.addEventListener('beforeunload', () => { estado.pollingAtivo = false; pararPolling(); });
 
   renderizarCarrinho();
   carregarMesa();

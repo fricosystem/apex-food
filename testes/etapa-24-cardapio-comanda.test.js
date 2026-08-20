@@ -78,17 +78,17 @@ test('interface pública apresenta cardápio, carrinho, comanda e polling sem ar
   assert.match(script, /acao=\?comanda|acao=comanda/);
   assert.match(script, /acao: 'pedido'/);
   assert.match(script, /chaveIdempotencia/);
-  assert.match(script, /setInterval\(\(\) => atualizarComanda/);
+  assert.match(script, /agendarPolling/);
   assert.doesNotMatch(script, /localStorage|sessionStorage|deviceId|fingerprint/i);
 });
 
-test('Etapa 4 mantém seus assets e o shell principal avança para etapa7-historico', () => {
+test('Fluxo público mantém os assets da mesa e avança para etapa8-seguranca', () => {
   const shell = ler('scripts/shell/apex-shell.js');
   const index = ler('index.html');
-  assert.match(shell, /mesaPublico|paginas\/publico\/mesa\.html\?v=etapa4-cardapio/);
-  assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa4-cardapio/);
-  assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa4-cardapio/);
-  assert.match(index, /apex-shell\.js\?v=etapa7-historico/);
+  assert.match(shell, /mesaPublico|paginas\/publico\/mesa\.html\?v=etapa8-seguranca/);
+  assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa8-seguranca/);
+  assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa8-seguranca/);
+  assert.match(index, /apex-shell\.js\?v=etapa8-seguranca/);
 });
 
 test('cookie da sessão é assinado com restaurante e sessão na ordem correta', () => {

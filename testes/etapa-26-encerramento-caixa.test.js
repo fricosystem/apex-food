@@ -105,5 +105,5 @@ test('assets alterados preservam etapas anteriores e atualizam o caixa na Etapa 
   assert.match(shell, /pedidos-ativos[^\n]*etapa6-caixa/);
   assert.match(shell, /mapa-mesas[^\n]*etapa6-caixa/);
   assert.match(shell, /fechamento-caixa[^\n]*etapa7-historico/);
-  assert.match(index, /apex-shell\.js\?v=etapa7-historico/);
+  assert.match(index, /apex-shell\.js\?v=etapa8-seguranca/);
 });

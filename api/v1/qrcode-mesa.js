@@ -5,6 +5,7 @@ const { executar } = require('../_lib/middleware');
 const { lerCorpoJson, ApiError } = require('../_lib/http');
 const { obterIdentidadeOperacional } = require('../_lib/modulos-operacionais');
 const { verificarAppCheck } = require('../_lib/app-check');
+const { consumir } = require('../_lib/limite');
 const {
   consultarQrPublico,
   abrirSessaoMesa,
@@ -22,6 +23,20 @@ const PAPEIS_QR_ADMIN = ['proprietario', 'administrador', 'gerente'];
 function valorQuery(req, nome) {
   const valor = req.query?.[nome];
   return Array.isArray(valor) ? valor[0] : valor;
+}
+
+async function limitarAcaoPublica(req, acao) {
+  const limites = {
+    validar: [30, 60_000],
+    sessao: [60, 60_000],
+    cardapio: [60, 60_000],
+    comanda: [60, 60_000],
+    abrir: [10, 60_000],
+    pedido: [20, 60_000],
+    administrativa: [60, 60_000],
+  };
+  const [limite, janela] = limites[acao] || limites.sessao;
+  await consumir(req, `qrcode.${acao}`, limite, janela);
 }
 
 async function executarAcaoAdministrativa(corpo, req, idRequisicao) {
@@ -56,16 +71,20 @@ module.exports = async function qrcodeMesa(req, res) {
     if (metodo === 'GET') {
       const acao = String(valorQuery(req, 'acao') || '').trim();
       if (acao === 'validar') {
+        await limitarAcaoPublica(req, 'validar');
         return { corpo: await consultarQrPublico(valorQuery(req, 'qr') || valorQuery(req, 'token')) };
       }
       if (acao === 'sessao' || !acao) {
+        await limitarAcaoPublica(req, 'sessao');
         return { corpo: await consultarSessaoMesa(req, res) };
       }
       if (acao === 'cardapio') {
+        await limitarAcaoPublica(req, 'cardapio');
         const contexto = await obterContextoSessaoMesa(req, res);
         return { corpo: await listarCardapioPublico(contexto) };
       }
       if (acao === 'comanda') {
+        await limitarAcaoPublica(req, 'comanda');
         const contexto = await obterContextoSessaoMesa(req, res);
         return { corpo: await consultarComandaPublica(contexto) };
       }
@@ -74,6 +93,7 @@ module.exports = async function qrcodeMesa(req, res) {
 
     const corpo = await lerCorpoJson(req);
     if (corpo.acao === 'abrir') {
+      await limitarAcaoPublica(req, 'abrir');
       return {
         corpo: await abrirSessaoMesa({
           token: corpo.qr || corpo.token,
@@ -85,8 +105,10 @@ module.exports = async function qrcodeMesa(req, res) {
       };
     }
     if (corpo.acao === 'pedido') {
+      await limitarAcaoPublica(req, 'pedido');
       return { corpo: await criarPedidoPublico(req, res, corpo) };
     }
+    await limitarAcaoPublica(req, 'administrativa');
     return { corpo: await executarAcaoAdministrativa(corpo, req, idRequisicao) };
   });
 };
