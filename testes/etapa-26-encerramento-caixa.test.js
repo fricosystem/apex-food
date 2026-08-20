@@ -99,11 +99,11 @@ test('mapa de mesas reflete encaminhamento ao caixa e liberação posterior', ()
   assert.match(mapa, /mesa\.status === 'disponivel'/);
 });
 
-test('assets alterados usam o identificador da Etapa 6', () => {
+test('assets alterados preservam etapas anteriores e atualizam o caixa na Etapa 7', () => {
   const shell = ler('scripts/shell/apex-shell.js');
   const index = ler('index.html');
   assert.match(shell, /pedidos-ativos[^\n]*etapa6-caixa/);
   assert.match(shell, /mapa-mesas[^\n]*etapa6-caixa/);
-  assert.match(shell, /fechamento-caixa[^\n]*etapa6-caixa/);
-  assert.match(index, /apex-shell\.js\?v=etapa6-caixa/);
+  assert.match(shell, /fechamento-caixa[^\n]*etapa7-historico/);
+  assert.match(index, /apex-shell\.js\?v=etapa7-historico/);
 });

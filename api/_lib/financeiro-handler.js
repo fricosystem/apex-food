@@ -111,6 +111,7 @@ async function listarFinanceiro(identidade, req) {
   if (recurso && !RECURSOS_LEITURA.has(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso financeiro inválido.');
   const limite = limitarInteiro(req.query?.limite, 100, 200);
   const periodo = queryString(req, 'periodo');
+  const statusEncaminhamento = queryString(req, 'status');
   const restaurante = caminhoRestaurante(identidade.idRestaurante);
   const [fechamentos, movimentacoes, pagar, receber, relatorios, resumos, encaminhamentos] = await Promise.all([
     listarColecao(identidade.idRestaurante, 'fechamentosCaixa', limite),
@@ -123,7 +124,9 @@ async function listarFinanceiro(identidade, req) {
   ]);
   const fechamentoDtos = documentosVisiveis(fechamentos).map(dtoFechamento);
   const movimentacaoDtos = documentosVisiveis(movimentacoes).map(dtoMovimentacao);
-  const encaminhamentoDtos = documentosVisiveis(encaminhamentos).map(dtoEncaminhamentoCaixa);
+  const encaminhamentoDtos = documentosVisiveis(encaminhamentos)
+    .map(dtoEncaminhamentoCaixa)
+    .filter(item => !statusEncaminhamento || statusEncaminhamento === 'todos' || item.statusEncaminhamento === statusEncaminhamento);
   const contasPagar = documentosVisiveis(pagar).map((documento) => dtoConta(documento, 'pagar'));
   const contasReceber = documentosVisiveis(receber).map((documento) => dtoConta(documento, 'receber'));
   let relatorioDtos = documentosVisiveis(relatorios).map(dtoRelatorio);
@@ -139,7 +142,7 @@ async function listarFinanceiro(identidade, req) {
     resumoFinanceiro: resumo,
     encaminhamentos: encaminhamentoDtos,
     encaminhamentosCaixa: encaminhamentoDtos,
-    meta: { idRestaurante: identidade.idRestaurante, limite, periodo: periodo || null },
+    meta: { idRestaurante: identidade.idRestaurante, limite, periodo: periodo || null, statusEncaminhamento: statusEncaminhamento || null },
   };
   if (!recurso) return { corpo };
   if (recurso === 'fechamentos') return { corpo: { fechamentos: fechamentoDtos, meta: corpo.meta } };
@@ -293,6 +296,16 @@ async function atualizarEncaminhamentoCaixa(identidade, req, corpo, idRequisicao
         throw new ApiError(409, 'COMANDA_COM_PEDIDOS_PENDENTES', 'A comanda ainda possui pedidos pendentes.');
       }
       if (!['encaminhada_caixa', 'em_consumo'].includes(comanda.statusComanda || comanda.status)) throw new ApiError(409, 'COMANDA_NAO_ENCAMINHADA', 'A comanda não está disponível para conclusão no caixa.');
+      for (const pedidoDocumento of pedidosDocumentos.docs.filter(documento => documento.data()?.estado !== 'excluido')) {
+        const pedidoAtual = pedidoDocumento.data() || {};
+        transacao.update(pedidoDocumento.ref, {
+          estadoComanda: 'encerrada',
+          encerradaCaixaEm: FieldValue.serverTimestamp(),
+          atualizadoPor: identidade.idUsuario,
+          atualizadoEm: FieldValue.serverTimestamp(),
+          versao: Number(pedidoAtual.versao || 1) + 1,
+        });
+      }
       transacao.update(comandaRef, {
         statusComanda: 'encerrada',
         status: 'encerrada',

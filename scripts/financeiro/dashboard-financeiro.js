@@ -40,6 +40,17 @@
     html('dashboardFinanceiroGraficoMensal', dadosResumo.meses.length ? dadosResumo.meses.map(item => `<div class="flex-1 h-full min-w-0 flex flex-col justify-end items-center gap-1 group" title="${escapar(item.mes)}: ${moeda(item.vendas)} em vendas e ${moeda(item.despesas)} em despesas"><div class="w-full flex items-end justify-center gap-1 h-full"><span class="w-2 sm:w-4 rounded-t bg-green transition-all group-hover:opacity-80" style="height:${Math.max(5, (Number(item.vendas || 0) / maximo) * 100)}%"></span><span class="w-2 sm:w-4 rounded-t bg-red transition-all group-hover:opacity-80" style="height:${Math.max(5, (Number(item.despesas || 0) / maximo) * 100)}%"></span></div><span class="text-[10px] text-muted">${escapar(item.mes)}</span></div>`).join('') : '<div class="w-full h-full flex items-center justify-center text-xs text-muted">Nenhum relatório encontrado</div>');
   }
 
+  function renderizarComandas() {
+    const encaminhamentos = Array.isArray(dados.encaminhamentos) ? dados.encaminhamentos : [];
+    const encaminhadas = encaminhamentos.filter(item => item.statusEncaminhamento === 'encaminhada').length;
+    const recebidas = encaminhamentos.filter(item => item.statusEncaminhamento === 'recebida').length;
+    const concluidas = encaminhamentos.filter(item => item.statusEncaminhamento === 'concluida').length;
+    texto('dashboardComandasEncaminhadas', encaminhadas);
+    texto('dashboardComandasRecebidas', recebidas);
+    texto('dashboardComandasConcluidas', concluidas);
+    texto('dashboardComandasPendentes', encaminhadas + recebidas);
+  }
+
   function renderizarCaixa() {
     const caixa = dados.caixaAtual || {};
     const badge = document.getElementById('dashboardFinanceiroBadgeCaixa');
@@ -70,9 +81,10 @@
   renderizarKpis();
   renderizarGraficoMensal();
   renderizarCaixa();
+  renderizarComandas();
   renderizarRecebimentos();
   renderizarCompromissos();
   window.lucide?.createIcons();
-  document.addEventListener('apex:financeiro-atualizado', () => { renderizarKpis(); renderizarGraficoMensal(); renderizarCaixa(); renderizarRecebimentos(); renderizarCompromissos(); window.lucide?.createIcons(); });
-  document.addEventListener('apex:financeiro-indisponivel', () => { renderizarKpis(); renderizarGraficoMensal(); renderizarCaixa(); renderizarRecebimentos(); renderizarCompromissos(); window.lucide?.createIcons(); });
+  document.addEventListener('apex:financeiro-atualizado', () => { renderizarKpis(); renderizarGraficoMensal(); renderizarCaixa(); renderizarComandas(); renderizarRecebimentos(); renderizarCompromissos(); window.lucide?.createIcons(); });
+  document.addEventListener('apex:financeiro-indisponivel', () => { renderizarKpis(); renderizarGraficoMensal(); renderizarCaixa(); renderizarComandas(); renderizarRecebimentos(); renderizarCompromissos(); window.lucide?.createIcons(); });
 })();

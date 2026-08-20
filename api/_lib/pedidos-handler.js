@@ -68,6 +68,7 @@ function statusPedidoOperacional(pedido) {
 
 function normalizarRecurso(valor) {
   if (valor === 'historico' || valor === 'cozinha' || valor === 'pedido') return 'pedidos';
+  if (valor === 'historicoComanda' || valor === 'historico-comanda') return 'historicoComanda';
   if (valor === 'comanda') return 'comandas';
   return valor || 'pedidos';
 }
@@ -107,8 +108,33 @@ function filtroPedido(dados, req) {
   return true;
 }
 
+async function listarHistoricoComanda(identidade, req) {
+  const idComanda = idDocumento(queryString(req, 'idComanda') || '', 'idComanda');
+  const limite = limitarInteiro(req.query?.limite, 200, 300);
+  const restaurante = caminhoRestaurante(identidade.idRestaurante);
+  const comandaRef = restaurante.collection('comandas').doc(idComanda);
+  const documentoComanda = await comandaRef.get();
+  if (!documentoComanda.exists || documentoComanda.data()?.estado === 'excluido') throw new ApiError(404, 'COMANDA_NAO_ENCONTRADA', 'Comanda não encontrada.');
+  const eventos = await comandaRef.collection('historicoStatus').orderBy('criadoEm', 'desc').limit(limite).get();
+  const historico = eventos.docs.map(documento => {
+    const evento = documento.data() || {};
+    return {
+      id: documento.id,
+      statusAnterior: evento.statusAnterior || evento.de || null,
+      statusNovo: evento.statusNovo || evento.para || evento.acao || '',
+      motivo: evento.motivo || '',
+      papelExecutor: evento.papelExecutor || evento.papelAtor || null,
+      idRequisicao: evento.idRequisicao || null,
+      criadoEm: timestampParaIso(evento.criadoEm),
+    };
+  });
+  const comanda = documentoComanda.data() || {};
+  return { corpo: { recurso: 'historicoComanda', idComanda, statusComanda: comanda.statusComanda || comanda.status || null, historico, meta: { idRestaurante: identidade.idRestaurante, limite } } };
+}
+
 async function listarPedidos(identidade, req) {
   const recurso = normalizarRecurso(queryString(req, 'recurso'));
+  if (recurso === 'historicoComanda') return listarHistoricoComanda(identidade, req);
   if (!['pedidos', 'comandas'].includes(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso de pedidos inválido.');
   const limite = limitarInteiro(req.query?.limite, 200, 300);
   const documentos = await listarColecao(identidade.idRestaurante, recurso, limite);
@@ -330,6 +356,15 @@ async function encaminharComandaCaixa(identidade, corpo, idRequisicao) {
       chaveIdempotencia: chave,
       versao: 1,
     });
+    for (const pedidoDocumento of pedidos) {
+      const pedidoAtual = pedidoDocumento.data() || {};
+      transacao.update(pedidoDocumento.ref, {
+        estadoComanda: 'encaminhada_caixa',
+        atualizadoPor: identidade.idUsuario,
+        atualizadoEm: FieldValue.serverTimestamp(),
+        versao: Number(pedidoAtual.versao || 1) + 1,
+      });
+    }
     transacao.update(comandaRef, {
       statusComanda: 'encaminhada_caixa',
       status: 'encaminhada_caixa',

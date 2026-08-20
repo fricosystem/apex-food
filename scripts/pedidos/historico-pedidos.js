@@ -38,6 +38,33 @@ function renderizarHistorico() {
   elementosHistorico.tabela.querySelectorAll('[data-historico-id]').forEach(botao => botao.addEventListener('click', () => abrirModalHistorico(botao.dataset.historicoId)));
   window.lucide?.createIcons();
 }
+async function carregarTrilhaComanda(pedido) {
+  const trilha = document.getElementById('trilhaComandaHistorico');
+  const statusElemento = document.getElementById('statusComandaHistorico');
+  if (!trilha || !statusElemento) return;
+  trilha.innerHTML = '<div class="p-4 text-xs text-muted">Carregando histórico operacional...</div>';
+  statusElemento.textContent = pedido.estadoComanda || '—';
+  if (!pedido.idComanda || !window.apexModulosApi?.listarHistoricoComanda) {
+    trilha.innerHTML = '<div class="p-4 text-xs text-muted">A trilha desta comanda não está disponível.</div>';
+    return;
+  }
+  try {
+    const dados = await window.apexModulosApi.listarHistoricoComanda(String(pedido.idComanda), { limite: 100 });
+    const mapaStatus = { aberta: 'Aberta', em_consumo: 'Em consumo', encaminhada_caixa: 'Encaminhada ao caixa', encerrada: 'Encerrada', cancelada: 'Cancelada', ocupada: 'Ocupada', disponivel: 'Disponível' };
+    statusElemento.textContent = mapaStatus[dados.statusComanda] || dados.statusComanda || '—';
+    const eventos = Array.isArray(dados.historico) ? dados.historico : [];
+    trilha.innerHTML = eventos.length ? eventos.map(evento => {
+      const de = mapaStatus[evento.statusAnterior] || evento.statusAnterior || 'Início';
+      const para = mapaStatus[evento.statusNovo] || evento.statusNovo || 'Atualização';
+      const data = evento.criadoEm ? new Date(evento.criadoEm).toLocaleString('pt-BR') : 'Data não informada';
+      return `<div class="flex items-start gap-3 p-3"><span class="w-2 h-2 rounded-full bg-accent mt-1.5 flex-shrink-0"></span><div class="min-w-0"><div class="text-xs font-medium">${escapeHistorico(de)} <span class="text-muted">→</span> ${escapeHistorico(para)}</div><div class="text-[10px] text-muted mt-1">${escapeHistorico(data)}${evento.papelExecutor ? ` · ${escapeHistorico(evento.papelExecutor)}` : ''}</div>${evento.motivo ? `<p class="text-xs text-muted mt-1">${escapeHistorico(evento.motivo)}</p>` : ''}</div></div>`;
+    }).join('') : '<div class="p-4 text-xs text-muted">Nenhum evento operacional encontrado para esta comanda.</div>';
+    window.lucide?.createIcons();
+  } catch (erro) {
+    trilha.innerHTML = `<div class="p-4 text-xs text-muted">${escapeHistorico(erro.message || 'Não foi possível carregar a trilha da comanda.')}</div>`;
+  }
+}
+
 function abrirModalHistorico(id) {
   const pedido = pedidosHistorico().find(item => String(item.id) === String(id)); if (!pedido) return;
   const status = window.dadosPedidosApexFood.status[pedido.status] || { label: pedido.status || '—', classe: 'bg-card2 text-muted border-border2' };
@@ -46,7 +73,7 @@ function abrirModalHistorico(id) {
   document.getElementById('dadosModalHistorico').innerHTML = [['Cliente', pedido.cliente], ['Mesa / canal', `${pedido.mesa} · ${pedido.canal}`], ['Garçom', pedido.garcom], ['Pagamento', pedido.pagamento], ['Valor total', moedaHistorico(pedido.valor)], ['Status', status.label]].map(([label, valor]) => `<div class="rounded-lg bg-card2 border border-border2 p-3"><div class="text-[10px] text-muted uppercase tracking-wider mb-1">${label}</div><div class="text-sm font-medium">${escapeHistorico(valor)}</div></div>`).join('');
   document.getElementById('contagemModalHistorico').textContent = `${pedido.itensQuantidade || pedido.itens.length} item(ns)`;
   document.getElementById('itensModalHistorico').innerHTML = pedido.itens.map(item => `<div class="flex items-center justify-between gap-3 px-3 py-2.5"><span class="text-xs sm:text-sm">${item.quantidade}x ${escapeHistorico(item.nome)}</span><span class="text-xs font-medium">${moedaHistorico(item.valor)}</span></div>`).join('') || `<div class="px-3 py-4 text-xs text-muted">Nenhum item encontrado.</div>`;
-  const modal = document.getElementById('modalHistorico'); modal.classList.add('aberto'); modal.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; window.lucide?.createIcons(); document.getElementById('fecharModalHistorico').focus();
+  const modal = document.getElementById('modalHistorico'); modal.classList.add('aberto'); modal.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; window.lucide?.createIcons(); document.getElementById('fecharModalHistorico').focus(); carregarTrilhaComanda(pedido);
 }
 function fecharModalHistorico() { const modal = document.getElementById('modalHistorico'); modal.classList.remove('aberto'); modal.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
 function exportarHistorico() {

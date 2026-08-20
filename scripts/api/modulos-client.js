@@ -181,6 +181,10 @@
     return requisitar(`/financeiro${query({ recurso: 'encaminhamentos', ...parametros })}`);
   }
 
+  async function listarHistoricoComanda(idComanda, parametros = {}) {
+    return requisitar(`/pedidos${query({ recurso: 'historicoComanda', idComanda, ...parametros })}`);
+  }
+
   async function atualizarEncaminhamentoCaixa(payload) {
     return requisitar('/financeiro', { method: 'PATCH', body: { recurso: 'encaminhamentoCaixa', ...payload } });
   }
@@ -221,6 +225,7 @@
     atualizarMovimentacaoFinanceira,
     fecharCaixaFinanceiro,
     listarEncaminhamentosCaixa,
+    listarHistoricoComanda,
     atualizarEncaminhamentoCaixa,
     encaminharComandaCaixa,
   });

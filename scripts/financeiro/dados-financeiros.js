@@ -72,8 +72,8 @@ const dadosFinanceirosPreview = {
   }
 
   window.dadosFinanceirosRemotoAtivo = false;
-  window.apexFinanceiroRecarregar = () => carregarCliente()
-    .then((api) => api.listarFinanceiro())
+  window.apexFinanceiroRecarregar = (parametros = {}) => carregarCliente()
+    .then((api) => api.listarFinanceiro('', parametros))
     .then((dados) => {
       if (typeof dados?.meta?.idRestaurante !== 'string') return false;
       aplicarDadosRemotos(dados);

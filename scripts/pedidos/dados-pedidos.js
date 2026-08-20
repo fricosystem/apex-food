@@ -151,6 +151,7 @@ function adaptarPedidoReal(pedido) {
     cliente: pedido.nomeCliente || 'Cliente não informado',
     canal: pedido.canal || (pedido.tipoAtendimento === 'delivery' ? 'delivery' : 'salão'),
     status,
+    estadoComanda: pedido.estadoComanda || pedido.statusComanda || null,
     statusLabel: dadosPedidosPreview.status[status]?.label || status,
     prioridade: pedido.prioridade || 'normal',
     garcom: pedido.nomeGarcom || '—',
@@ -184,8 +185,9 @@ async function carregarPedidosReais() {
     const dados = window.dadosPedidosApexFood;
     substituirLista(dados.categorias, cardapioCategorias);
     substituirLista(dados.produtos, cardapioProdutos);
-    substituirLista(dados.pedidosAtivos, pedidos.filter(item => ['novo', 'rascunho', 'aguardando_confirmacao_garcom', 'confirmado_garcom', 'enviado_cozinha', 'preparo', 'em_preparo', 'pronto', 'servido'].includes(item.status)));
-    substituirLista(dados.pedidosHistorico, pedidos.filter(item => ['entregue', 'finalizado', 'rejeitado_garcom', 'cancelado'].includes(item.status)));
+    const pedidosDaComandaEncerrados = item => ['encaminhada_caixa', 'encerrada'].includes(item.estadoComanda);
+    substituirLista(dados.pedidosAtivos, pedidos.filter(item => ['novo', 'rascunho', 'aguardando_confirmacao_garcom', 'confirmado_garcom', 'enviado_cozinha', 'preparo', 'em_preparo', 'pronto', 'servido'].includes(item.status) && !pedidosDaComandaEncerrados(item)));
+    substituirLista(dados.pedidosHistorico, pedidos.filter(item => ['entregue', 'finalizado', 'rejeitado_garcom', 'cancelado'].includes(item.status) || (item.status === 'servido' && pedidosDaComandaEncerrados(item))));
     dados.mesas = Array.isArray(salaoResposta?.mesas) ? salaoResposta.mesas : [];
     dados.funcionarios = Array.isArray(equipeResposta?.funcionarios) ? equipeResposta.funcionarios : [];
     window.dadosPedidosRemotoAtivo = true;

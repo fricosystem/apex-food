@@ -6,7 +6,7 @@
     <section class="rounded-xl bg-card border border-border overflow-hidden">
       <div class="p-4 sm:p-5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div><h3 class="text-sm font-semibold">Comandas encaminhadas ao caixa</h3><p class="text-xs text-muted mt-1">Confirme o recebimento e conclua o atendimento operacional. O sistema não processa pagamentos.</p></div>
-        <div class="flex items-center gap-2"><span id="resumoEncaminhamentosCaixa" class="text-xs text-muted">0 encaminhamentos</span><button id="atualizarEncaminhamentosCaixa" class="p-2 rounded-lg hover:bg-card2 text-muted" aria-label="Atualizar comandas encaminhadas"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button></div>
+        <div class="flex items-center gap-2"><select id="filtroEncaminhamentoCaixa" class="bg-card2 border border-border2 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-accent/60" aria-label="Filtrar comandas do caixa"><option value="todos">Todos</option><option value="encaminhada">Encaminhadas</option><option value="recebida">Recebidas</option><option value="concluida">Concluídas</option><option value="cancelada">Canceladas</option></select><span id="resumoEncaminhamentosCaixa" class="text-xs text-muted">0 encaminhamentos</span><button id="atualizarEncaminhamentosCaixa" class="p-2 rounded-lg hover:bg-card2 text-muted" aria-label="Atualizar comandas encaminhadas"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button></div>
       </div>
       <div id="listaEncaminhamentosCaixa" class="divide-y divide-border"></div>
     </section>
