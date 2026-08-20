@@ -92,6 +92,10 @@
     return requisitar('/cardapio', { method: 'PATCH', body: payload });
   }
 
+  async function registrarMovimentacaoEstoque(payload) {
+    return requisitar('/cardapio', { method: 'POST', body: { recurso: 'estoque', ...payload } });
+  }
+
   async function listarSalao(recurso = '') {
     return requisitar(`/salao${query({ recurso })}`);
   }
@@ -155,6 +159,7 @@
     listarCardapio,
     criarCardapio,
     atualizarCardapio,
+    registrarMovimentacaoEstoque,
     listarSalao,
     criarReserva,
     atualizarSalao,

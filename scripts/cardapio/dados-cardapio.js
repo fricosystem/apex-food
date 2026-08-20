@@ -72,16 +72,25 @@
   }
 
   function adaptarPromocao(promocao) {
+    const valorCentavos = Number(promocao.valorCentavos || 0);
+    const valor = valorCentavos > 0
+      ? `R$ ${(valorCentavos / 100).toFixed(2).replace('.', ',')}`
+      : (promocao.valor || '—');
     return {
       ...promocao,
       id: String(promocao.id),
+      cor: promocao.cor || 'orange',
       usos: Number(promocao.usos || 0),
       limite: Number(promocao.limite || 0),
+      valor,
+      inicio: promocao.inicio || promocao.inicioEm || 'Sem início',
+      fim: promocao.fim || promocao.fimEm || 'Sem fim',
       status: promocao.estado || promocao.status || 'ativa',
     };
   }
 
-  window.dadosCardapioApexFood = previewCardapio;
+  const ambienteLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  window.dadosCardapioApexFood = ambienteLocal ? previewCardapio : { categorias: [], produtos: [], promocoes: [] };
   window.dadosCardapioRemotoAtivo = false;
   window.dadosCardapioPronto = carregarCliente()
     .then((api) => api.listarCardapio())

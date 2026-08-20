@@ -13,6 +13,7 @@ const {
   textoOpcional,
   inteiroNaoNegativo,
   inteiroPositivo,
+  enumObrigatorio,
   dtoDocumento,
   listarColecao,
   queryString,
@@ -20,13 +21,28 @@ const {
 } = require('./modulos-operacionais');
 
 const RECURSOS_LEITURA = new Set(['categorias', 'produtos', 'promocoes']);
-const RECURSOS_ESCRITA = new Set(['categoria', 'produto']);
+const RECURSOS_ESCRITA = new Set(['categorias', 'produtos', 'promocoes', 'estoque']);
+const TIPOS_ESTOQUE = new Set(['entrada', 'saida', 'ajuste']);
+const TIPOS_PROMOCAO = new Set(['Combo', 'Produto', 'Horário', 'Fidelidade']);
+const ESTADOS_PROMOCAO = new Set(['ativa', 'agendada', 'inativa']);
+const COLECOES_CARDAPIO = Object.freeze({
+  categorias: 'categoriasCardapio',
+  produtos: 'produtosCardapio',
+  promocoes: 'promocoesCardapio',
+});
 
 function normalizarRecurso(valor) {
   if (valor === 'categoria') return 'categorias';
   if (valor === 'produto') return 'produtos';
   if (valor === 'promocao') return 'promocoes';
+  if (valor === 'movimentacao-estoque' || valor === 'movimentacaoEstoque') return 'estoque';
   return valor;
+}
+
+function nomeColecao(recurso) {
+  const colecao = COLECOES_CARDAPIO[recurso];
+  if (!colecao) throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso de cardápio inválido.');
+  return colecao;
 }
 
 function idDocumento(valor, campo = 'id') {
@@ -52,7 +68,7 @@ async function listarCardapio(identidade, req) {
   }
   const limite = limitarInteiro(req.query?.limite, 100, 200);
   const colecoes = recurso ? [recurso] : ['categorias', 'produtos', 'promocoes'];
-  const documentos = await Promise.all(colecoes.map((colecao) => listarColecao(identidade.idRestaurante, colecao === 'categorias' ? 'categoriasCardapio' : colecao, limite)));
+  const documentos = await Promise.all(colecoes.map((colecao) => listarColecao(identidade.idRestaurante, nomeColecao(colecao), limite)));
   const resposta = { categorias: [], produtos: [], promocoes: [] };
   colecoes.forEach((colecao, indice) => {
     resposta[colecao] = dadosVisiveis(documentos[indice]);
@@ -67,6 +83,20 @@ function validarCategoria(corpo) {
     icone: textoObrigatorio(corpo.icone || 'utensils', 'icone', 60),
     cor: textoObrigatorio(corpo.cor || 'orange', 'cor', 30),
     ordem: corpo.ordem === undefined ? 0 : inteiroNaoNegativo(corpo.ordem, 'ordem', 10000),
+  };
+}
+
+function validarPromocao(corpo) {
+  return {
+    nome: textoObrigatorio(corpo.nome, 'nome', 140),
+    descricao: textoOpcional(corpo.descricao, 'descricao', 500),
+    tipo: enumObrigatorio(corpo.tipo || 'Combo', TIPOS_PROMOCAO, 'tipo'),
+    desconto: textoObrigatorio(corpo.desconto, 'desconto', 60),
+    valorCentavos: corpo.valorCentavos === undefined ? 0 : inteiroNaoNegativo(corpo.valorCentavos, 'valorCentavos', 100000000),
+    limite: corpo.limite === undefined ? 0 : inteiroNaoNegativo(corpo.limite, 'limite', 100000000),
+    estado: enumObrigatorio(corpo.estado || 'ativa', ESTADOS_PROMOCAO, 'estado'),
+    inicioEm: textoOpcional(corpo.inicioEm, 'inicioEm', 40),
+    fimEm: textoOpcional(corpo.fimEm, 'fimEm', 40),
   };
 }
 
@@ -89,19 +119,63 @@ async function validarProduto(idRestaurante, corpo) {
   };
 }
 
+async function criarMovimentacaoEstoque(identidade, corpo, idRequisicao) {
+  const produtoId = idDocumento(corpo.produtoId, 'produtoId');
+  const tipo = enumObrigatorio(corpo.tipo, TIPOS_ESTOQUE, 'tipo');
+  const quantidade = inteiroPositivo(corpo.quantidade, 'quantidade', 1000000);
+  const motivo = textoObrigatorio(corpo.motivo, 'motivo', 240);
+  const referenciaProduto = caminhoRestaurante(identidade.idRestaurante).collection('produtosCardapio').doc(produtoId);
+  const referenciaMovimentacao = caminhoRestaurante(identidade.idRestaurante).collection('movimentacoesEstoque').doc();
+  const db = referenciaProduto.firestore;
+  await db.runTransaction(async (transacao) => {
+    const produto = await transacao.get(referenciaProduto);
+    if (!produto.exists || produto.data()?.estado === 'excluido') throw new ApiError(404, 'PRODUTO_NAO_ENCONTRADO', 'Produto não encontrado.');
+    const estoqueAtual = Number(produto.data()?.estoque || 0);
+    const estoqueNovo = tipo === 'entrada' ? estoqueAtual + quantidade : tipo === 'saida' ? estoqueAtual - quantidade : quantidade;
+    if (estoqueNovo < 0) throw new ApiError(409, 'ESTOQUE_INSUFICIENTE', 'A saída excede o estoque disponível.');
+    transacao.update(referenciaProduto, {
+      estoque: estoqueNovo,
+      atualizadoPor: identidade.idUsuario,
+      atualizadoEm: FieldValue.serverTimestamp(),
+      versao: Number(produto.data()?.versao || 1) + 1,
+    });
+    transacao.set(referenciaMovimentacao, {
+      produtoId,
+      tipo,
+      quantidade,
+      unidade: textoOpcional(corpo.unidade, 'unidade', 40) || produto.data()?.unidade || 'unidade',
+      motivo,
+      referenciaId: textoOpcional(corpo.referenciaId, 'referenciaId', 128),
+      estoqueAnterior: estoqueAtual,
+      estoqueNovo,
+      idRestaurante: identidade.idRestaurante,
+      criadoPor: identidade.idUsuario,
+      criadoEm: FieldValue.serverTimestamp(),
+    });
+  });
+  await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: `estoque.${tipo}`, tipoRecurso: 'movimentacoesEstoque', idRecurso: referenciaMovimentacao.id });
+  return { status: 201, corpo: { recurso: 'estoque', id: referenciaMovimentacao.id, produtoId, tipo, quantidade } };
+}
+
 async function criarRecurso(identidade, corpo, idRequisicao) {
   const recurso = normalizarRecurso(corpo.recurso);
   if (!RECURSOS_ESCRITA.has(recurso)) {
     throw new ApiError(400, 'RECURSO_INVALIDO', 'Criação deste recurso não está disponível neste recorte.');
   }
-  const colecao = recurso === 'categorias' ? 'categoriasCardapio' : 'produtos';
-  const dados = recurso === 'categorias' ? validarCategoria(corpo) : await validarProduto(identidade.idRestaurante, corpo);
+  if (recurso === 'estoque') return criarMovimentacaoEstoque(identidade, corpo, idRequisicao);
+  const colecao = nomeColecao(recurso);
+  const dados = recurso === 'categorias'
+    ? validarCategoria(corpo)
+    : recurso === 'produtos'
+      ? await validarProduto(identidade.idRestaurante, corpo)
+      : validarPromocao(corpo);
   const referencia = caminhoRestaurante(identidade.idRestaurante).collection(colecao).doc();
   await referencia.set({
     ...dados,
     idRestaurante: identidade.idRestaurante,
-    estado: 'ativo',
+    estado: recurso === 'promocoes' ? dados.estado : 'ativo',
     versao: 1,
+    ...(recurso === 'promocoes' ? { usos: 0 } : {}),
     criadoPor: identidade.idUsuario,
     atualizadoPor: identidade.idUsuario,
     criadoEm: FieldValue.serverTimestamp(),
@@ -109,6 +183,21 @@ async function criarRecurso(identidade, corpo, idRequisicao) {
   });
   await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: `cardapio.${recurso}.criado`, tipoRecurso: recurso, idRecurso: referencia.id });
   return { status: 201, corpo: { recurso, id: referencia.id } };
+}
+
+function camposAtualizaveisPromocao(corpo) {
+  const atualizacoes = {};
+  if (corpo.nome !== undefined) atualizacoes.nome = textoObrigatorio(corpo.nome, 'nome', 140);
+  if (corpo.descricao !== undefined) atualizacoes.descricao = textoOpcional(corpo.descricao, 'descricao', 500);
+  if (corpo.tipo !== undefined) atualizacoes.tipo = enumObrigatorio(corpo.tipo, TIPOS_PROMOCAO, 'tipo');
+  if (corpo.desconto !== undefined) atualizacoes.desconto = textoObrigatorio(corpo.desconto, 'desconto', 60);
+  if (corpo.valorCentavos !== undefined) atualizacoes.valorCentavos = inteiroNaoNegativo(corpo.valorCentavos, 'valorCentavos', 100000000);
+  if (corpo.limite !== undefined) atualizacoes.limite = inteiroNaoNegativo(corpo.limite, 'limite', 100000000);
+  if (corpo.estado !== undefined) atualizacoes.estado = enumObrigatorio(corpo.estado, ESTADOS_PROMOCAO, 'estado');
+  if (corpo.inicioEm !== undefined) atualizacoes.inicioEm = textoOpcional(corpo.inicioEm, 'inicioEm', 40);
+  if (corpo.fimEm !== undefined) atualizacoes.fimEm = textoOpcional(corpo.fimEm, 'fimEm', 40);
+  if (!Object.keys(atualizacoes).length) throw new ApiError(400, 'PAYLOAD_INVALIDO', 'Nenhum campo atualizável foi informado.');
+  return atualizacoes;
 }
 
 function camposAtualizaveisProduto(corpo) {
@@ -133,9 +222,13 @@ async function atualizarRecurso(identidade, corpo, idRequisicao) {
     throw new ApiError(400, 'RECURSO_INVALIDO', 'Atualização deste recurso não está disponível neste recorte.');
   }
   const id = idDocumento(corpo.id, 'id');
-  const colecao = recurso === 'categorias' ? 'categoriasCardapio' : 'produtos';
+  const colecao = nomeColecao(recurso);
   const referencia = caminhoRestaurante(identidade.idRestaurante).collection(colecao).doc(id);
-  const atualizacoes = recurso === 'categorias' ? validarCategoria(corpo) : camposAtualizaveisProduto(corpo);
+  const atualizacoes = recurso === 'categorias'
+    ? validarCategoria(corpo)
+    : recurso === 'produtos'
+      ? camposAtualizaveisProduto(corpo)
+      : camposAtualizaveisPromocao(corpo);
   const db = referencia.firestore;
   await db.runTransaction(async (transacao) => {
     const documento = await transacao.get(referencia);
