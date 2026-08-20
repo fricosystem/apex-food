@@ -13,7 +13,7 @@ test('Pedidos usam handler tenant-aware com transações e estados fechados', ()
   assert.match(handler, /collection\('pedidos'\)/);
   assert.match(handler, /collection\('comandas'\)/);
   assert.match(handler, /collection\('historicoStatus'\)/);
-  assert.match(handler, /const ESTADOS_PEDIDO = new Set\(\['novo', 'preparo', 'pronto', 'entregue', 'finalizado', 'cancelado'\]\)/);
+  assert.match(handler, /const ESTADOS_PEDIDO = new Set\(\['novo', 'preparo', 'pronto', 'entregue', 'finalizado', 'cancelado', 'rascunho', 'aguardando_confirmacao_garcom', 'confirmado_garcom', 'enviado_cozinha', 'em_preparo', 'servido', 'rejeitado_garcom'\]\)/);
   assert.match(handler, /const TRANSICOES/);
   assert.match(handler, /runTransaction/);
   assert.match(handler, /motivoCancelamento/);

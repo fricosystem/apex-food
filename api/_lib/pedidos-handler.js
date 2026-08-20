@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('node:crypto');
 const { FieldValue } = require('firebase-admin/firestore');
 const { executar } = require('./middleware');
 const { lerCorpoJson, ApiError } = require('./http');
@@ -7,6 +8,7 @@ const {
   PAPEIS_LEITURA,
   caminhoRestaurante,
   obterIdentidadeOperacional,
+  exigirPapel,
   limitarInteiro,
   textoObrigatorio,
   textoOpcional,
@@ -21,7 +23,9 @@ const {
 } = require('./modulos-operacionais');
 
 const PAPEIS_PEDIDOS = ['proprietario', 'administrador', 'gerente', 'garcom', 'cozinha'];
-const ESTADOS_PEDIDO = new Set(['novo', 'preparo', 'pronto', 'entregue', 'finalizado', 'cancelado']);
+const PAPEIS_GARCOM = ['proprietario', 'administrador', 'gerente', 'garcom'];
+const PAPEIS_COZINHA = ['proprietario', 'administrador', 'gerente', 'cozinha'];
+const ESTADOS_PEDIDO = new Set(['novo', 'preparo', 'pronto', 'entregue', 'finalizado', 'cancelado', 'rascunho', 'aguardando_confirmacao_garcom', 'confirmado_garcom', 'enviado_cozinha', 'em_preparo', 'servido', 'rejeitado_garcom']);
 const TIPOS_ATENDIMENTO = new Set(['mesa', 'delivery']);
 const TRANSICOES = Object.freeze({
   novo: new Set(['preparo', 'cancelado']),
@@ -31,6 +35,36 @@ const TRANSICOES = Object.freeze({
   finalizado: new Set(),
   cancelado: new Set(),
 });
+const TRANSICOES_QR = Object.freeze({
+  rascunho: new Set(['aguardando_confirmacao_garcom', 'cancelado']),
+  aguardando_confirmacao_garcom: new Set(['confirmado_garcom', 'rejeitado_garcom', 'cancelado']),
+  confirmado_garcom: new Set(['enviado_cozinha', 'cancelado']),
+  enviado_cozinha: new Set(['em_preparo', 'cancelado']),
+  em_preparo: new Set(['pronto', 'cancelado']),
+  pronto: new Set(['servido', 'cancelado']),
+  servido: new Set(),
+  rejeitado_garcom: new Set(),
+});
+
+function pedidoPublicoQr(pedido) {
+  return pedido?.origem === 'cardapioDigital' || typeof pedido?.statusPedido === 'string' || typeof pedido?.idSessaoMesa === 'string';
+}
+
+function hashOperacao(valor) {
+  return crypto.createHash('sha256').update(String(valor)).digest('hex').slice(0, 40);
+}
+
+function chaveIdempotenciaPedido(valor, fallback) {
+  const chave = valor === undefined || valor === null || valor === '' ? fallback : valor;
+  if (typeof chave !== 'string' || chave.trim().length < 8 || chave.trim().length > 200) {
+    throw new ApiError(400, 'CHAVE_IDEMPOTENCIA_INVALIDA', 'A chave de idempotência é obrigatória para alterar o pedido.');
+  }
+  return chave.trim();
+}
+
+function statusPedidoOperacional(pedido) {
+  return pedido?.statusPedido || pedido?.status || 'novo';
+}
 
 function normalizarRecurso(valor) {
   if (valor === 'historico' || valor === 'cozinha' || valor === 'pedido') return 'pedidos';
@@ -50,11 +84,12 @@ function dtoPedido(documento) {
   for (const campo of ['enviadoCozinhaEm', 'entregueEm', 'finalizadoEm', 'canceladoEm']) {
     if (campo in dto) dto[campo] = timestampParaIso(dto[campo]);
   }
-  dto.itens = Array.isArray(dto.itens) ? dto.itens : [];
+  dto.itens = Array.isArray(dto.itens) ? dto.itens : Array.isArray(dto.itensResumo) ? dto.itensResumo : [];
   dto.quantidadeItens = dto.itens.reduce((total, item) => total + Number(item.quantidade || 0), 0);
   dto.valorCentavos = Number(dto.valorCentavos || 0);
   dto.taxaEntregaCentavos = Number(dto.taxaEntregaCentavos || 0);
-  dto.status = dto.status || 'novo';
+  dto.statusPedido = dto.statusPedido || null;
+  dto.status = dto.statusPedido || dto.status || 'novo';
   dto.canal = dto.canal || dto.tipoAtendimento || 'mesa';
   return dto;
 }
@@ -212,17 +247,210 @@ async function criarPedido(identidade, corpo, idRequisicao) {
   return { status: 201, corpo: { recurso: 'pedido', id: pedidoRef.id, idComanda: comandaRef.id, status: 'novo', valorCentavos } };
 }
 
-async function atualizarStatusPedido(identidade, corpo, idRequisicao) {
+function exigirPapelTransicaoQr(identidade, para) {
+  if (['confirmado_garcom', 'rejeitado_garcom', 'enviado_cozinha', 'servido'].includes(para)) {
+    exigirPapel(identidade, PAPEIS_GARCOM);
+    return;
+  }
+  if (['em_preparo', 'pronto'].includes(para)) {
+    exigirPapel(identidade, PAPEIS_COZINHA);
+    return;
+  }
+  exigirPapel(identidade, PAPEIS_PEDIDOS);
+}
+
+async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
   const id = idDocumento(corpo.id, 'id');
   const para = enumObrigatorio(corpo.status, ESTADOS_PEDIDO, 'status');
-  const motivo = para === 'cancelado' ? textoObrigatorio(corpo.motivoCancelamento, 'motivoCancelamento', 500) : textoOpcional(corpo.motivo, 'motivo', 500);
-  const pedidoRef = caminhoRestaurante(identidade.idRestaurante).collection('pedidos').doc(id);
+  exigirPapelTransicaoQr(identidade, para);
+  const motivo = ['cancelado', 'rejeitado_garcom'].includes(para)
+    ? textoObrigatorio(corpo.motivoCancelamento || corpo.motivoRejeicao || corpo.motivo, 'motivo', 500)
+    : textoOpcional(corpo.motivo, 'motivo', 500);
+  const chave = chaveIdempotenciaPedido(corpo.chaveIdempotencia, idRequisicao);
+  const restaurante = caminhoRestaurante(identidade.idRestaurante);
+  const pedidoRef = restaurante.collection('pedidos').doc(id);
+  const hashPayload = hashOperacao(JSON.stringify({ id, para, motivo }));
+  const idOperacao = hashOperacao(`${identidade.idRestaurante}:${identidade.idUsuario}:pedido-status:${id}:${chave}`);
+  const idempotenciaRef = restaurante.collection('chavesIdempotencia').doc(idOperacao);
   const db = pedidoRef.firestore;
-  let de = '';
+  let resultado;
+  let repeticaoIdempotente = false;
+
   await db.runTransaction(async transacao => {
+    const idempotenciaDocumento = await transacao.get(idempotenciaRef);
+    if (idempotenciaDocumento.exists) {
+      const anterior = idempotenciaDocumento.data() || {};
+      if (anterior.hashPayload !== hashPayload) throw new ApiError(409, 'IDEMPOTENCIA_REUTILIZADA', 'A chave de status já foi utilizada com outros dados.');
+      resultado = anterior.resultado;
+      repeticaoIdempotente = true;
+      return;
+    }
     const documento = await transacao.get(pedidoRef);
     if (!documento.exists || documento.data()?.estado === 'excluido') throw new ApiError(404, 'PEDIDO_NAO_ENCONTRADO', 'Pedido não encontrado.');
     const pedido = documento.data() || {};
+    if (!pedidoPublicoQr(pedido)) throw new ApiError(409, 'PEDIDO_LEGADO', 'Este pedido pertence ao fluxo operacional legado.');
+    const de = statusPedidoOperacional(pedido);
+    if (!TRANSICOES_QR[de]?.has(para)) throw new ApiError(409, 'TRANSICAO_INVALIDA', `Não é permitido alterar pedido de ${de} para ${para}.`);
+
+    const comandaRef = pedido.idComanda ? restaurante.collection('comandas').doc(String(pedido.idComanda)) : null;
+    const mesaRef = pedido.idMesa ? restaurante.collection('mesas').doc(String(pedido.idMesa)) : null;
+    const fichaRef = pedido.id ? restaurante.collection('fichasCozinha').doc(String(pedido.id)) : null;
+    const [comandaDocumento, mesaDocumento, fichaDocumento] = await Promise.all([
+      comandaRef ? transacao.get(comandaRef) : null,
+      mesaRef ? transacao.get(mesaRef) : null,
+      fichaRef ? transacao.get(fichaRef) : null,
+    ]);
+    if (!comandaDocumento?.exists) throw new ApiError(409, 'COMANDA_NAO_ENCONTRADA', 'A comanda deste pedido não foi encontrada.');
+    if (!mesaDocumento?.exists) throw new ApiError(409, 'MESA_NAO_ENCONTRADA', 'A mesa deste pedido não foi encontrada.');
+    const comanda = comandaDocumento.data() || {};
+    if (['confirmado_garcom', 'enviado_cozinha', 'em_preparo', 'pronto', 'servido'].includes(para) && ['encaminhada_caixa', 'encerrada', 'cancelada'].includes(comanda.statusComanda || comanda.status)) {
+      throw new ApiError(409, 'COMANDA_ENCERRADA', 'A comanda não aceita novas alterações neste momento.');
+    }
+    if (para === 'confirmado_garcom' && comanda.idGarcomResponsavel && comanda.idGarcomResponsavel !== identidade.idUsuario) {
+      throw new ApiError(409, 'GARCOM_JA_RESPONSAVEL', 'Outro garçom já confirmou o pedido desta mesa.');
+    }
+
+    const agora = {
+      statusPedido: para,
+      status: para,
+      atualizadoPor: identidade.idUsuario,
+      atualizadoEm: FieldValue.serverTimestamp(),
+      versao: Number(pedido.versao || 1) + 1,
+    };
+    if (motivo) agora.motivoUltimaAlteracao = motivo;
+    const camposTempo = {
+      confirmado_garcom: 'confirmadoGarcomEm',
+      enviado_cozinha: 'enviadoCozinhaEm',
+      em_preparo: 'inicioPreparoEm',
+      pronto: 'prontoEm',
+      servido: 'servidoEm',
+      rejeitado_garcom: 'rejeitadoGarcomEm',
+      cancelado: 'canceladoEm',
+    };
+    if (camposTempo[para]) agora[camposTempo[para]] = FieldValue.serverTimestamp();
+    if (para === 'confirmado_garcom') {
+      agora.idGarcomResponsavel = identidade.idUsuario;
+      agora.idGarcom = identidade.idUsuario;
+    }
+    transacao.update(pedidoRef, agora);
+
+    const papelAtor = identidade.papeis.find(papel => ['proprietario', 'administrador', 'gerente', 'garcom', 'cozinha'].includes(papel)) || 'operador';
+    const evento = {
+      idRestaurante: identidade.idRestaurante,
+      idPedido: pedidoRef.id,
+      idComanda: pedido.idComanda || null,
+      idMesa: pedido.idMesa || null,
+      statusAnterior: de,
+      statusNovo: para,
+      idAtor: identidade.idUsuario,
+      papelAtor,
+      motivo: motivo || '',
+      idRequisicao,
+      criadoEm: FieldValue.serverTimestamp(),
+      versaoEvento: Number(pedido.versao || 1),
+    };
+    transacao.set(pedidoRef.collection('historicoStatus').doc(), evento);
+    transacao.set(pedidoRef.collection('eventos').doc(), evento);
+
+    const atualizacaoComanda = {
+      atualizadoPor: identidade.idUsuario,
+      atualizadoEm: FieldValue.serverTimestamp(),
+      versao: Number(comanda.versao || 1) + 1,
+    };
+    if (para === 'confirmado_garcom') {
+      atualizacaoComanda.statusComanda = 'em_consumo';
+      atualizacaoComanda.status = 'em_consumo';
+      atualizacaoComanda.idGarcomResponsavel = identidade.idUsuario;
+    }
+    if (['rejeitado_garcom', 'cancelado'].includes(para)) {
+      const totalPedido = Number(pedido.totalCentavos || pedido.valorCentavos || 0);
+      atualizacaoComanda.quantidadePedidosAbertos = Math.max(0, Number(comanda.quantidadePedidosAbertos || 0) - 1);
+      atualizacaoComanda.totalCentavos = Math.max(0, Number(comanda.totalCentavos || 0) - totalPedido);
+      atualizacaoComanda.valorCentavos = atualizacaoComanda.totalCentavos;
+    }
+    if (comandaRef) transacao.update(comandaRef, atualizacaoComanda);
+
+    if (['enviado_cozinha', 'em_preparo', 'pronto'].includes(para) && !fichaRef) throw new ApiError(409, 'FICHA_COZINHA_INVALIDA', 'Não foi possível encaminhar este pedido à cozinha.');
+    if (para === 'enviado_cozinha') {
+      transacao.set(fichaRef, {
+        idRestaurante: identidade.idRestaurante,
+        idFicha: fichaRef.id,
+        idPedido: pedidoRef.id,
+        idComanda: pedido.idComanda || null,
+        idMesa: pedido.idMesa || null,
+        idGarcomResponsavel: pedido.idGarcomResponsavel || identidade.idUsuario,
+        statusFicha: 'aguardando_preparo',
+        prioridade: pedido.prioridade || 'normal',
+        itensSnapshot: Array.isArray(pedido.itens) ? pedido.itens : Array.isArray(pedido.itensResumo) ? pedido.itensResumo : [],
+        observacoes: pedido.observacoes || '',
+        criadoPor: identidade.idUsuario,
+        atualizadoPor: identidade.idUsuario,
+        criadoEm: FieldValue.serverTimestamp(),
+        atualizadoEm: FieldValue.serverTimestamp(),
+        versao: 1,
+      });
+    } else if (['em_preparo', 'pronto'].includes(para)) {
+      if (!fichaDocumento?.exists) throw new ApiError(409, 'FICHA_COZINHA_NAO_ENCONTRADA', 'A ficha deste pedido não está disponível na cozinha.');
+      transacao.update(fichaRef, {
+        statusFicha: para === 'em_preparo' ? 'em_preparo' : 'pronto',
+        ...(para === 'em_preparo' ? { iniciadoEm: FieldValue.serverTimestamp() } : { prontoEm: FieldValue.serverTimestamp() }),
+        atualizadoPor: identidade.idUsuario,
+        atualizadoEm: FieldValue.serverTimestamp(),
+        versao: Number(fichaDocumento.data()?.versao || 1) + 1,
+      });
+    } else if (['cancelado', 'rejeitado_garcom'].includes(para) && fichaDocumento?.exists) {
+      transacao.update(fichaRef, { statusFicha: 'cancelada', canceladaEm: FieldValue.serverTimestamp(), atualizadoPor: identidade.idUsuario, atualizadoEm: FieldValue.serverTimestamp(), versao: Number(fichaDocumento.data()?.versao || 1) + 1 });
+    }
+
+    const estadoMesa = {
+      confirmado_garcom: 'aguardando_confirmacao',
+      enviado_cozinha: 'em_preparo',
+      em_preparo: 'em_preparo',
+      pronto: 'pedido_pronto',
+      servido: 'ocupada',
+      rejeitado_garcom: 'ocupada',
+      cancelado: 'ocupada',
+    }[para];
+    if (mesaRef && estadoMesa) transacao.update(mesaRef, {
+      estado: 'ocupada',
+      estadoAtendimento: estadoMesa,
+      atualizadoPor: identidade.idUsuario,
+      atualizadoEm: FieldValue.serverTimestamp(),
+    });
+
+    resultado = { recurso: 'pedido', id, de, para, statusPedido: para, status: para, atualizado: true };
+    transacao.create(idempotenciaRef, {
+      idRestaurante: identidade.idRestaurante,
+      idAtor: identidade.idUsuario,
+      endpoint: '/api/v1/pedidos',
+      tipoOperacao: 'status_pedido_qr',
+      idPedido: id,
+      resultado,
+      hashPayload,
+      criadaEm: FieldValue.serverTimestamp(),
+      expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      versao: 1,
+    });
+  });
+  if (!repeticaoIdempotente) await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: `pedidos.status.${para}`, tipoRecurso: 'pedido', idRecurso: id });
+  return { corpo: { ...resultado, idempotente: repeticaoIdempotente } };
+}
+
+async function atualizarStatusPedido(identidade, corpo, idRequisicao) {
+  const id = idDocumento(corpo.id, 'id');
+  const pedidoRef = caminhoRestaurante(identidade.idRestaurante).collection('pedidos').doc(id);
+  const documento = await pedidoRef.get();
+  if (!documento.exists || documento.data()?.estado === 'excluido') throw new ApiError(404, 'PEDIDO_NAO_ENCONTRADO', 'Pedido não encontrado.');
+  if (pedidoPublicoQr(documento.data())) return atualizarStatusPedidoQr(identidade, corpo, idRequisicao);
+
+  const para = enumObrigatorio(corpo.status, ESTADOS_PEDIDO, 'status');
+  const motivo = para === 'cancelado' ? textoObrigatorio(corpo.motivoCancelamento, 'motivoCancelamento', 500) : textoOpcional(corpo.motivo, 'motivo', 500);
+  const db = pedidoRef.firestore;
+  let de = '';
+  await db.runTransaction(async transacao => {
+    const atual = await transacao.get(pedidoRef);
+    if (!atual.exists || atual.data()?.estado === 'excluido') throw new ApiError(404, 'PEDIDO_NAO_ENCONTRADO', 'Pedido não encontrado.');
+    const pedido = atual.data() || {};
     de = pedido.status || 'novo';
     if (!TRANSICOES[de]?.has(para)) throw new ApiError(409, 'TRANSICAO_INVALIDA', `Não é permitido alterar pedido de ${de} para ${para}.`);
     const agora = { status: para, atualizadoPor: identidade.idUsuario, atualizadoEm: FieldValue.serverTimestamp(), versao: Number(pedido.versao || 1) + 1 };

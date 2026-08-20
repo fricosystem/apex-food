@@ -72,8 +72,15 @@ const dadosPedidosPreview = {
   ],
   status: {
     novo: { label: 'Novo', classe: 'bg-blue/10 text-blue border-blue/30', dot: 'bg-blue' },
+    rascunho: { label: 'Rascunho', classe: 'bg-card2 text-muted border-border2', dot: 'bg-muted' },
+    aguardando_confirmacao_garcom: { label: 'Aguardando confirmação', classe: 'bg-blue/10 text-blue border-blue/30', dot: 'bg-blue' },
+    confirmado_garcom: { label: 'Confirmado pelo garçom', classe: 'bg-purple/10 text-purpleLight border-purple/30', dot: 'bg-purple' },
+    enviado_cozinha: { label: 'Enviado à cozinha', classe: 'bg-blue/10 text-blue border-blue/30', dot: 'bg-blue' },
+    em_preparo: { label: 'Em preparo', classe: 'bg-yellow/10 text-yellow border-yellow/30', dot: 'bg-yellow' },
     preparo: { label: 'Em preparo', classe: 'bg-yellow/10 text-yellow border-yellow/30', dot: 'bg-yellow' },
     pronto: { label: 'Pronto', classe: 'bg-green/10 text-green border-green/30', dot: 'bg-green' },
+    servido: { label: 'Servido', classe: 'bg-green/10 text-green border-green/30', dot: 'bg-green' },
+    rejeitado_garcom: { label: 'Rejeitado pelo garçom', classe: 'bg-red/10 text-red border-red/30', dot: 'bg-red' },
     finalizado: { label: 'Finalizado', classe: 'bg-green/10 text-green border-green/30', dot: 'bg-green' },
     cancelado: { label: 'Cancelado', classe: 'bg-red/10 text-red border-red/30', dot: 'bg-red' }
   }
@@ -132,11 +139,11 @@ function adaptarProdutoPedido(produto) {
 function adaptarPedidoReal(pedido) {
   const itens = Array.isArray(pedido.itens) ? pedido.itens.map(item => ({
     ...item,
-    nome: item.nome || item.idProduto,
+    nome: item.nome || item.nomeProduto || item.idProduto,
     quantidade: Number(item.quantidade || 0),
     valor: paraReais(item.subtotalCentavos || item.precoUnitarioCentavos),
   })) : [];
-  const status = pedido.status || 'novo';
+  const status = pedido.statusPedido || pedido.status || 'novo';
   return {
     ...pedido,
     id: String(pedido.id),
@@ -177,8 +184,8 @@ async function carregarPedidosReais() {
     const dados = window.dadosPedidosApexFood;
     substituirLista(dados.categorias, cardapioCategorias);
     substituirLista(dados.produtos, cardapioProdutos);
-    substituirLista(dados.pedidosAtivos, pedidos.filter(item => ['novo', 'preparo', 'pronto'].includes(item.status)));
-    substituirLista(dados.pedidosHistorico, pedidos.filter(item => ['entregue', 'finalizado', 'cancelado'].includes(item.status)));
+    substituirLista(dados.pedidosAtivos, pedidos.filter(item => ['novo', 'rascunho', 'aguardando_confirmacao_garcom', 'confirmado_garcom', 'enviado_cozinha', 'preparo', 'em_preparo', 'pronto'].includes(item.status)));
+    substituirLista(dados.pedidosHistorico, pedidos.filter(item => ['servido', 'entregue', 'finalizado', 'rejeitado_garcom', 'cancelado'].includes(item.status)));
     dados.mesas = Array.isArray(salaoResposta?.mesas) ? salaoResposta.mesas : [];
     dados.funcionarios = Array.isArray(equipeResposta?.funcionarios) ? equipeResposta.funcionarios : [];
     window.dadosPedidosRemotoAtivo = true;
