@@ -62,8 +62,9 @@ test('fragmentos internos continuam referenciando arquivos HTML físicos', () =>
   const fragmentos = [...shell.matchAll(/fragmento:\s*['"]([^'"]+)['"]/g)].map(match => match[1]);
   assert.ok(fragmentos.length >= 1);
   for (const fragmento of fragmentos) {
-    assert.match(fragmento, /\.html$/);
-    assert.equal(fs.existsSync(path.join(raiz, fragmento)), true, `fragmento ausente: ${fragmento}`);
+    assert.match(fragmento, /\.html(?:\?|$)/);
+    const arquivoFisico = fragmento.split(/[?#]/, 1)[0];
+    assert.equal(fs.existsSync(path.join(raiz, arquivoFisico)), true, `fragmento ausente: ${arquivoFisico}`);
   }
 });
 

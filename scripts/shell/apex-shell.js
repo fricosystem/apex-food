@@ -8,10 +8,10 @@
     operacional: { titulo: 'Operacional', fragmento: 'paginas/operacional/operacional.html', href: '/operacional', estilos: ['estilos/operacional/operacional.css'], scripts: ['scripts/pedidos/dados-pedidos.js', 'scripts/operacional/operacional.js'] },
     'dashboard-financeiro': { titulo: 'Dashboard Financeiro', fragmento: 'paginas/financeiro/dashboard-financeiro.html', href: '/dashboard-financeiro', estilos: ['estilos/financeiro/financeiro.css'], scripts: ['scripts/financeiro/dados-financeiros.js?v=fase11', 'scripts/financeiro/dashboard-financeiro.js?v=fase11'] },
     'dashboard-desempenho': { titulo: 'Dashboard de Desempenho', fragmento: 'paginas/desempenho/dashboard-desempenho.html', href: '/dashboard-desempenho', estilos: ['estilos/equipe/equipe.css'], scripts: ['scripts/pedidos/dados-pedidos.js?v=fase11', 'scripts/equipe/dados-equipe.js?v=fase11', 'scripts/relatorios/dados-relatorios.js?v=fase11', 'scripts/desempenho/dashboard-desempenho.js?v=fase11'] },
-    categorias: { titulo: 'Categorias', fragmento: 'paginas/cardapio/categorias.html', href: '/categorias', estilos: ['estilos/cardapio/cardapio.css'], scripts: ['scripts/pedidos/dados-pedidos.js', 'scripts/cardapio/dados-cardapio.js', 'scripts/cardapio/categorias.js'] },
-    produtos: { titulo: 'Produtos', fragmento: 'paginas/cardapio/produtos.html', href: '/produtos', estilos: ['estilos/cardapio/cardapio.css'], scripts: ['scripts/pedidos/dados-pedidos.js', 'scripts/cardapio/dados-cardapio.js', 'scripts/cardapio/produtos.js'] },
-    promocoes: { titulo: 'Promoções', fragmento: 'paginas/cardapio/promocoes.html', href: '/promocoes', estilos: ['estilos/cardapio/cardapio.css'], scripts: ['scripts/pedidos/dados-pedidos.js', 'scripts/cardapio/dados-cardapio.js', 'scripts/cardapio/promocoes.js'] },
-    'cardapio-digital': { titulo: 'Cardápio Digital', fragmento: 'paginas/cardapio/cardapio-digital.html', href: '/cardapio-digital', estilos: ['estilos/pedidos/pedidos.css', 'estilos/cardapio/cardapio.css'], scripts: ['scripts/pedidos/dados-pedidos.js', 'scripts/cardapio/dados-cardapio.js', 'scripts/cardapio/cardapio-digital.js'] },
+    categorias: { titulo: 'Categorias', fragmento: 'paginas/cardapio/categorias.html?v=fase5b', href: '/categorias', estilos: ['estilos/cardapio/cardapio.css?v=fase5b'], scripts: ['scripts/pedidos/dados-pedidos.js?v=fase5b', 'scripts/cardapio/dados-cardapio.js?v=fase5b', 'scripts/cardapio/categorias.js?v=fase5b'] },
+    produtos: { titulo: 'Produtos', fragmento: 'paginas/cardapio/produtos.html?v=fase5b', href: '/produtos', estilos: ['estilos/cardapio/cardapio.css?v=fase5b'], scripts: ['scripts/pedidos/dados-pedidos.js?v=fase5b', 'scripts/cardapio/dados-cardapio.js?v=fase5b', 'scripts/cardapio/produtos.js?v=fase5b'] },
+    promocoes: { titulo: 'Promoções', fragmento: 'paginas/cardapio/promocoes.html?v=fase5b', href: '/promocoes', estilos: ['estilos/cardapio/cardapio.css?v=fase5b'], scripts: ['scripts/pedidos/dados-pedidos.js?v=fase5b', 'scripts/cardapio/dados-cardapio.js?v=fase5b', 'scripts/cardapio/promocoes.js?v=fase5b'] },
+    'cardapio-digital': { titulo: 'Cardápio Digital', fragmento: 'paginas/cardapio/cardapio-digital.html?v=fase5b', href: '/cardapio-digital', estilos: ['estilos/pedidos/pedidos.css?v=fase5b', 'estilos/cardapio/cardapio.css?v=fase5b'], scripts: ['scripts/pedidos/dados-pedidos.js?v=fase5b', 'scripts/cardapio/dados-cardapio.js?v=fase5b', 'scripts/cardapio/cardapio-digital.js?v=fase5b'] },
     'mapa-mesas': { titulo: 'Mapa de Mesas', fragmento: 'paginas/salao/mapa-mesas.html', href: '/mapa-mesas', estilos: ['estilos/mapa-mesas.css'], scripts: ['scripts/salao/dados-mesas.js', 'scripts/salao/mapa-mesas.js'] },
     reservas: { titulo: 'Reservas', fragmento: 'paginas/salao/reservas.html', href: '/reservas', estilos: ['estilos/salao/salao.css'], scripts: ['scripts/salao/dados-reservas.js', 'scripts/salao/reservas.js'] },
     'configuracao-mesas': { titulo: 'Configuração de Mesas', fragmento: 'paginas/salao/configuracao-mesas.html', href: '/configuracao-mesas', estilos: ['estilos/salao/salao.css'], scripts: ['scripts/salao/dados-mesas.js', 'scripts/salao/configuracao-mesas.js'] },
@@ -40,7 +40,7 @@
     if (!caminho || caminho === 'index' || caminho === 'index.html') return 'home';
     return Object.entries(paginas).find(([, pagina]) => {
       const atual = normalizar(pagina.href);
-      const legado = normalizar(pagina.fragmento.replace(/\.html$/, ''));
+      const legado = normalizar(pagina.fragmento.replace(/[?#].*$/, '').replace(/\.html$/, ''));
       return atual === caminho || legado === caminho;
     })?.[0] || '';
   };
