@@ -125,6 +125,10 @@
     return requisitar(`/financeiro${query({ recurso, ...parametros })}`);
   }
 
+  async function listarVisaoGeral(parametros = {}) {
+    return requisitar(`/operacional${query({ modulo: 'visao-geral', ...parametros })}`);
+  }
+
   async function criarContaFinanceira(payload) {
     return requisitar('/financeiro', { method: 'POST', body: { recurso: 'conta', chaveIdempotencia: payload?.chaveIdempotencia || gerarChaveIdempotencia('conta'), ...payload } });
   }
@@ -158,6 +162,7 @@
     criarEquipe,
     atualizarEquipe,
     listarFinanceiro,
+    listarVisaoGeral,
     criarContaFinanceira,
     criarMovimentacaoFinanceira,
     atualizarContaFinanceira,

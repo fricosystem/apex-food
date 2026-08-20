@@ -5,6 +5,7 @@ const handlers = Object.freeze({
   salao: require('../_lib/salao-handler'),
   equipe: require('../_lib/equipe-handler'),
   financeiro: require('../_lib/financeiro-handler'),
+  'visao-geral': require('../_lib/visao-geral-handler'),
 });
 
 function moduloDaRequisicao(req) {

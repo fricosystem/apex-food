@@ -1,6 +1,6 @@
 (() => {
   const paginas = {
-    home: { titulo: 'Visão Geral', fragmento: 'paginas/home.html', href: '/', estilos: ['estilos/home/home.css'], scripts: ['scripts/pedidos/dados-pedidos.js?v=fase10c', 'scripts/cardapio/dados-cardapio.js?v=fase10c', 'scripts/equipe/dados-equipe.js?v=fase10c', 'scripts/financeiro/dados-financeiros.js?v=fase10c', 'scripts/salao/dados-mesas.js?v=fase10c', 'scripts/salao/dados-reservas.js?v=fase10c', 'scripts/relatorios/dados-relatorios.js?v=fase10c', 'scripts/home/home.js?v=fase12'] },
+    home: { titulo: 'Visão Geral', fragmento: 'paginas/home.html', href: '/', estilos: ['estilos/home/home.css'], scripts: ['scripts/home/dados-visao-geral.js?v=fase4', 'scripts/home/home.js?v=fase4'] },
     'novo-pedido': { titulo: 'Novo Pedido', fragmento: 'paginas/pedidos/novo-pedido.html', href: '/novo-pedido', estilos: ['estilos/pedidos/pedidos.css'], scripts: ['scripts/pedidos/dados-pedidos.js', 'scripts/pedidos/novo-pedido.js'] },
     'pedidos-ativos': { titulo: 'Pedidos Ativos', fragmento: 'paginas/pedidos/pedidos-ativos.html', href: '/pedidos-ativos', estilos: ['estilos/pedidos/pedidos.css'], scripts: ['scripts/pedidos/dados-pedidos.js', 'scripts/pedidos/pedidos-ativos.js'] },
     'historico-pedidos': { titulo: 'Histórico de Pedidos', fragmento: 'paginas/pedidos/historico-pedidos.html', href: '/historico-pedidos', estilos: ['estilos/pedidos/pedidos.css'], scripts: ['scripts/pedidos/dados-pedidos.js', 'scripts/pedidos/historico-pedidos.js'] },
