@@ -391,3 +391,45 @@ window.dadosMesas = [
     itens: []
   }
 ];
+
+(() => {
+  function carregarCliente() {
+    if (window.apexModulosApi) return Promise.resolve(window.apexModulosApi);
+    if (window.apexModulosClientPromise) return window.apexModulosClientPromise;
+    window.apexModulosClientPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = '/scripts/api/modulos-client.js?v=etapa9';
+      script.dataset.apexModuloClient = 'true';
+      script.onload = () => resolve(window.apexModulosApi);
+      script.onerror = () => reject(new Error('Não foi possível carregar o cliente dos módulos.'));
+      document.body.appendChild(script);
+    });
+    return window.apexModulosClientPromise;
+  }
+  function adaptarMesa(mesa) {
+    return {
+      ...mesa,
+      id: String(mesa.id),
+      nome: mesa.nome || `Mesa ${mesa.id}`,
+      capacidade: Number(mesa.capacidade || 0),
+      status: mesa.estado || mesa.status || 'disponivel',
+      reservaStatus: mesa.reservaStatus || (mesa.reservadoPor ? 'confirmada' : 'sem-reserva'),
+      reservadoPor: mesa.reservadoPor || mesa.nomeCliente || '',
+      telefone: mesa.telefone || mesa.contatoClienteMascarado || '',
+      valorGasto: mesa.valorGastoCentavos === undefined ? Number(mesa.valorGasto || 0) : Number(mesa.valorGastoCentavos) / 100,
+      pessoas: Number(mesa.pessoas || 0),
+      itens: Array.isArray(mesa.itens) ? mesa.itens : [],
+    };
+  }
+  window.dadosMesasRemotoAtivo = false;
+  window.dadosMesasPronto = carregarCliente()
+    .then((api) => api.listarSalao('mesas'))
+    .then((dados) => {
+      if (typeof dados?.meta?.idRestaurante !== 'string') return false;
+      window.dadosMesas = (dados.mesas || []).map(adaptarMesa);
+      window.dadosMesasRemotoAtivo = true;
+      document.dispatchEvent(new CustomEvent('apex:mesas-atualizado'));
+      return true;
+    })
+    .catch((erro) => { window.dadosMesasErro = erro; if (!['localhost', '127.0.0.1'].includes(window.location.hostname)) { window.dadosMesas = []; document.dispatchEvent(new CustomEvent('apex:mesas-indisponiveis')); } return false; });
+})();

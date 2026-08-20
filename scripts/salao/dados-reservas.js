@@ -10,3 +10,58 @@ window.dadosReservasApexFood = [
   { id: 'RES-089', cliente: 'Paulo Mendes', telefone: '(11) 90000-1414', mesaId: 14, mesa: 'Mesa 14', pessoas: 6, data: '18/08/2026', horario: '15:00', duracao: '02h', status: 'chegou', canal: 'Aplicativo', criadoEm: '16/08/2026', observacoes: 'Aguardar pedido de bebidas adicionais.' },
   { id: 'RES-090', cliente: 'Fernanda Souza', telefone: '(11) 94444-7707', mesaId: 7, mesa: 'Mesa 07', pessoas: 7, data: '18/08/2026', horario: '12:00', duracao: '02h 30min', status: 'chegou', canal: 'WhatsApp', criadoEm: '15/08/2026', observacoes: 'Grupo corporativo. Conta separada por pessoa.' }
 ];
+
+(() => {
+  function carregarCliente() {
+    if (window.apexModulosApi) return Promise.resolve(window.apexModulosApi);
+    if (window.apexModulosClientPromise) return window.apexModulosClientPromise;
+    window.apexModulosClientPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = '/scripts/api/modulos-client.js?v=etapa9';
+      script.dataset.apexModuloClient = 'true';
+      script.onload = () => resolve(window.apexModulosApi);
+      script.onerror = () => reject(new Error('Não foi possível carregar o cliente dos módulos.'));
+      document.body.appendChild(script);
+    });
+    return window.apexModulosClientPromise;
+  }
+  function dataVisual(valor) {
+    const data = new Date(valor);
+    if (Number.isNaN(data.getTime())) return '';
+    return data.toLocaleDateString('pt-BR');
+  }
+  function horaVisual(valor) {
+    const data = new Date(valor);
+    if (Number.isNaN(data.getTime())) return '';
+    return data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+  function duracaoVisual(inicio, fim) {
+    const minutos = Math.max(0, Math.round((new Date(fim).getTime() - new Date(inicio).getTime()) / 60000));
+    return `${String(Math.floor(minutos / 60)).padStart(2, '0')}h ${String(minutos % 60).padStart(2, '0')}min`;
+  }
+  window.dadosReservasRemotoAtivo = false;
+  window.dadosReservasPronto = carregarCliente()
+    .then((api) => api.listarSalao('reservas'))
+    .then((dados) => {
+      if (typeof dados?.meta?.idRestaurante !== 'string') return false;
+      window.dadosReservasApexFood = (dados.reservas || []).map((reserva) => ({
+        ...reserva,
+        id: String(reserva.id),
+        cliente: reserva.nomeCliente || reserva.cliente || '',
+        telefone: reserva.contatoClienteMascarado || reserva.telefone || '',
+        mesaId: reserva.idMesa || null,
+        mesa: reserva.mesa || (reserva.idMesa ? `Mesa ${reserva.idMesa}` : 'A definir'),
+        pessoas: Number(reserva.quantidadePessoas || reserva.pessoas || 0),
+        data: dataVisual(reserva.inicioEm),
+        horario: horaVisual(reserva.inicioEm),
+        duracao: duracaoVisual(reserva.inicioEm, reserva.fimEm),
+        status: reserva.estado || reserva.status || 'aguardando',
+        canal: reserva.canal || 'Interno',
+        criadoEm: dataVisual(reserva.criadoEm),
+      }));
+      window.dadosReservasRemotoAtivo = true;
+      document.dispatchEvent(new CustomEvent('apex:reservas-atualizado'));
+      return true;
+    })
+    .catch((erro) => { window.dadosReservasErro = erro; if (!['localhost', '127.0.0.1'].includes(window.location.hostname)) { window.dadosReservasApexFood = []; document.dispatchEvent(new CustomEvent('apex:reservas-indisponiveis')); } return false; });
+})();

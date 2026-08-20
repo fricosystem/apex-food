@@ -259,7 +259,7 @@ document.getElementById('modalCloseBtn')?.addEventListener('click', fecharModal)
 document.getElementById('modalBackdrop')?.addEventListener('click', fecharModal);
 document.getElementById('modalAcaoBtn')?.addEventListener('click', event => {
   const id = event.currentTarget.dataset.mesaId;
-  const mesa = window.dadosMesas.find(item => item.id === Number(id));
+  const mesa = window.dadosMesas.find(item => String(item.id) === String(id));
   if (!mesa) return;
   mostrarNotificacao(`${mesa.nome}: ação pronta para integração com o módulo de ${mesa.status === 'ocupada' ? 'comandas' : 'reservas'}.`);
 });
@@ -267,5 +267,7 @@ document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && elementos.modal.classList.contains('is-open')) fecharModal();
 });
 
+function atualizarMapaRemoto() { atualizarEstatisticas(); renderizarGrid(); }
 atualizarEstatisticas();
 renderizarGrid();
+document.addEventListener('apex:mesas-atualizado', atualizarMapaRemoto);
