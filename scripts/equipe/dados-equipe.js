@@ -36,7 +36,7 @@
     if (window.apexModulosClientPromise) return window.apexModulosClientPromise;
     window.apexModulosClientPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = '/scripts/api/modulos-client.js?v=etapa10';
+      script.src = '/scripts/api/modulos-client.js?v=fase8';
       script.dataset.apexModuloClient = 'true';
       script.onload = () => resolve(window.apexModulosApi);
       script.onerror = () => reject(new Error('Não foi possível carregar o cliente dos módulos.'));
@@ -78,9 +78,11 @@
     };
   }
 
-  window.dadosEquipeApexFood = previewEquipe;
+  const ambienteEquipeLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const estadoEquipeVazio = { funcionarios: [], escalas: [], comissoes: [] };
+  window.dadosEquipeApexFood = ambienteEquipeLocal ? previewEquipe : estadoEquipeVazio;
   window.dadosEquipeRemotoAtivo = false;
-  window.dadosEquipePronto = carregarCliente()
+  window.recarregarEquipeReal = () => carregarCliente()
     .then((api) => api.listarEquipe())
     .then((dados) => {
       if (typeof dados?.meta?.idRestaurante !== 'string') return false;
@@ -95,10 +97,11 @@
     })
     .catch((erro) => {
       window.dadosEquipeErro = erro;
-      if (!['localhost', '127.0.0.1'].includes(window.location.hostname)) {
-        window.dadosEquipeApexFood = { funcionarios: [], escalas: [], comissoes: [] };
+      if (!ambienteEquipeLocal) {
+        window.dadosEquipeApexFood = estadoEquipeVazio;
         document.dispatchEvent(new CustomEvent('apex:equipe-indisponivel'));
       }
       return false;
     });
+  window.dadosEquipePronto = window.recarregarEquipeReal();
 })();
