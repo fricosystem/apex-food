@@ -25,6 +25,9 @@
     contextChoice: document.querySelector('#auth-context-choice'),
     restaurantSelect: document.querySelector('#auth-restaurant-select'),
     contextSubmit: document.querySelector('#auth-context-submit'),
+    onboarding: document.querySelector('#auth-onboarding'),
+    onboardingName: document.querySelector('#auth-restaurant-name'),
+    onboardingSubmit: document.querySelector('#auth-onboarding-submit'),
   };
 
   const copy = {
@@ -227,8 +230,34 @@
   function esconderEscolhaRestaurante() {
     if (elements.contextChoice) elements.contextChoice.hidden = true;
     if (elements.formCard) elements.formCard.hidden = false;
-    if (elements.restaurantSelect) elements.restaurantSelect.replaceChildren();
+    if (elements.restaurantSelect) {
+      elements.restaurantSelect.replaceChildren();
+      const campoSelecao = elements.restaurantSelect.closest('.auth-field');
+      if (campoSelecao) campoSelecao.hidden = false;
+    }
+    if (elements.contextSubmit) elements.contextSubmit.hidden = false;
+    if (elements.onboarding) elements.onboarding.hidden = true;
     state.restaurantes = [];
+  }
+
+  function mostrarOnboarding() {
+    if (!elements.contextChoice || !elements.onboarding || !elements.onboardingName) {
+      const erro = new Error('A tela de criação do restaurante não está disponível.');
+      erro.code = 'RESTAURANTE_ONBOARDING_INDISPONIVEL';
+      throw erro;
+    }
+    const campoSelecao = elements.restaurantSelect?.closest('.auth-field');
+    if (campoSelecao) campoSelecao.hidden = true;
+    if (elements.contextSubmit) elements.contextSubmit.hidden = true;
+    elements.onboarding.hidden = false;
+    elements.contextChoice.hidden = false;
+    elements.formCard.hidden = true;
+    elements.onboardingName.focus();
+    setFeedback('Sua conta está pronta. Crie agora o primeiro restaurante para continuar.', 'success');
+    renderIcons();
+    return new Promise((resolve) => {
+      state.contextoResolve = resolve;
+    });
   }
 
   function mostrarEscolhaRestaurante(restaurantes) {
@@ -248,9 +277,15 @@
       return opcao;
     });
     elements.restaurantSelect.replaceChildren(...opcoes);
+    const campoSelecao = elements.restaurantSelect.closest('.auth-field');
+    if (campoSelecao) campoSelecao.hidden = false;
+    if (elements.contextSubmit) {
+      elements.contextSubmit.hidden = false;
+      elements.contextSubmit.disabled = false;
+    }
+    if (elements.onboarding) elements.onboarding.hidden = true;
     elements.contextChoice.hidden = false;
     elements.formCard.hidden = true;
-    if (elements.contextSubmit) elements.contextSubmit.disabled = false;
     setFeedback('Selecione o restaurante que deseja operar nesta sessão.', 'success');
     renderIcons();
   }
@@ -260,11 +295,7 @@
     const restaurantes = Array.isArray(resposta.restaurantes)
       ? resposta.restaurantes.filter((restaurante) => typeof restaurante?.idRestaurante === 'string' && restaurante.idRestaurante)
       : [];
-    if (!restaurantes.length) {
-      const erro = new Error('Sua conta ainda não está vinculada a um restaurante ativo.');
-      erro.code = 'RESTAURANTE_NAO_SELECIONADO';
-      throw erro;
-    }
+    if (!restaurantes.length) return mostrarOnboarding();
     if (restaurantes.length === 1) {
       await api.requisitar('/restaurantes/trocar', {
         method: 'POST',
@@ -276,6 +307,65 @@
     return new Promise((resolve) => {
       state.contextoResolve = resolve;
     });
+  }
+
+  async function handleOnboardingSubmit() {
+    const input = elements.onboardingName;
+    const nome = input?.value.trim().replace(/\s+/g, ' ') || '';
+    const mensagem = !nome
+      ? 'Informe o nome comercial do restaurante.'
+      : nome.length < 2 || nome.length > 120
+        ? 'O nome comercial deve ter entre 2 e 120 caracteres.'
+        : '';
+    setFieldState(input, mensagem);
+    if (mensagem) {
+      setFeedback('Revise o nome do restaurante para continuar.');
+      input?.focus();
+      return;
+    }
+    if (!api) {
+      setFeedback('A autenticação está temporariamente indisponível.');
+      return;
+    }
+
+    const submit = elements.onboardingSubmit;
+    if (submit) {
+      submit.disabled = true;
+      submit.classList.add('is-loading');
+      submit.setAttribute('aria-busy', 'true');
+      const label = submit.querySelector('span');
+      if (label) label.textContent = 'Criando restaurante...';
+      const icon = submit.querySelector('[data-lucide], svg');
+      if (icon) icon.outerHTML = '<i data-lucide="loader-circle" aria-hidden="true"></i>';
+      renderIcons();
+    }
+
+    try {
+      const resposta = await api.requisitar('/restaurantes', {
+        method: 'POST',
+        body: { nome },
+      });
+      const restaurante = resposta?.restaurante || { nome };
+      const resolver = state.contextoResolve;
+      state.contextoResolve = null;
+      esconderEscolhaRestaurante();
+      resolver?.(restaurante);
+      setFeedback('Restaurante criado. Você será direcionado.', 'success');
+      finishRedirect();
+    } catch (error) {
+      setFeedback(mensagemErro(error, 'Não foi possível criar o restaurante.'));
+    } finally {
+      if (submit) {
+        submit.disabled = false;
+        submit.classList.remove('is-loading');
+        submit.setAttribute('aria-busy', 'false');
+        const label = submit.querySelector('span');
+        if (label) label.textContent = 'Criar restaurante e continuar';
+        const icon = submit.querySelector('[data-lucide], svg');
+        if (icon) icon.outerHTML = '<i data-lucide="arrow-right" aria-hidden="true"></i>';
+        renderIcons();
+      }
+    }
   }
 
   async function handleContextSubmit() {
@@ -313,8 +403,12 @@
       AUTH_NAO_CONFIGURADO: 'A autenticação está temporariamente indisponível.',
       SERVICO_NAO_CONFIGURADO: 'O serviço está temporariamente indisponível.',
       SERVICO_NAO_PRONTO: 'O serviço está temporariamente indisponível.',
-      RESTAURANTE_NAO_SELECIONADO: 'Sua conta foi autenticada, mas ainda não está vinculada a um restaurante ativo. Solicite um convite ou conclua o cadastro do estabelecimento.',
+      INDICE_RESTAURANTES_NAO_PRONTO: 'A listagem de restaurantes está sendo preparada. Tente novamente em instantes.',
+      RESTAURANTE_NAO_SELECIONADO: 'Sua conta foi autenticada, mas ainda não está vinculada a um restaurante ativo.',
+      RESTAURANTE_ONBOARDING_INDISPONIVEL: 'Não foi possível abrir a criação do restaurante. Atualize a página e tente novamente.',
       RESTAURANTE_INVALIDO: 'O restaurante selecionado não está disponível para esta conta.',
+      NOME_RESTAURANTE_INVALIDO: 'O nome comercial deve ter entre 2 e 120 caracteres.',
+      RESTAURANTE_INCONSISTENTE: 'O cadastro inicial do restaurante precisa ser revisado. Atualize a página e tente novamente.',
       RESTAURANTE_SELECAO_INDISPONIVEL: 'Não foi possível abrir a seleção de restaurante. Atualize a página e tente novamente.',
     };
     return mensagens[error?.code] || error?.message || fallback;
@@ -484,6 +578,12 @@
 
   document.querySelector('[data-action="forgot-password"]')?.addEventListener('click', handleForgotPassword);
   elements.contextSubmit?.addEventListener('click', handleContextSubmit);
+  elements.onboardingSubmit?.addEventListener('click', handleOnboardingSubmit);
+  elements.onboardingName?.addEventListener('input', () => {
+    const nome = elements.onboardingName.value.trim();
+    const mensagem = nome.length > 120 ? 'O nome comercial deve ter no máximo 120 caracteres.' : '';
+    setFieldState(elements.onboardingName, mensagem);
+  });
   document.querySelectorAll('.auth-identifier-input').forEach(updateIdentifierSuffix);
   renderIcons();
 

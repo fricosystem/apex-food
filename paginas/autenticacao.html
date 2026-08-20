@@ -71,6 +71,19 @@
               <span>Continuar para o sistema</span>
               <i data-lucide="arrow-right" aria-hidden="true"></i>
             </button>
+
+            <div id="auth-onboarding" hidden>
+              <p class="auth-context-description">Sua conta foi autenticada, mas ainda não possui um restaurante. Informe o nome comercial real para criar o primeiro espaço de operação.</p>
+              <div class="auth-field">
+                <label for="auth-restaurant-name">Nome comercial do restaurante</label>
+                <input class="auth-input" id="auth-restaurant-name" name="restaurantName" type="text" value="APEX FOOD RESTAURANTE" maxlength="120" autocomplete="organization" required>
+                <span class="auth-field-message" data-error-for="auth-restaurant-name" aria-live="polite"></span>
+              </div>
+              <button class="auth-submit" id="auth-onboarding-submit" type="button">
+                <span>Criar restaurante e continuar</span>
+                <i data-lucide="arrow-right" aria-hidden="true"></i>
+              </button>
+            </div>
           </div>
 
           <div class="auth-form-card" id="auth-form-card">
