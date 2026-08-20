@@ -25,6 +25,11 @@ test('Vercel habilita URLs limpas, PWA na raiz e rewrites do shell', () => {
   assert.equal(manifest.icons[0].type, 'image/png');
   assert.match(manifest.icons[0].purpose, /maskable/);
   assert.ok(vercel.redirects.some(redirect => redirect.source === '/paginas/autenticacao.html' && redirect.destination === '/autenticacao'));
+  const rotaFragmentoHome = vercel.routes.find(route => route.src === '^/paginas/home\\.html$');
+  assert.ok(rotaFragmentoHome);
+  assert.deepEqual(rotaFragmentoHome.missing, [{ type: 'header', key: 'X-Apex-Fragment' }]);
+  assert.equal(rotaFragmentoHome.status, 308);
+  assert.equal(rotaFragmentoHome.headers.Location, '/');
   assert.ok(vercel.routes.some(route => route.src === '^/autenticacao$' && route.dest === '/paginas/autenticacao'));
   assert.ok(vercel.routes.some(route => route.src.includes('mapa-mesas') && route.dest === '/index'));
 });
@@ -48,6 +53,7 @@ test('shell usa History API e mantém compatibilidade com hash legado', () => {
   assert.match(shell, /history\[opcoes\.substituir \? 'replaceState' : 'pushState'\]/);
   assert.match(shell, /addEventListener\('popstate'/);
   assert.match(shell, /migrarHashLegado/);
+  assert.match(shell, /X-Apex-Fragment/);
   assert.doesNotMatch(shell, /window\.location\.hash\s*=/);
 });
 

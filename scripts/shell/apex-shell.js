@@ -73,7 +73,10 @@
     if (!container) return;
     container.setAttribute('aria-busy', 'true');
     try {
-      const resposta = await fetch(pagina.fragmento, { cache: 'no-store' });
+      const resposta = await fetch(pagina.fragmento, {
+        cache: 'no-store',
+        headers: { 'X-Apex-Fragment': '1' },
+      });
       if (!resposta.ok) throw new Error(`A rota retornou HTTP ${resposta.status}.`);
       const html = await resposta.text();
       if (token !== carregamentoAtual) return;
