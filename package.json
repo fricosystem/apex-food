@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "node --test testes/*.test.js",
-    "seguranca:segredos": "node scripts/seguranca/verificar-segredos.js"
+    "seguranca:segredos": "node scripts/seguranca/verificar-segredos.js",
+    "staging:preflight": "node scripts/seguranca/verificar-staging.js"
   },
   "dependencies": {
     "firebase-admin": "13.6.0"
