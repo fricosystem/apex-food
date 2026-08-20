@@ -54,3 +54,11 @@
 [class~="text-[11px]"] { font-size: 0.8125rem !important; line-height: var(--apex-entrelinha-auxiliar); }
 [class~="text-xs"] { line-height: var(--apex-entrelinha-auxiliar); }
 [class~="text-sm"] { line-height: var(--apex-entrelinha-corpo); }
+
+/* Destaque lateral uniforme dos cards: linha fina, sem faixa larga. */
+#conteudoPagina [class~="bg-card"][class~="border"],
+#conteudoPagina [class~="bg-card2"][class~="border"],
+#conteudoPagina .pedido-card,
+#conteudoPagina .cozinha-card {
+  border-left: 1px solid var(--apex-laranja) !important;
+}
