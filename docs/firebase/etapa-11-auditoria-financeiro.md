@@ -87,3 +87,11 @@ A rota local `#/dashboard-financeiro` carregou com o resumo executivo, KPIs de r
 ## 8. Testes e revisão local
 
 A suíte completa passou com **39 testes**, sem falhas, incluindo os contratos anteriores de autenticação, Cardápio, Salão e Equipe, além da nova cobertura Financeiro. A checagem de sintaxe passou para todos os scripts Financeiro, o cliente de módulos, o helper, o handler e o agregador operacional. A primeira execução do comando composto terminou com código não zero somente porque o workspace de validação não é um clone Git e `git diff --check` foi chamado no diretório errado; a suíte e a checagem de sintaxe foram repetidas isoladamente e passaram integralmente.
+
+O deployment Production do commit `0f0bce3` foi localizado na Vercel e ainda estava em `Building` aos aproximadamente 22 segundos na segunda checagem. O smoke test remoto Financeiro aguardará o estado `Ready` antes de consultar os endpoints publicados.
+
+Na terceira checagem, o deployment `0f0bce3` ainda estava em `Building` aos aproximadamente 36 segundos. O teste remoto permanece bloqueado até o estado final do deployment.
+
+## 9. Smoke test remoto
+
+Após o deployment `0f0bce3` ficar **Ready**, o endpoint `GET /api/v1/health` respondeu HTTP 200 com `estado: "ok"`, ambiente Development e serviço `apex-food-api`. O rewrite público `GET /api/v1/financeiro` foi resolvido pelo agregador operacional; a rota base e os recursos `relatorios`, `contas` e `fechamentos` responderam HTTP 401 com `NAO_AUTENTICADO` sem sessão. Nenhuma coleção financeira foi consultada sem autenticação e nenhum dado de produção foi criado.
