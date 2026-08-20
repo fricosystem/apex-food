@@ -1,0 +1,521 @@
+{
+  "versao": "1.0.0",
+  "projeto": "apex-food-6c1cb",
+  "ambiente": "Development",
+  "idioma": "pt-BR",
+  "moeda": "BRL",
+  "modelo": "multi-tenant",
+  "regraEscopo": "O restaurante efetivo vem da sessão e do vínculo ativo em restaurantes/{idRestaurante}/membros/{idUsuario}; o cliente nunca define a autoridade do escopo.",
+  "fonteDados": "Cloud Firestore via API server-side com Firebase Admin SDK",
+  "colecoesGlobais": {
+    "usuarios": {
+      "estadoContrato": "implementada",
+      "caminho": "usuarios/{idUsuario}",
+      "campos": {
+        "idUsuario": "texto",
+        "emailCanonico": "texto",
+        "nomeExibicao": "texto",
+        "estado": "ativo|convidado|suspenso|desativado|excluido",
+        "idRestaurantePadrao": "texto|nulo",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor",
+        "ultimoLoginEm": "timestamp_servidor|nulo",
+        "criadoPor": "texto",
+        "atualizadoPor": "texto",
+        "versao": "inteiro"
+      }
+    },
+    "restaurantes": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}",
+      "campos": {
+        "idRestaurante": "texto",
+        "nome": "texto",
+        "razaoSocial": "texto|nulo",
+        "estado": "teste|ativo|suspenso|arquivado",
+        "fusoHorario": "texto_IANA",
+        "localidade": "pt-BR",
+        "moeda": "BRL",
+        "idProprietario": "texto",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor",
+        "criadoPor": "texto",
+        "atualizadoPor": "texto",
+        "versao": "inteiro"
+      }
+    },
+    "registrosAuditoria": {
+      "estadoContrato": "implementada",
+      "caminho": "registrosAuditoria/{idRegistro}",
+      "somenteAcrescimo": true,
+      "campos": {
+        "idRestaurante": "texto|nulo",
+        "idAtor": "texto",
+        "papeisDoAtor": "lista_texto",
+        "acao": "texto_controlado",
+        "tipoRecurso": "texto",
+        "idRecurso": "texto|nulo",
+        "idOperacao": "texto",
+        "idRequisicao": "texto",
+        "resultado": "sucesso|negado|falhou|revertido",
+        "codigoMotivo": "texto|nulo",
+        "criadoEm": "timestamp_servidor",
+        "versaoEstruturaAuditoria": "texto",
+        "classeRetencao": "texto"
+      }
+    }
+  },
+  "colecoesDoRestaurante": {
+    "membros": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/membros/{idUsuario}",
+      "campos": {
+        "idUsuario": "texto",
+        "idRestaurante": "texto",
+        "papeis": "lista_texto",
+        "papelPrincipal": "texto|nulo",
+        "escopos": "mapa|nulo",
+        "estado": "convidado|ativo|suspenso|revogado",
+        "entrouEm": "timestamp_servidor|nulo",
+        "convidadoPor": "texto|nulo",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor",
+        "criadoPor": "texto",
+        "atualizadoPor": "texto",
+        "versao": "inteiro"
+      }
+    },
+    "categoriasCardapio": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/categoriasCardapio/{idCategoria}",
+      "campos": {
+        "idRestaurante": "texto",
+        "nome": "texto",
+        "descricao": "texto",
+        "icone": "texto",
+        "cor": "texto",
+        "ordem": "inteiro_nao_negativo",
+        "estado": "ativo|excluido",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor",
+        "criadoPor": "texto",
+        "atualizadoPor": "texto",
+        "versao": "inteiro"
+      }
+    },
+    "produtos": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/produtos/{idProduto}",
+      "campos": {
+        "idRestaurante": "texto",
+        "idCategoria": "texto",
+        "nome": "texto",
+        "descricao": "texto",
+        "precoCentavos": "inteiro_positivo",
+        "custoCentavos": "inteiro_nao_negativo",
+        "estoque": "inteiro_nao_negativo",
+        "unidade": "texto",
+        "tempoPreparo": "inteiro_nao_negativo",
+        "disponibilidade": "booleano",
+        "estado": "ativo|excluido",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor",
+        "criadoPor": "texto",
+        "atualizadoPor": "texto",
+        "versao": "inteiro"
+      }
+    },
+    "promocoes": {
+      "estadoContrato": "contrato_definido_integracao_pendente",
+      "caminho": "restaurantes/{idRestaurante}/promocoes/{idPromocao}",
+      "campos": {
+        "idRestaurante": "texto",
+        "nome": "texto",
+        "tipo": "texto_controlado",
+        "descricao": "texto",
+        "desconto": "texto_controlado",
+        "valorCentavos": "inteiro_nao_negativo",
+        "inicioEm": "timestamp_servidor",
+        "fimEm": "timestamp_servidor",
+        "limiteUsos": "inteiro_nao_negativo",
+        "usos": "inteiro_nao_negativo",
+        "estado": "ativa|pausada|encerrada|excluida",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor",
+        "criadoPor": "texto",
+        "atualizadoPor": "texto",
+        "versao": "inteiro"
+      }
+    },
+    "configuracaoCardapioDigital": {
+      "estadoContrato": "contrato_definido_integracao_pendente",
+      "caminho": "restaurantes/{idRestaurante}/configuracaoCardapioDigital/{idConfiguracao}",
+      "campos": {
+        "idRestaurante": "texto",
+        "publicado": "booleano",
+        "versaoPublicada": "inteiro",
+        "linkPublico": "texto",
+        "referenciaQrCode": "texto",
+        "atualizadoEm": "timestamp_servidor",
+        "atualizadoPor": "texto"
+      }
+    },
+    "mesas": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/mesas/{idMesa}",
+      "campos": {
+        "idRestaurante": "texto",
+        "nome": "texto",
+        "numero": "inteiro_positivo",
+        "capacidade": "inteiro_positivo",
+        "localizacao": "texto",
+        "observacoes": "texto",
+        "status": "disponivel|ocupada|indisponivel",
+        "idQrCode": "texto|nulo",
+        "estado": "ativo|excluido",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor",
+        "criadoPor": "texto",
+        "atualizadoPor": "texto",
+        "versao": "inteiro"
+      }
+    },
+    "eventosMesas": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/eventosMesas/{idEvento}",
+      "somenteAcrescimo": true,
+      "campos": {
+        "idRestaurante": "texto",
+        "mesaId": "texto",
+        "estadoAnterior": "texto",
+        "estadoNovo": "texto",
+        "criadoPor": "texto",
+        "criadoEm": "timestamp_servidor"
+      }
+    },
+    "reservas": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/reservas/{idReserva}",
+      "campos": {
+        "idRestaurante": "texto",
+        "mesaId": "texto|nulo",
+        "nomeCliente": "texto",
+        "contatoClienteMascarado": "texto",
+        "inicioEm": "timestamp_servidor",
+        "fimEm": "timestamp_servidor",
+        "quantidadePessoas": "inteiro_positivo",
+        "estado": "aguardando|confirmada|chegou|cancelada",
+        "observacoes": "texto",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor",
+        "criadoPor": "texto",
+        "atualizadoPor": "texto",
+        "versao": "inteiro"
+      }
+    },
+    "configuracaoSalao": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/configuracaoSalao/{idConfiguracao}",
+      "campos": {
+        "idRestaurante": "texto",
+        "nome": "texto",
+        "layout": "mapa_controlado",
+        "atualizadoEm": "timestamp_servidor",
+        "atualizadoPor": "texto",
+        "versao": "inteiro"
+      }
+    },
+    "pedidos": {
+      "estadoContrato": "contrato_definido_integracao_pendente",
+      "caminho": "restaurantes/{idRestaurante}/pedidos/{idPedido}",
+      "campos": {
+        "idRestaurante": "texto",
+        "numero": "inteiro_positivo",
+        "origem": "balcao|mesa|entrega|cardapioDigital|integracao",
+        "tipoAtendimento": "local|retirada|entrega",
+        "mesaId": "texto|nulo",
+        "comandaNumero": "texto|nulo",
+        "clienteNome": "texto|nulo",
+        "subtotalCentavos": "inteiro_nao_negativo",
+        "descontoCentavos": "inteiro_nao_negativo",
+        "taxaCentavos": "inteiro_nao_negativo",
+        "totalCentavos": "inteiro_nao_negativo",
+        "moeda": "BRL",
+        "estado": "novo|emPreparo|pronto|entregue|finalizado|cancelado",
+        "observacoes": "texto",
+        "abertoEm": "timestamp_servidor",
+        "finalizadoEm": "timestamp_servidor|nulo",
+        "canceladoEm": "timestamp_servidor|nulo",
+        "criadoPor": "texto",
+        "atualizadoPor": "texto",
+        "versao": "inteiro"
+      },
+      "subcolecoes": {
+        "itens": {
+          "caminho": "restaurantes/{idRestaurante}/pedidos/{idPedido}/itens/{idItem}",
+          "campos": {
+            "idProduto": "texto",
+            "nomeProduto": "texto",
+            "quantidade": "inteiro_positivo",
+            "precoUnitarioCentavos": "inteiro_positivo",
+            "totalCentavos": "inteiro_positivo",
+            "observacoes": "texto"
+          }
+        },
+        "eventos": {
+          "caminho": "restaurantes/{idRestaurante}/pedidos/{idPedido}/eventos/{idEvento}",
+          "somenteAcrescimo": true,
+          "campos": {
+            "estadoAnterior": "texto|nulo",
+            "estadoNovo": "texto",
+            "idAtor": "texto",
+            "idRequisicao": "texto",
+            "criadoEm": "timestamp_servidor"
+          }
+        }
+      }
+    },
+    "funcionarios": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/funcionarios/{idFuncionario}",
+      "campos": {
+        "idRestaurante": "texto",
+        "nome": "texto",
+        "iniciais": "texto",
+        "cargo": "texto",
+        "setor": "Salão|Cozinha|Bar|Gestão",
+        "turno": "Almoço|Jantar|Integral",
+        "status": "ativo|ferias|inativo",
+        "percentualComissao": "numero_0_a_100",
+        "telefoneMascarado": "texto",
+        "cor": "classe_visual_validada",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor",
+        "criadoPor": "texto",
+        "atualizadoPor": "texto",
+        "versao": "inteiro"
+      }
+    },
+    "dadosPrivadosFuncionarios": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/dadosPrivadosFuncionarios/{idFuncionario}",
+      "campos": {
+        "idRestaurante": "texto",
+        "funcionarioId": "texto",
+        "telefone": "texto",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor",
+        "criadoPor": "texto",
+        "atualizadoPor": "texto"
+      },
+      "regraResposta": "Nunca retornar o telefone completo por endpoint de listagem operacional."
+    },
+    "escalas": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/escalas/{idEscala}",
+      "campos": {
+        "idRestaurante": "texto",
+        "funcionarioId": "texto",
+        "data": "AAAA-MM-DD",
+        "entrada": "HH:mm",
+        "saida": "HH:mm",
+        "intervalo": "HH:mm|texto_vazio",
+        "turno": "Almoço|Jantar|Integral",
+        "status": "agendado|presente|folga|falta|cancelado",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor",
+        "criadoPor": "texto",
+        "atualizadoPor": "texto",
+        "versao": "inteiro"
+      }
+    },
+    "comissoes": {
+      "estadoContrato": "implementada_leitura",
+      "caminho": "restaurantes/{idRestaurante}/comissoes/{idComissao}",
+      "campos": {
+        "idRestaurante": "texto",
+        "funcionarioId": "texto",
+        "periodo": "texto_AAAA-MM",
+        "vendasCentavos": "inteiro_nao_negativo",
+        "percentual": "numero_0_a_100",
+        "comissaoCentavos": "inteiro_nao_negativo",
+        "pedidos": "inteiro_nao_negativo",
+        "variacaoPercentual": "numero",
+        "posicao": "inteiro_nao_negativo"
+      }
+    },
+    "fechamentosCaixa": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/fechamentosCaixa/{idFechamento}",
+      "campos": {
+        "idRestaurante": "texto",
+        "data": "AAAA-MM-DD",
+        "aberturaCentavos": "inteiro_nao_negativo",
+        "vendasCentavos": "inteiro_nao_negativo",
+        "suprimentosCentavos": "inteiro_nao_negativo",
+        "sangriasCentavos": "inteiro_nao_negativo",
+        "retiradasCentavos": "inteiro_nao_negativo",
+        "saldoEsperadoCentavos": "inteiro_nao_negativo",
+        "saldoConferidoCentavos": "inteiro_nao_negativo",
+        "diferencaCentavos": "inteiro",
+        "estado": "aberto|em_conferencia|fechado|reaberto|excluido",
+        "fechadoEm": "timestamp_servidor|nulo",
+        "fechadoPor": "texto|nulo",
+        "moeda": "BRL",
+        "versao": "inteiro"
+      }
+    },
+    "movimentacoesCaixa": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/movimentacoesCaixa/{idMovimentacao}",
+      "campos": {
+        "idRestaurante": "texto",
+        "tipo": "entrada|saida",
+        "data": "AAAA-MM-DD",
+        "categoria": "texto",
+        "descricao": "texto",
+        "origem": "texto",
+        "forma": "texto",
+        "valorCentavos": "inteiro_positivo",
+        "estado": "pendente|conciliado|cancelada|excluida",
+        "moeda": "BRL",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor",
+        "criadoPor": "texto",
+        "atualizadoPor": "texto",
+        "versao": "inteiro"
+      }
+    },
+    "contasPagar": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/contasPagar/{idConta}",
+      "campos": {
+        "idRestaurante": "texto",
+        "tipo": "pagar",
+        "descricao": "texto",
+        "categoria": "texto",
+        "vencimento": "AAAA-MM-DD",
+        "vencimentoEm": "timestamp_servidor",
+        "valorCentavos": "inteiro_positivo",
+        "recorrente": "booleano",
+        "estado": "pendente|vencida|pago|cancelada|excluida",
+        "liquidadoEm": "timestamp_servidor|nulo",
+        "liquidadoPor": "texto|nulo",
+        "moeda": "BRL",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor",
+        "versao": "inteiro"
+      }
+    },
+    "contasReceber": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/contasReceber/{idConta}",
+      "campos": {
+        "idRestaurante": "texto",
+        "tipo": "receber",
+        "descricao": "texto",
+        "categoria": "texto",
+        "vencimento": "AAAA-MM-DD",
+        "vencimentoEm": "timestamp_servidor",
+        "valorCentavos": "inteiro_positivo",
+        "recorrente": "booleano",
+        "estado": "prevista|recebido|cancelada|excluida",
+        "liquidadoEm": "timestamp_servidor|nulo",
+        "liquidadoPor": "texto|nulo",
+        "moeda": "BRL",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor",
+        "versao": "inteiro"
+      }
+    },
+    "relatoriosFinanceiros": {
+      "estadoContrato": "implementada_leitura",
+      "caminho": "restaurantes/{idRestaurante}/relatoriosFinanceiros/{idRelatorio}",
+      "campos": {
+        "idRestaurante": "texto",
+        "mes": "AAAA-MM",
+        "vendasCentavos": "inteiro_nao_negativo",
+        "despesasCentavos": "inteiro_nao_negativo",
+        "resultadoCentavos": "inteiro",
+        "categorias": "lista_resumo",
+        "criadoEm": "timestamp_servidor",
+        "atualizadoEm": "timestamp_servidor"
+      }
+    },
+    "resumosFinanceiros": {
+      "estadoContrato": "implementada_leitura",
+      "caminho": "restaurantes/{idRestaurante}/resumosFinanceiros/{idResumo}",
+      "campos": {
+        "idRestaurante": "texto",
+        "caixaAtual": "mapa_resumo",
+        "recebimentos": "lista_resumo",
+        "compromissosCentavos": "inteiro_nao_negativo",
+        "saldoProjetadoCentavos": "inteiro",
+        "vendasDiaCentavos": "inteiro_nao_negativo",
+        "atualizadoEm": "timestamp_servidor"
+      }
+    },
+    "chavesIdempotencia": {
+      "estadoContrato": "implementada",
+      "caminho": "restaurantes/{idRestaurante}/chavesIdempotencia/{resumoChave}",
+      "campos": {
+        "idRestaurante": "texto",
+        "rota": "texto",
+        "idAtor": "texto",
+        "chaveResumo": "texto",
+        "resultado": "mapa_resposta_sem_segredo",
+        "expiraEm": "timestamp",
+        "criadoEm": "timestamp_servidor"
+      }
+    }
+  },
+  "papeis": {
+    "proprietario": "propriedade, configuração, equipe, operação e financeiro",
+    "administrador": "configuração, equipe e operação conforme política",
+    "gerente": "operação, cardápio, salão, equipe e relatórios autorizados",
+    "financeiro": "financeiro e fechamentos",
+    "caixa": "operações de caixa autorizadas",
+    "cozinha": "fila e produção",
+    "garcom": "mesas, reservas e pedidos operacionais",
+    "analista": "leitura de relatórios autorizados",
+    "auditor": "leitura controlada e auditoria"
+  },
+  "endpointsModulos": {
+    "/api/v1/cardapio": {
+      "metodos": ["GET", "POST", "PATCH"],
+      "leitura": ["categorias", "produtos", "promocoes"],
+      "mutacao": ["categoria", "produto"],
+      "colecoes": ["categoriasCardapio", "produtos", "promocoes"]
+    },
+    "/api/v1/salao": {
+      "metodos": ["GET", "POST", "PATCH"],
+      "leitura": ["mesas", "reservas", "configuracao"],
+      "mutacao": ["reserva", "mesa"],
+      "colecoes": ["mesas", "reservas", "configuracaoSalao", "eventosMesas"]
+    },
+    "/api/v1/equipe": {
+      "metodos": ["GET", "POST", "PATCH"],
+      "leitura": ["funcionarios", "escalas", "comissoes"],
+      "mutacao": ["funcionario", "escala"],
+      "colecoes": ["funcionarios", "dadosPrivadosFuncionarios", "escalas", "comissoes"]
+    },
+    "/api/v1/financeiro": {
+      "metodos": ["GET", "POST", "PATCH"],
+      "leitura": ["resumos", "relatorios", "contas", "movimentacoes", "fechamentos"],
+      "mutacao": ["conta", "movimentacao", "fechamento"],
+      "colecoes": ["fechamentosCaixa", "movimentacoesCaixa", "contasPagar", "contasReceber", "relatoriosFinanceiros", "resumosFinanceiros", "chavesIdempotencia"]
+    }
+  },
+  "regrasComuns": {
+    "sessao": "Cookie de sessão HttpOnly validado pelo backend",
+    "contexto": "Cookie assinado com idRestaurante; o vínculo ativo é revalidado no backend",
+    "csrf": "Dupla submissão para mutações",
+    "appCheck": "Obrigatório no runtime enforce e desativado somente no Development controlado",
+    "paginacao": "limite server-side por endpoint, sem aceitar limite arbitrário",
+    "dinheiro": "Inteiros em centavos, moeda BRL",
+    "datas": "Datas normalizadas no backend e timestamps de servidor para autoria",
+    "auditoria": "Registros append-only em registrosAuditoria",
+    "idempotencia": "Obrigatória para comandos financeiros mutáveis",
+    "dto": "Respostas removem idRestaurante e autoria interna; PII é mascarada ou omitida"
+  }
+}

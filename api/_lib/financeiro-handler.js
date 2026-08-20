@@ -77,7 +77,7 @@ async function executarIdempotente(identidade, chave, operacao) {
     const resultado = resultadoArmazenavel(await operacao(transacao, restaurante));
     transacao.create(referenciaChave, {
       idRestaurante: identidade.idRestaurante,
-      endpoint: 'financeiro',
+      rota: 'financeiro',
       idAtor: identidade.idUsuario,
       chaveResumo: idChave.slice(0, 16),
       resultado,
