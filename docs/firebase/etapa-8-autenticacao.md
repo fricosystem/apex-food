@@ -70,3 +70,13 @@ A Vercel identificou o novo deploy de Production do commit `fd04e22`. A primeira
 O deploy `fd04e22` passou para `Ready` em Production na Vercel. A validação final da página publicada pode prosseguir no domínio principal.
 
 No deploy `fd04e22`, o teste visual com o identificador `nome.teste` exibiu corretamente `nome.teste@apexfood.com` no campo e não mostrou erro de validação. O formulário não foi enviado e nenhuma senha ou credencial foi digitada.
+
+## 8. Diagnóstico da tentativa de cadastro
+
+A requisição real de `POST /api/v1/auth/register` foi localizada nos logs da Vercel com HTTP 400 e duração de 218 ms. O detalhe remoto informou `External APIs: No outgoing requests`, portanto a solicitação foi rejeitada pela validação server-side antes de chamar o Firebase Authentication. O log não contém email, senha ou payload.
+
+Na versão publicada durante a tentativa, a API ainda exigia 12 caracteres em `validarSenha`; por isso, uma senha com 8 a 11 caracteres era rejeitada como `SENHA_INVALIDA` antes de o usuário ser criado. Isso explica por que a conta não apareceu no Firebase Authentication e não indica falha de comunicação com o projeto Firebase.
+
+O Firebase Console foi reaberto autenticado na conta `apexhub3051@gmail.com`; a tela de configurações do Authentication ainda estava carregando e nenhuma política foi alterada neste momento.
+
+A política de senha do Firebase Authentication Development foi atualizada com sucesso no Console: tamanho mínimo `8`, aplicação obrigatória mantida e exigências de maiúscula, minúscula, caractere especial e número preservadas. O tamanho máximo permaneceu `4096`.

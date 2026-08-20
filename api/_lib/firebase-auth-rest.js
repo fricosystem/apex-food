@@ -26,8 +26,8 @@ function validarEmailApex(email) {
 }
 
 function validarSenha(senha) {
-  if (typeof senha !== 'string' || senha.length < 12 || senha.length > 256) {
-    throw new ApiError(400, 'SENHA_INVALIDA', 'A senha deve atender à política configurada.');
+  if (typeof senha !== 'string' || senha.length < 8 || senha.length > 256) {
+    throw new ApiError(400, 'SENHA_INVALIDA', 'A senha deve ter pelo menos 8 caracteres e atender à política configurada.');
   }
   return senha;
 }

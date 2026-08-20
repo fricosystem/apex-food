@@ -544,7 +544,7 @@ Substituir a simulação atual da `paginas/autenticacao.html` por chamadas HTTPS
 
 Implementar registro, login, logout, verificação, recuperação, alteração de senha, MFA e expiração de sessão. Mensagens de erro não devem revelar se um email existe. O fluxo de cadastro deve montar o endereço completo no servidor, aceitando `meunome@apexfood.com` e, opcionalmente, `meunome.sobrenome@apexfood.com`, sempre com o domínio fixo `@apexfood.com`.
 
-**Status:** implementação local concluída e validada com 11 testes; cliente same-origin, CSRF em memória, guard de sessão, cookies HttpOnly e recuperação genérica implementados. A validação contra uma conta Firebase Development real depende do novo deploy na Vercel.
+**Status:** implementação local concluída e validada com 11 testes; cliente same-origin, CSRF em memória, guard de sessão, cookies HttpOnly e recuperação genérica implementados. A política do Firebase Authentication Development está alinhada com mínimo 8 caracteres, aplicação obrigatória e complexidade de maiúscula, minúscula, especial e número.
 
 **Entrega:** `docs/firebase/etapa-8-autenticacao.md`, cliente da API, guard do shell, endpoint de recuperação e testes de contrato. A Etapa 9 permanece bloqueada até a validação remota e aprovação explícita.
 

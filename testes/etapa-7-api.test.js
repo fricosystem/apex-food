@@ -36,7 +36,8 @@ test('normaliza e valida email APEX Food com ponto opcional', () => {
   assert.throws(() => validarEmailApex('nome@outro.com'), (erro) => erro instanceof ApiError && erro.status === 400);
 });
 
-test('aplica política mínima de senha no backend', () => {
+test('aplica política mínima de senha de 8 caracteres no backend', () => {
+  assert.equal(validarSenha('SenhaF!8').length, 8);
   assert.equal(validarSenha('SenhaForte!123').length, 14);
   assert.throws(() => validarSenha('curta'), (erro) => erro instanceof ApiError && erro.code === 'SENHA_INVALIDA');
 });

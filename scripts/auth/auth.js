@@ -154,7 +154,7 @@
   function validatePassword(input) {
     const value = input.value;
     if (!value) return 'Informe sua senha.';
-    if (value.length < 12) return 'A senha deve ter pelo menos 12 caracteres.';
+    if (value.length < 8) return 'A senha deve ter pelo menos 8 caracteres.';
     return '';
   }
 
