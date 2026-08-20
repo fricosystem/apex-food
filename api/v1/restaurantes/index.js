@@ -5,7 +5,7 @@ const { exigirSessao } = require('../../_lib/sessao');
 const { getAdminDb } = require('../../../backend/firebase/admin');
 
 module.exports = async function restaurantes(req, res) {
-  return executar(req, res, { metodos: ['GET'] }, async () => {
+  return executar(req, res, { metodos: ['GET'], appCheck: true }, async () => {
     const sessao = await exigirSessao(req);
     const consulta = await getAdminDb()
       .collectionGroup('membros')

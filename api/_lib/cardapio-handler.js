@@ -153,7 +153,7 @@ async function atualizarRecurso(identidade, corpo, idRequisicao) {
 }
 
 module.exports = async function cardapio(req, res) {
-  return executar(req, res, { metodos: ['GET', 'POST', 'PATCH'], mutacao: ['POST', 'PATCH'].includes(String(req.method || '').toUpperCase()) }, async ({ idRequisicao }) => {
+  return executar(req, res, { metodos: ['GET', 'POST', 'PATCH'], mutacao: ['POST', 'PATCH'].includes(String(req.method || '').toUpperCase()), appCheck: true }, async ({ idRequisicao }) => {
     const mutacao = ['POST', 'PATCH'].includes(String(req.method || '').toUpperCase());
     const identidade = await obterIdentidadeOperacional(req, mutacao ? PAPEIS_CARDAPIO : PAPEIS_LEITURA);
     if (req.method === 'GET') return listarCardapio(identidade, req);

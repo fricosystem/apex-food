@@ -8,7 +8,7 @@ const { definirContexto } = require('../../_lib/contexto');
 const { registrarAuditoria } = require('../../_lib/auditoria');
 
 module.exports = async function trocarRestaurante(req, res) {
-  return executar(req, res, { metodos: ['POST'], mutacao: true }, async ({ idRequisicao }) => {
+  return executar(req, res, { metodos: ['POST'], mutacao: true, appCheck: true }, async ({ idRequisicao }) => {
     const sessao = await exigirSessao(req);
     const corpo = await lerCorpoJson(req);
     if (typeof corpo.idRestaurante !== 'string') {

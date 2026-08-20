@@ -186,7 +186,7 @@ async function atualizarMesa(identidade, corpo, idRequisicao) {
 }
 
 module.exports = async function salao(req, res) {
-  return executar(req, res, { metodos: ['GET', 'POST', 'PATCH'], mutacao: ['POST', 'PATCH'].includes(String(req.method || '').toUpperCase()) }, async ({ idRequisicao }) => {
+  return executar(req, res, { metodos: ['GET', 'POST', 'PATCH'], mutacao: ['POST', 'PATCH'].includes(String(req.method || '').toUpperCase()), appCheck: true }, async ({ idRequisicao }) => {
     const metodo = String(req.method || '').toUpperCase();
     const mutacao = ['POST', 'PATCH'].includes(metodo);
     const identidade = await obterIdentidadeOperacional(req, mutacao ? PAPEIS_SALAO : PAPEIS_LEITURA);

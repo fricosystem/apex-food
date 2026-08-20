@@ -12,7 +12,7 @@ const { exigirConfiguracaoAdmin } = require('../../_lib/config');
 
 module.exports = async function login(req, res) {
   return executar(req, res, { metodos: ['POST'], mutacao: true }, async ({ idRequisicao }) => {
-    consumir(req, 'login', 10, 15 * 60 * 1000);
+    await consumir(req, 'login', 10, 15 * 60 * 1000);
     exigirConfiguracaoAdmin();
     const corpo = await lerCorpoJson(req);
     const dadosAuth = await autenticarUsuario(corpo.email, corpo.senha);

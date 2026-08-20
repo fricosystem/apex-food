@@ -15,7 +15,7 @@ function nomeValido(nome) {
 
 module.exports = async function register(req, res) {
   return executar(req, res, { metodos: ['POST'], mutacao: true }, async ({ idRequisicao }) => {
-    consumir(req, 'cadastro', 5, 15 * 60 * 1000);
+    await consumir(req, 'cadastro', 5, 15 * 60 * 1000);
     exigirConfiguracaoAdmin();
     const corpo = await lerCorpoJson(req);
     if (!nomeValido(corpo.nomeCompleto)) {

@@ -248,7 +248,7 @@ async function fecharCaixa(identidade, corpo, idRequisicao) {
 module.exports = async function financeiro(req, res) {
   const metodo = String(req.method || '').toUpperCase();
   const mutacao = ['POST', 'PATCH'].includes(metodo);
-  return executar(req, res, { metodos: ['GET', 'POST', 'PATCH'], mutacao }, async ({ idRequisicao }) => {
+  return executar(req, res, { metodos: ['GET', 'POST', 'PATCH'], mutacao, appCheck: true }, async ({ idRequisicao }) => {
     const corpo = mutacao ? await lerCorpoJson(req) : null;
     const recurso = normalizarRecurso(corpo?.recurso || queryString(req, 'recurso'));
     let papeis = PAPEIS_LEITURA_FINANCEIRO;

@@ -7,7 +7,7 @@ const { lerUsuario } = require('../_lib/usuarios');
 const { lerContexto } = require('../_lib/contexto');
 
 module.exports = async function eu(req, res) {
-  return executar(req, res, { metodos: ['GET'] }, async () => {
+  return executar(req, res, { metodos: ['GET'], appCheck: true }, async () => {
     const sessao = await exigirSessao(req);
     const usuario = await lerUsuario(sessao.uid);
     const contexto = lerContexto(req);

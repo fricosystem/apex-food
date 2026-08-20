@@ -7,7 +7,8 @@
     "node": "22.x"
   },
   "scripts": {
-    "test": "node --test testes/*.test.js"
+    "test": "node --test testes/*.test.js",
+    "seguranca:segredos": "node scripts/seguranca/verificar-segredos.js"
   },
   "dependencies": {
     "firebase-admin": "13.6.0"

@@ -227,7 +227,7 @@ async function atualizarEscala(identidade, corpo, idRequisicao) {
 module.exports = async function equipe(req, res) {
   const metodo = String(req.method || '').toUpperCase();
   const mutacao = ['POST', 'PATCH'].includes(metodo);
-  return executar(req, res, { metodos: ['GET', 'POST', 'PATCH'], mutacao }, async ({ idRequisicao }) => {
+  return executar(req, res, { metodos: ['GET', 'POST', 'PATCH'], mutacao, appCheck: true }, async ({ idRequisicao }) => {
     const corpo = mutacao ? await lerCorpoJson(req) : null;
     const recursoCorpo = corpo ? normalizarRecurso(corpo.recurso) : '';
     const recursoQuery = queryString(req, 'recurso');

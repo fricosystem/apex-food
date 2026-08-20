@@ -12,6 +12,7 @@ const {
 } = require('./http');
 const { validarTokenCsrf } = require('./sessao');
 const { origensPermitidas } = require('./origens');
+const { verificarAppCheck } = require('./app-check');
 
 function validarOrigem(req) {
   const origem = obterOrigem(req);
@@ -59,6 +60,7 @@ async function executar(req, res, opcoes, handler) {
     validarOrigem(req);
     exigirMetodo(req, metodos);
     if (opcoes.mutacao) validarTokenCsrf(req);
+    if (opcoes.appCheck) await verificarAppCheck(req);
     const resultado = await handler({ idRequisicao });
     if (res.writableEnded) return;
     status = resultado?.status || 200;

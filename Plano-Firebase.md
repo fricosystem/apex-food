@@ -8,7 +8,7 @@
 
 **Autor:** Manus AI
 
-**Status de implementação:** Etapas 0–5 concluídas em Development; Etapa 6 — schema multi-tenant, membership, roles e auditoria — aguardando autorização explícita.
+**Status de implementação:** Etapas 0–11 concluídas e validadas em Development; Etapa 12 — hardening de segurança e preparação do go-live gradual — em implementação controlada, sem promoção para Production.
 
 > Este documento define a estratégia de integração do APEX Food com Firebase Authentication e Cloud Firestore para múltiplos clientes, com prioridade absoluta para isolamento de dados, não exposição de segredos, rastreabilidade, continuidade operacional e segurança de produção.
 
@@ -575,6 +575,8 @@ Configurar alertas de Auth, 401/403/429, falhas de Rules, erros de API, latênci
 ### Etapa 12 — Go-live gradual na Vercel
 
 Publicar primeiro em Preview/Staging. Validar domínios autorizados, cookies, CSP, CORS, variáveis e logs. Liberar para um tenant interno, depois para um grupo pequeno e finalmente para a base completa. Monitorar erros, custo, latência, autenticação e isolamento durante cada janela.
+
+A implementação incremental atual adiciona headers globais de segurança, contrato de rate limiting distribuído fail-closed, modos controlados de App Check, readiness com gates de lançamento, scanner de segredos e workflow de CI. O ambiente Development continua operando sem exigir provedor distribuído ou enforcement do App Check; Preview/Staging e Production não devem ser considerados prontos enquanto esses controles, backups, alertas e restauração ensaiada não tiverem evidência aprovada.
 
 Manter rollback para o deploy anterior, desativar feature flags problemáticas e revogar credenciais comprometidas. O go-live só será aprovado sem vulnerabilidade crítica/alta aberta e com suporte treinado.
 
