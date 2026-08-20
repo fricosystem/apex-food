@@ -8,7 +8,7 @@ process.env.SESSION_SECRET = 's'.repeat(64);
 process.env.CSRF_SECRET = 'c'.repeat(64);
 
 const { ApiError } = require('../api/_lib/http');
-const { validarEmailApex, validarSenha } = require('../api/_lib/firebase-auth-rest');
+const { validarEmailApex, validarSenha, validarSenhaMinima } = require('../api/_lib/firebase-auth-rest');
 const { criarTokenCsrf, validarTokenCsrf } = require('../api/_lib/sessao');
 const { definirContexto, lerContexto } = require('../api/_lib/contexto');
 
@@ -36,10 +36,20 @@ test('normaliza e valida email APEX Food com ponto opcional', () => {
   assert.throws(() => validarEmailApex('nome@outro.com'), (erro) => erro instanceof ApiError && erro.status === 400);
 });
 
-test('aplica política mínima de senha de 8 caracteres no backend', () => {
+test('aplica política de senha mínima e complexidade no backend', () => {
   assert.equal(validarSenha('SenhaF!8').length, 8);
   assert.equal(validarSenha('SenhaForte!123').length, 14);
   assert.throws(() => validarSenha('curta'), (erro) => erro instanceof ApiError && erro.code === 'SENHA_INVALIDA');
+  assert.throws(() => validarSenha('Senha123'), (erro) => erro instanceof ApiError && erro.code === 'SENHA_FRACA');
+  assert.throws(() => validarSenha('senha!123'), (erro) => erro instanceof ApiError && erro.code === 'SENHA_FRACA');
+  assert.throws(() => validarSenha('SENHA!123'), (erro) => erro instanceof ApiError && erro.code === 'SENHA_FRACA');
+  assert.throws(() => validarSenha('Senha!abc'), (erro) => erro instanceof ApiError && erro.code === 'SENHA_FRACA');
+});
+
+test('login aceita senha existente com mínimo de 8 caracteres e cadastro exige complexidade', () => {
+  assert.equal(validarSenhaMinima('senhaexistente').length, 14);
+  assert.throws(() => validarSenhaMinima('curta'), (erro) => erro instanceof ApiError && erro.code === 'SENHA_INVALIDA');
+  assert.throws(() => validarSenha('senhaexistente'), (erro) => erro instanceof ApiError && erro.code === 'SENHA_FRACA');
 });
 
 test('emite e valida CSRF por dupla submissão', () => {

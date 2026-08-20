@@ -25,11 +25,26 @@ function validarEmailApex(email) {
   return normalizado;
 }
 
-function validarSenha(senha) {
+function validarSenhaMinima(senha) {
   if (typeof senha !== 'string' || senha.length < 8 || senha.length > 256) {
-    throw new ApiError(400, 'SENHA_INVALIDA', 'A senha deve ter pelo menos 8 caracteres e atender à política configurada.');
+    throw new ApiError(400, 'SENHA_INVALIDA', 'A senha deve ter pelo menos 8 caracteres.');
   }
   return senha;
+}
+
+function validarSenha(senha) {
+  const valor = validarSenhaMinima(senha);
+  const requisitos = [
+    [/[a-z]/, 'letra minúscula'],
+    [/[A-Z]/, 'letra maiúscula'],
+    [/\d/, 'número'],
+    [/[^A-Za-z0-9]/, 'caractere especial'],
+  ];
+  const ausentes = requisitos.filter(([padrao]) => !padrao.test(valor)).map(([, nome]) => nome);
+  if (ausentes.length) {
+    throw new ApiError(400, 'SENHA_FRACA', 'A senha deve conter letra maiúscula, letra minúscula, número e caractere especial.');
+  }
+  return valor;
 }
 
 function erroAuth(codigo, contexto) {
@@ -38,11 +53,18 @@ function erroAuth(codigo, contexto) {
     : ['CREDENCIAIS_INVALIDAS', 'Email ou senha inválidos.'];
   const mapeamento = {
     EMAIL_EXISTS: genérico,
+    EMAIL_NOT_FOUND: ['CREDENCIAIS_INVALIDAS', 'Email ou senha inválidos.'],
     INVALID_PASSWORD: ['CREDENCIAIS_INVALIDAS', 'Email ou senha inválidos.'],
     INVALID_LOGIN_CREDENTIALS: ['CREDENCIAIS_INVALIDAS', 'Email ou senha inválidos.'],
+    INVALID_API_KEY: ['AUTH_NAO_CONFIGURADO', 'A autenticação está temporariamente indisponível.'],
+    API_KEY_INVALID: ['AUTH_NAO_CONFIGURADO', 'A autenticação está temporariamente indisponível.'],
+    OPERATION_NOT_ALLOWED: ['AUTH_NAO_CONFIGURADO', 'O acesso por email e senha não está habilitado.'],
+    PROJECT_NUMBER_MISMATCH: ['AUTH_NAO_CONFIGURADO', 'A configuração da autenticação não corresponde ao projeto.'],
     USER_DISABLED: ['AUTENTICACAO_NAO_DISPONIVEL', 'Não foi possível concluir a autenticação.'],
     TOO_MANY_ATTEMPTS_TRY_LATER: ['MUITAS_TENTATIVAS', 'Tente novamente mais tarde.'],
-    WEAK_PASSWORD: ['SENHA_FRACA', 'A senha não atende à política configurada.'],
+    WEAK_PASSWORD: ['SENHA_FRACA', 'A senha deve conter letra maiúscula, letra minúscula, número e caractere especial.'],
+    PASSWORD_DOES_NOT_MEET_REQUIREMENTS: ['SENHA_FRACA', 'A senha deve conter letra maiúscula, letra minúscula, número e caractere especial.'],
+    PASSWORD_POLICY_VIOLATION: ['SENHA_FRACA', 'A senha deve conter letra maiúscula, letra minúscula, número e caractere especial.'],
     INVALID_ID_TOKEN: ['TOKEN_INVALIDO', 'Sessão inválida.'],
   };
   return mapeamento[codigo] || genérico;
@@ -85,7 +107,7 @@ async function cadastrarUsuario(email, senha) {
 async function autenticarUsuario(email, senha) {
   const dados = await chamar('accounts:signInWithPassword', {
     email: validarEmailApex(email),
-    password: validarSenha(senha),
+    password: validarSenhaMinima(senha),
     returnSecureToken: true,
   }, 'login');
   if (!dados?.idToken || !dados?.localId) {
@@ -113,6 +135,7 @@ async function solicitarRedefinicaoSenha(email) {
 module.exports = {
   validarEmailApex,
   validarSenha,
+  validarSenhaMinima,
   cadastrarUsuario,
   autenticarUsuario,
   enviarVerificacaoEmail,

@@ -151,10 +151,13 @@
     return '';
   }
 
-  function validatePassword(input) {
+  function validatePassword(input, requireComplexity = false) {
     const value = input.value;
     if (!value) return 'Informe sua senha.';
     if (value.length < 8) return 'A senha deve ter pelo menos 8 caracteres.';
+    if (requireComplexity && (!/[a-z]/.test(value) || !/[A-Z]/.test(value) || !/\d/.test(value) || !/[^A-Za-z0-9]/.test(value))) {
+      return 'Use maiúscula, minúscula, número e caractere especial.';
+    }
     return '';
   }
 
@@ -163,7 +166,7 @@
     const password = form.querySelector('[name="password"]');
     const errors = {
       identifier: validateIdentifier(identifier),
-      password: validatePassword(password),
+      password: validatePassword(password, false),
     };
 
     setFieldState(identifier, errors.identifier);
@@ -180,7 +183,7 @@
     const errors = {
       fullName: !nameValue ? 'Informe seu nome completo.' : nameValue.split(/\s+/).length < 2 ? 'Digite seu nome e sobrenome.' : '',
       identifier: validateIdentifier(identifier),
-      password: validatePassword(password),
+      password: validatePassword(password, true),
       confirmPassword: !confirmPassword.value
         ? 'Confirme sua senha.'
         : confirmPassword.value !== password.value
@@ -221,7 +224,7 @@
       CREDENCIAIS_INVALIDAS: 'Email ou senha inválidos.',
       EMAIL_INVALIDO: 'Use um email no formato nome@apexfood.com.',
       SENHA_INVALIDA: 'A senha deve atender à política configurada.',
-      SENHA_FRACA: 'A senha não atende à política configurada.',
+      SENHA_FRACA: 'Use maiúscula, minúscula, número e caractere especial na senha.',
       MUITAS_TENTATIVAS: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.',
       ORIGEM_NAO_PERMITIDA: 'A origem desta página não está autorizada.',
       CSRF_INVALIDO: 'A proteção de segurança expirou. Tente novamente.',
@@ -355,7 +358,7 @@
       message = validateIdentifier(input);
       updateIdentifierSuffix(input);
     }
-    if (input.name === 'password') message = validatePassword(input);
+    if (input.name === 'password') message = validatePassword(input, isRegister);
     if (input.name === 'fullName') {
       const nameValue = input.value.trim();
       message = nameValue && nameValue.split(/\s+/).length < 2 ? 'Digite seu nome e sobrenome.' : '';
