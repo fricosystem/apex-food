@@ -15,8 +15,12 @@ function validarEmailApex(email) {
     throw new ApiError(400, 'EMAIL_INVALIDO', 'Informe um email válido.');
   }
   const normalizado = email.trim().toLowerCase();
-  if (normalizado.length > 254 || !/^[^\s@]+@apexfood\.com$/.test(normalizado)) {
-    throw new ApiError(400, 'EMAIL_INVALIDO', 'Use um email no formato nome@apexfood.com.');
+  const partes = normalizado.split('@');
+  const local = partes[0] || '';
+  const dominio = partes[1] || '';
+  const localValido = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/i.test(local);
+  if (normalizado.length > 254 || dominio !== 'apexfood.com' || local.length < 2 || local.length > 30 || !localValido) {
+    throw new ApiError(400, 'EMAIL_INVALIDO', 'Use um email no formato nome@apexfood.com ou nome.sobrenome@apexfood.com.');
   }
   return normalizado;
 }

@@ -29,8 +29,10 @@ function cookieDaResposta(resposta, nome) {
   return item.split(';')[0];
 }
 
-test('normaliza e valida email APEX Food', () => {
+test('normaliza e valida email APEX Food com ponto opcional', () => {
   assert.equal(validarEmailApex('  Nome.Teste@APEXFOOD.COM '), 'nome.teste@apexfood.com');
+  assert.equal(validarEmailApex(' Nome@APEXFOOD.COM '), 'nome@apexfood.com');
+  assert.throws(() => validarEmailApex('nome..teste@apexfood.com'), (erro) => erro instanceof ApiError && erro.status === 400);
   assert.throws(() => validarEmailApex('nome@outro.com'), (erro) => erro instanceof ApiError && erro.status === 400);
 });
 

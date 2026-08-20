@@ -45,3 +45,22 @@ A verificação estática não encontrou `localStorage`, `sessionStorage`, ID to
 O fluxo de login e cadastro contra a conta Firebase real deverá ser validado após o deploy desta etapa, utilizando uma conta de teste Development e sem enviar credenciais por chat. A validação remota deve confirmar login válido, credencial inválida, cadastro, email de verificação, logout, sessão persistente por cookie e redirecionamento de usuário anônimo.
 
 A Etapa 9 não deve começar antes da aprovação explícita desta etapa. A integração atual não cria automaticamente vínculo de restaurante; o vínculo será tratado pelo schema multi-tenant e pelos endpoints autorizados.
+
+## 6. Validação remota inicial
+
+O commit `19c6fa8` foi publicado no GitHub e o deploy de Production correspondente ficou em estado `Ready`. O domínio `https://apexfood.vercel.app/api/v1/health` retornou `estado: "ok"`, `ambiente: "development"` e `servico: "apex-food-api"`.
+
+O endpoint `GET /api/v1/auth/csrf` também respondeu com status de sucesso e emitiu um token CSRF. O valor do token não foi armazenado neste relatório nem exposto na mensagem ao usuário. A validação de login/cadastro real requer uma conta de teste Development e não será executada sem credenciais fornecidas de forma segura pelo usuário.
+
+A validação visual remota confirmou que a página publicada manteve o layout standalone, a logo APEX Food, o painel de marca, as abas e o campo contínuo `@apexfood.com`. A aba de cadastro exibiu nome completo, email, senha e confirmação, com comportamento responsivo preservado. Nenhum dado foi digitado durante essa inspeção.
+
+## 7. Correção do identificador de email
+
+A validação foi ajustada para aceitar os dois formatos abaixo, sem exigir ponto:
+
+```text
+nome@apexfood.com
+nome.sobrenome@apexfood.com
+```
+
+A parte local aceita letras, números, ponto e hífen em sequência válida; o domínio `@apexfood.com` continua fixo no frontend e também é validado novamente no backend. A causa mais provável da tentativa anterior foi a validação antiga do frontend, que aceitava somente letras, números e hífen e bloqueava um email com ponto antes de a requisição chegar ao Firebase Authentication.

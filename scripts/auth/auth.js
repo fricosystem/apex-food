@@ -145,8 +145,8 @@
     if (input.value !== identifier) input.value = identifier;
     if (!identifier) return 'Informe seu email.';
     if (identifier.length < 2 || identifier.length > 30) return 'O email deve ter entre 2 e 30 caracteres antes do domínio.';
-    if (!/^[a-z0-9-]+$/i.test(identifier) || identifier.startsWith('-') || identifier.endsWith('-')) {
-      return 'Use somente letras, números e hífen antes do domínio @apexfood.com.';
+    if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/i.test(identifier)) {
+      return 'Use letras, números, ponto ou hífen antes do domínio @apexfood.com.';
     }
     return '';
   }

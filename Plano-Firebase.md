@@ -542,7 +542,7 @@ O frontend deve enviar apenas dados de formulário e comandos necessários. A AP
 
 Substituir a simulação atual da `paginas/autenticacao.html` por chamadas HTTPS à API. Remover qualquer dependência futura de `localStorage`/`sessionStorage` para autenticação. O navegador não deve ler o cookie HttpOnly. Após o login, a API cria a sessão e o shell chama `GET /api/v1/auth/session` para descobrir o usuário autorizado.
 
-Implementar registro, login, logout, verificação, recuperação, alteração de senha, MFA e expiração de sessão. Mensagens de erro não devem revelar se um email existe. O fluxo de cadastro deve montar o endereço completo `meunome@apexfood.com` no servidor.
+Implementar registro, login, logout, verificação, recuperação, alteração de senha, MFA e expiração de sessão. Mensagens de erro não devem revelar se um email existe. O fluxo de cadastro deve montar o endereço completo no servidor, aceitando `meunome@apexfood.com` e, opcionalmente, `meunome.sobrenome@apexfood.com`, sempre com o domínio fixo `@apexfood.com`.
 
 **Status:** implementação local concluída e validada com 11 testes; cliente same-origin, CSRF em memória, guard de sessão, cookies HttpOnly e recuperação genérica implementados. A validação contra uma conta Firebase Development real depende do novo deploy na Vercel.
 
