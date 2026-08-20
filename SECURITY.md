@@ -23,7 +23,7 @@ O APEX Food mantém uma arquitetura API-only para dados operacionais. O navegado
 | Dados | Firestore deny-by-default para acesso direto | Operações passam pelos handlers server-side e derivam o restaurante da sessão |
 | Abuso | Rate limiting local em Development e contrato distribuído fail-closed em Preview/Staging/Production | Sem provedor distribuído, o endpoint de autenticação não prossegue fora de Development |
 | Cliente | App Check com modos `off`, `observe` e `enforce` | Development usa `off`; enforcement deve ser validado antes do go-live |
-| Supply chain | Secret scanning no CI | O workflow executa testes e `npm run seguranca:segredos` em push e pull request |
+| Supply chain | Secret scanner versionado; workflow de CI preparado localmente | Executar `npm run seguranca:segredos`; publicar o workflow após habilitar a permissão GitHub `workflows` no token de integração |
 
 ## Variáveis por ambiente
 
@@ -62,6 +62,8 @@ A Etapa 12 não considera Production aprovada somente porque a rota `/api/v1/hea
 | Firebase | Rules deny-by-default, IAM mínimo e projeto correto confirmado |
 | Continuidade | Backup, restauração em banco novo, RPO/RTO e alertas aprovados |
 | Operação | Canary de tenant interno, monitoramento e rollback testados |
+
+O comando `npm run seguranca:segredos` está versionado e foi executado com sucesso. Um workflow GitHub Actions correspondente foi preparado no workspace, mas não foi publicado porque o token de integração atual não possui a permissão `workflows`; isso é uma pendência operacional de CI, não um segredo ou alteração no código da aplicação.
 
 ## Referências
 

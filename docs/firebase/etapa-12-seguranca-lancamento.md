@@ -20,7 +20,7 @@ O resultado técnico é **pronto para iniciar homologação controlada**, mas n�
 | App Check | Verificador server-side com modos `off`, `observe` e `enforce`; rotas protegidas marcadas opt-in | `api/_lib/app-check.js`, `middleware.js` e handlers |
 | Readiness | Health check com gates de lançamento sem alterar funcionamento do Development | `api/v1/health.js` |
 | Secret scanning | Scanner determinístico de PEM, tokens GitHub, AWS, Slack, chaves `sk-` e valores preenchidos de `FIREBASE_PRIVATE_KEY` | `scripts/seguranca/verificar-segredos.js` |
-| CI | Workflow de testes e scanner em push e pull request | `.github/workflows/seguranca.yml` |
+| CI | Comando de testes e scanner versionado; workflow preparado localmente | `package.json`, `scripts/seguranca/verificar-segredos.js` e workflow local não publicado |
 | Operação | Política de segurança e runbook de incidentes | `SECURITY.md`, `RUNBOOK-INCIDENTES.md` |
 | Plano | Status da Etapa 12 e critérios de promoção atualizados | `Plano-Firebase.md` |
 
@@ -52,7 +52,7 @@ O health check continua retornando estado funcional no Development. Em ambientes
 
 A suíte anterior tinha 39 contratos aprovados. A Etapa 12 adicionou 6 testes: rate limit local, ausência de provedor em Preview, provedor distribuído permitido, modos de App Check, headers globais preservando os quatro rewrites operacionais e scanner sem achados. O total validado é **45 testes aprovados, 0 falhas, 0 cancelados e 0 ignorados**.
 
-Além dos testes, foram executados `node --check` nos arquivos JavaScript alterados e `npm run seguranca:segredos`. Nenhum segredo real foi encontrado no workspace. Placeholders documentais, como `<service-account-private-key>`, são aceitos pelo scanner e não constituem configuração funcional.
+Além dos testes, foram executados `node --check` nos arquivos JavaScript alterados e `npm run seguranca:segredos`. Nenhum segredo real foi encontrado no workspace. O workflow GitHub Actions correspondente foi preparado localmente, mas o GitHub rejeitou a publicação porque o token de integração atual não possui a permissão `workflows`; a ativação do CI hospedado fica registrada como pendência operacional. Placeholders documentais, como `<service-account-private-key>`, são aceitos pelo scanner e não constituem configuração funcional.
 
 ## Gaps e bloqueadores de promoção
 
