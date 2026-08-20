@@ -60,38 +60,14 @@
     { "source": "/paginas/relatorios/performance-equipe", "destination": "/performance-equipe", "permanent": true }
   ],
   "rewrites": [
-    { "source": "/autenticacao", "destination": "/paginas/autenticacao.html" },
-    { "source": "/novo-pedido", "destination": "/index.html" },
-    { "source": "/pedidos-ativos", "destination": "/index.html" },
-    { "source": "/historico-pedidos", "destination": "/index.html" },
-    { "source": "/fila-cozinha", "destination": "/index.html" },
-    { "source": "/operacional", "destination": "/index.html" },
-    { "source": "/dashboard-financeiro", "destination": "/index.html" },
-    { "source": "/dashboard-desempenho", "destination": "/index.html" },
-    { "source": "/categorias", "destination": "/index.html" },
-    { "source": "/produtos", "destination": "/index.html" },
-    { "source": "/promocoes", "destination": "/index.html" },
-    { "source": "/cardapio-digital", "destination": "/index.html" },
-    { "source": "/mapa-mesas", "destination": "/index.html" },
-    { "source": "/reservas", "destination": "/index.html" },
-    { "source": "/configuracao-mesas", "destination": "/index.html" },
-    { "source": "/funcionarios", "destination": "/index.html" },
-    { "source": "/escala-trabalho", "destination": "/index.html" },
-    { "source": "/comissoes", "destination": "/index.html" },
-    { "source": "/fechamento-caixa", "destination": "/index.html" },
-    { "source": "/fluxo-caixa", "destination": "/index.html" },
-    { "source": "/contas-pagar-receber", "destination": "/index.html" },
-    { "source": "/relatorios-financeiros", "destination": "/index.html" },
-    { "source": "/vendas-por-periodo", "destination": "/index.html" },
-    { "source": "/produtos-mais-vendidos", "destination": "/index.html" },
-    { "source": "/horarios-de-pico", "destination": "/index.html" },
-    { "source": "/avaliacoes-clientes", "destination": "/index.html" },
-    { "source": "/performance-equipe", "destination": "/index.html" },
-    { "source": "/", "destination": "/index.html" },
     { "source": "/api/v1/cardapio", "destination": "/api/v1/operacional?modulo=cardapio" },
     { "source": "/api/v1/salao", "destination": "/api/v1/operacional?modulo=salao" },
     { "source": "/api/v1/equipe", "destination": "/api/v1/operacional?modulo=equipe" },
     { "source": "/api/v1/financeiro", "destination": "/api/v1/operacional?modulo=financeiro" }
+  ],
+  "routes": [
+    { "src": "^/autenticacao$", "dest": "/paginas/autenticacao.html" },
+    { "src": "^/(novo-pedido|pedidos-ativos|historico-pedidos|fila-cozinha|operacional|dashboard-financeiro|dashboard-desempenho|categorias|produtos|promocoes|cardapio-digital|mapa-mesas|reservas|configuracao-mesas|funcionarios|escala-trabalho|comissoes|fechamento-caixa|fluxo-caixa|contas-pagar-receber|relatorios-financeiros|vendas-por-periodo|produtos-mais-vendidos|horarios-de-pico|avaliacoes-clientes|performance-equipe)$", "dest": "/index.html" }
   ],
   "headers": [
     {

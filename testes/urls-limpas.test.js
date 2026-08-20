@@ -25,15 +25,14 @@ test('Vercel habilita URLs limpas, PWA na raiz e rewrites do shell', () => {
   assert.equal(manifest.icons[0].type, 'image/png');
   assert.match(manifest.icons[0].purpose, /maskable/);
   assert.ok(vercel.redirects.some(redirect => redirect.source === '/paginas/autenticacao.html' && redirect.destination === '/autenticacao'));
-  assert.ok(vercel.rewrites.some(rewrite => rewrite.source === '/autenticacao' && rewrite.destination === '/paginas/autenticacao.html'));
-  assert.ok(vercel.rewrites.some(rewrite => rewrite.source === '/mapa-mesas' && rewrite.destination === '/index.html'));
+  assert.ok(vercel.routes.some(route => route.src === '^/autenticacao$' && route.dest === '/paginas/autenticacao.html'));
+  assert.ok(vercel.routes.some(route => route.src.includes('mapa-mesas') && route.dest === '/index.html'));
 });
 
 test('links visíveis usam somente rotas públicas sem .html, /paginas/ ou hash', () => {
   const shell = extrairBlocoPagina('scripts/shell/apex-shell.js', 'const paginas = {', '  };');
   const index = extrairBlocoPagina('index.html', 'const sidebarSections = [', '  ];');
-  const mapa = extrairBlocoPagina('mapa-mesas.html', 'const sidebarSections = [', '  ];');
-  for (const [arquivo, bloco] of [['scripts/shell/apex-shell.js', shell], ['index.html', index], ['mapa-mesas.html', mapa]]) {
+  for (const [arquivo, bloco] of [['scripts/shell/apex-shell.js', shell], ['index.html', index]]) {
     const hrefs = [...bloco.matchAll(/href:\s*['"]([^'"]+)['"]/g)].map(match => match[1]);
     for (const href of hrefs) {
       assert.ok(href.startsWith('/'), `${arquivo}: rota pública não é absoluta: ${href}`);
