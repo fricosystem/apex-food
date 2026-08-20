@@ -10,6 +10,8 @@
   const state = {
     mode: 'login',
     redirectTimer: null,
+    restaurantes: [],
+    contextoResolve: null,
   };
 
   const elements = {
@@ -20,6 +22,9 @@
     title: document.querySelector('#auth-form-title'),
     description: document.querySelector('#auth-form-description'),
     redirectNote: document.querySelector('#auth-redirect-note'),
+    contextChoice: document.querySelector('#auth-context-choice'),
+    restaurantSelect: document.querySelector('#auth-restaurant-select'),
+    contextSubmit: document.querySelector('#auth-context-submit'),
   };
 
   const copy = {
@@ -219,6 +224,83 @@
     }
   }
 
+  function esconderEscolhaRestaurante() {
+    if (elements.contextChoice) elements.contextChoice.hidden = true;
+    if (elements.formCard) elements.formCard.hidden = false;
+    if (elements.restaurantSelect) elements.restaurantSelect.replaceChildren();
+    state.restaurantes = [];
+  }
+
+  function mostrarEscolhaRestaurante(restaurantes) {
+    if (!elements.contextChoice || !elements.restaurantSelect) {
+      const erro = new Error('A tela de seleção de restaurante não está disponível.');
+      erro.code = 'RESTAURANTE_SELECAO_INDISPONIVEL';
+      throw erro;
+    }
+    state.restaurantes = restaurantes;
+    const opcoes = restaurantes.map((restaurante) => {
+      const opcao = document.createElement('option');
+      const papeis = Array.isArray(restaurante.papeis) && restaurante.papeis.length
+        ? ` — ${restaurante.papeis.join(', ')}`
+        : '';
+      opcao.value = restaurante.idRestaurante;
+      opcao.textContent = `${restaurante.nome}${papeis}`;
+      return opcao;
+    });
+    elements.restaurantSelect.replaceChildren(...opcoes);
+    elements.contextChoice.hidden = false;
+    elements.formCard.hidden = true;
+    if (elements.contextSubmit) elements.contextSubmit.disabled = false;
+    setFeedback('Selecione o restaurante que deseja operar nesta sessão.', 'success');
+    renderIcons();
+  }
+
+  async function prepararRestauranteAtivo() {
+    const resposta = await api.requisitar('/restaurantes');
+    const restaurantes = Array.isArray(resposta.restaurantes)
+      ? resposta.restaurantes.filter((restaurante) => typeof restaurante?.idRestaurante === 'string' && restaurante.idRestaurante)
+      : [];
+    if (!restaurantes.length) {
+      const erro = new Error('Sua conta ainda não está vinculada a um restaurante ativo.');
+      erro.code = 'RESTAURANTE_NAO_SELECIONADO';
+      throw erro;
+    }
+    if (restaurantes.length === 1) {
+      await api.requisitar('/restaurantes/trocar', {
+        method: 'POST',
+        body: { idRestaurante: restaurantes[0].idRestaurante },
+      });
+      return restaurantes[0];
+    }
+    mostrarEscolhaRestaurante(restaurantes);
+    return new Promise((resolve) => {
+      state.contextoResolve = resolve;
+    });
+  }
+
+  async function handleContextSubmit() {
+    const idRestaurante = elements.restaurantSelect?.value;
+    const restaurante = state.restaurantes.find((item) => item.idRestaurante === idRestaurante);
+    if (!restaurante) {
+      setFeedback('Selecione um restaurante válido para continuar.');
+      return;
+    }
+    if (elements.contextSubmit) elements.contextSubmit.disabled = true;
+    try {
+      await api.requisitar('/restaurantes/trocar', {
+        method: 'POST',
+        body: { idRestaurante },
+      });
+      const resolver = state.contextoResolve;
+      state.contextoResolve = null;
+      esconderEscolhaRestaurante();
+      resolver?.(restaurante);
+    } catch (error) {
+      if (elements.contextSubmit) elements.contextSubmit.disabled = false;
+      setFeedback(mensagemErro(error, 'Não foi possível selecionar o restaurante.'));
+    }
+  }
+
   function mensagemErro(error, fallback) {
     const mensagens = {
       CREDENCIAIS_INVALIDAS: 'Email ou senha inválidos.',
@@ -231,6 +313,9 @@
       AUTH_NAO_CONFIGURADO: 'A autenticação está temporariamente indisponível.',
       SERVICO_NAO_CONFIGURADO: 'O serviço está temporariamente indisponível.',
       SERVICO_NAO_PRONTO: 'O serviço está temporariamente indisponível.',
+      RESTAURANTE_NAO_SELECIONADO: 'Sua conta foi autenticada, mas ainda não está vinculada a um restaurante ativo. Solicite um convite ou conclua o cadastro do estabelecimento.',
+      RESTAURANTE_INVALIDO: 'O restaurante selecionado não está disponível para esta conta.',
+      RESTAURANTE_SELECAO_INDISPONIVEL: 'Não foi possível abrir a seleção de restaurante. Atualize a página e tente novamente.',
     };
     return mensagens[error?.code] || error?.message || fallback;
   }
@@ -258,6 +343,7 @@
       const email = getAccountAddress(form.querySelector('[name="identifier"]'));
       const senha = form.querySelector('[name="password"]').value;
       await api.requisitar('/auth/login', { method: 'POST', body: { email, senha } });
+      await prepararRestauranteAtivo();
       setFeedback('Acesso validado. Você será direcionado para a Visão Geral.', 'success');
       finishRedirect();
     } catch (error) {
@@ -397,6 +483,7 @@
   });
 
   document.querySelector('[data-action="forgot-password"]')?.addEventListener('click', handleForgotPassword);
+  elements.contextSubmit?.addEventListener('click', handleContextSubmit);
   document.querySelectorAll('.auth-identifier-input').forEach(updateIdentifierSuffix);
   renderIcons();
 

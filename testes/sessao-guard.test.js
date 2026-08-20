@@ -5,7 +5,7 @@ const vm = require('node:vm');
 
 const guard = fs.readFileSync(`${__dirname}/../scripts/auth/sessao-guard.js`, 'utf8');
 
-async function simularGuard(pathname, status) {
+async function simularGuard(pathname, status, possuiRestauranteAtivo = false) {
   let verificarSessao;
   const location = {
     pathname,
@@ -25,6 +25,9 @@ async function simularGuard(pathname, status) {
     fetch: async () => ({
       ok: status >= 200 && status < 300,
       status,
+      json: async () => ({
+        restauranteAtivo: possuiRestauranteAtivo ? { idRestaurante: 'restaurante-teste' } : null,
+      }),
     }),
   };
 
@@ -46,8 +49,13 @@ test('guard usa URL limpa e destinos absolutos sem duplicar o caminho', async ()
   assert.deepEqual(autenticacaoLegada.location.replacements, []);
   assert.equal(autenticacaoLegada.visibility, '');
 
-  const autenticacaoComSessao = await simularGuard('/autenticacao', 200);
+  const autenticacaoComSessao = await simularGuard('/autenticacao', 200, true);
   assert.deepEqual(autenticacaoComSessao.location.replacements, ['/']);
 
+  const shellSemRestaurante = await simularGuard('/operacional', 200, false);
+  assert.deepEqual(shellSemRestaurante.location.replacements, ['/autenticacao']);
+  assert.equal(shellSemRestaurante.visibility, 'hidden');
+
+  assert.match(guard, /restauranteAtivo/);
   assert.doesNotMatch(guard, /replace\(['"](?:paginas\/)?autenticacao/);
 });

@@ -320,6 +320,29 @@ button {
   color: #fdba74;
 }
 
+.auth-context-choice {
+  margin-bottom: 1rem;
+  padding: clamp(0.9rem, 2.5vw, 1.5rem);
+  border: 1px solid var(--apex-borda);
+  border-radius: 1rem;
+  background: linear-gradient(145deg, rgba(13, 13, 13, 0.97), rgba(7, 7, 7, 0.97));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.auth-context-choice[hidden] {
+  display: none;
+}
+
+.auth-context-choice .auth-submit {
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.auth-context-choice select.auth-input {
+  appearance: auto;
+  cursor: pointer;
+}
+
 .auth-form-card {
   padding: clamp(0.9rem, 2.5vw, 1.5rem);
   border: 1px solid var(--apex-borda);

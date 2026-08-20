@@ -62,6 +62,17 @@
 
           <div class="auth-feedback" id="auth-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
 
+          <div class="auth-context-choice" id="auth-context-choice" hidden>
+            <div class="auth-field">
+              <label for="auth-restaurant-select">Restaurante ativo</label>
+              <select class="auth-input" id="auth-restaurant-select" aria-label="Selecione o restaurante ativo"></select>
+            </div>
+            <button class="auth-submit" id="auth-context-submit" type="button">
+              <span>Continuar para o sistema</span>
+              <i data-lucide="arrow-right" aria-hidden="true"></i>
+            </button>
+          </div>
+
           <div class="auth-form-card" id="auth-form-card">
             <form class="auth-form" id="form-login" data-auth-form="login" role="tabpanel" aria-labelledby="tab-login" novalidate>
               <div class="auth-field">

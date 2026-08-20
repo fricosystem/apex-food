@@ -21,8 +21,19 @@
         headers: { Accept: 'application/json' },
       });
 
+      let dados = null;
+      if (resposta.ok) {
+        try {
+          dados = await resposta.json();
+        } catch {
+          dados = null;
+        }
+      }
+      const possuiRestauranteAtivo = typeof dados?.restauranteAtivo?.idRestaurante === 'string'
+        && dados.restauranteAtivo.idRestaurante.length > 0;
+
       if (paginaAutenticacao) {
-        if (resposta.ok) {
+        if (resposta.ok && possuiRestauranteAtivo) {
           window.location.replace('/');
           return;
         }
@@ -30,7 +41,7 @@
         return;
       }
 
-      if (resposta.status === 401 || resposta.status === 403 || resposta.status === 503) {
+      if (resposta.status === 401 || resposta.status === 403 || resposta.status === 503 || (resposta.ok && !possuiRestauranteAtivo)) {
         window.location.replace('/autenticacao');
         return;
       }
