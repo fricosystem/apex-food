@@ -4,7 +4,18 @@
   const escapar = valor => window.ferramentasInterfaceApexFood?.escaparHtml ? window.ferramentasInterfaceApexFood.escaparHtml(valor) : String(valor ?? '');
   const aviso = mensagem => typeof window.mostrarAvisoPedido === 'function' ? window.mostrarAvisoPedido(mensagem) : window.alert(mensagem);
   const csv = valor => `"${String(valor ?? '').replace(/"/g, '""')}"`;
-  function exportar(registros) { if (!registros.length) return aviso('Nenhum registro encontrado para exportar.'); const linhas = [['Período', 'Pedidos', 'Vendas', 'Ticket médio'], ...registros.map(item => [item.label || item.periodo, item.pedidos, item.vendas.toFixed(2), item.ticketMedio.toFixed(2)])]; const blob = new Blob([linhas.map(linha => linha.map(csv).join(';')).join('\n')], { type: 'text/csv;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'vendas-por-periodo.csv'; link.click(); URL.revokeObjectURL(link.href); }
+
+  function exportar(registros) {
+    if (!registros.length) return aviso('Nenhum registro encontrado para exportar.');
+    const linhas = [['Período', 'Pedidos', 'Vendas', 'Ticket médio'], ...registros.map(item => [item.label || item.periodo, item.pedidos, item.vendas.toFixed(2), item.ticketMedio.toFixed(2)])];
+    const blob = new Blob([linhas.map(linha => linha.map(csv).join(';')).join('\n')], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'vendas-por-periodo.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
   const imprimir = () => window.print();
   const periodoEl = document.getElementById('periodoVendasOperacionais');
   const canalEl = document.getElementById('canalVendasOperacionais');
@@ -19,19 +30,50 @@
     return { tipo, canal, registros };
   }
 
+  function tamanhoJanela(tipo) {
+    return { diario: 7, semanal: 5, mensal: 6 }[tipo] || 7;
+  }
+
+  function variacaoEntre(atual, anterior) {
+    const base = Number(anterior || 0);
+    if (base <= 0) return null;
+    return ((Number(atual || 0) - base) / base) * 100;
+  }
+
+  function calcularVariacao(registros, tipo) {
+    const tamanho = tamanhoJanela(tipo);
+    const atuais = registros.slice(-tamanho);
+    const anteriores = registros.slice(-tamanho * 2, -tamanho);
+    if (!atuais.length || !anteriores.length) return null;
+    const totalAtual = atuais.reduce((total, item) => total + Number(item.vendas || 0), 0);
+    const totalAnterior = anteriores.reduce((total, item) => total + Number(item.vendas || 0), 0);
+    return variacaoEntre(totalAtual, totalAnterior);
+  }
+
+  function percentual(valor) {
+    return valor === null || !Number.isFinite(valor) ? '—' : `${valor >= 0 ? '+' : ''}${valor.toFixed(1).replace('.', ',')}%`;
+  }
+
+  function textoVariacao(valor) {
+    return valor === null ? 'Sem comparação com período anterior' : `${percentual(valor)} versus anterior`;
+  }
+
   function renderizar() {
     const { tipo, canal, registros } = configuracaoAtual();
     const totalVendas = registros.reduce((total, item) => total + item.vendas, 0);
     const totalPedidos = registros.reduce((total, item) => total + item.pedidos, 0);
     const ticket = totalVendas / Math.max(totalPedidos, 1);
     const melhor = registros.reduce((atual, item) => item.vendas > atual.vendas ? item : atual, registros[0] || { vendas: 0, label: '—' });
-    const variacao = tipo === 'diario' ? 8.6 : tipo === 'semanal' ? 5.2 : 11.8;
+    const variacao = calcularVariacao(registros, tipo);
+    const variacaoEl = document.getElementById('vendasPeriodoVariacao');
     document.getElementById('vendasPeriodoTotal').textContent = moeda(totalVendas);
     document.getElementById('pedidosPeriodoTotal').textContent = totalPedidos.toLocaleString('pt-BR');
     document.getElementById('ticketPeriodoTotal').textContent = moeda(ticket);
     document.getElementById('melhorDiaPeriodo').textContent = escapar(melhor.label || melhor.periodo || '—');
     document.getElementById('melhorDiaValor').textContent = `${moeda(melhor.vendas)} em vendas`;
-    document.getElementById('vendasPeriodoVariacao').textContent = `+${variacao.toFixed(1).replace('.', ',')}% versus anterior`;
+    variacaoEl.textContent = textoVariacao(variacao);
+    variacaoEl.classList.remove('text-green', 'text-red', 'text-muted');
+    variacaoEl.classList.add(variacao === null ? 'text-muted' : variacao >= 0 ? 'text-green' : 'text-red');
     document.getElementById('legendaVendasOperacionais').textContent = `${canal ? `Receita do canal ${canal.nome}` : 'Receita total'} por ${tipo === 'diario' ? 'dia' : tipo === 'semanal' ? 'semana' : 'mês'}.`;
     renderizarGrafico(registros);
     renderizarTabela(registros, variacao);
@@ -47,13 +89,20 @@
     }).join('');
   }
 
+  function renderizarComparativo(valor) {
+    if (valor === null || !Number.isFinite(valor)) return '<span class="text-xs text-muted">—</span>';
+    const positivo = valor >= 0;
+    return `<span class="flex items-center gap-1 text-xs ${positivo ? 'text-green' : 'text-red'}"><i data-lucide="${positivo ? 'trending-up' : 'trending-down'}" class="w-3.5 h-3.5"></i>${percentual(valor)}</span>`;
+  }
+
   function renderizarTabela(registros, variacao) {
-    document.getElementById('resumoTabelaVendasOperacionais').textContent = `${registros.length} períodos analisados · variação média de +${variacao.toFixed(1).replace('.', ',')}%.`;
+    const resumo = variacao === null ? 'comparação indisponível.' : `variação média de ${percentual(variacao)}.`;
+    document.getElementById('resumoTabelaVendasOperacionais').textContent = `${registros.length} períodos analisados · ${resumo}`;
     document.getElementById('tabelaVendasOperacionais').innerHTML = registros.map((item, indice) => {
       const anterior = registros[indice - 1];
-      const comparativo = anterior ? ((item.vendas - anterior.vendas) / Math.max(anterior.vendas, 1)) * 100 : variacao;
+      const comparativo = anterior ? variacaoEntre(item.vendas, anterior.vendas) : variacao;
       const label = item.label || item.periodo;
-      return `<tr class="relatorio-table-row border-b border-border"><td class="p-4 font-medium">${escapar(label)}</td><td class="p-4">${item.pedidos.toLocaleString('pt-BR')}</td><td class="p-4 text-green font-semibold">${moeda(item.vendas)}</td><td class="p-4 text-blue">${moeda(item.ticketMedio)}</td><td class="p-4"><span class="flex items-center gap-1 text-xs ${comparativo >= 0 ? 'text-green' : 'text-red'}"><i data-lucide="${comparativo >= 0 ? 'trending-up' : 'trending-down'}" class="w-3.5 h-3.5"></i>${comparativo >= 0 ? '+' : ''}${comparativo.toFixed(1).replace('.', ',')}%</span></td></tr>`;
+      return `<tr class="relatorio-table-row border-b border-border"><td class="p-4 font-medium">${escapar(label)}</td><td class="p-4">${item.pedidos.toLocaleString('pt-BR')}</td><td class="p-4 text-green font-semibold">${moeda(item.vendas)}</td><td class="p-4 text-blue">${moeda(item.ticketMedio)}</td><td class="p-4">${renderizarComparativo(comparativo)}</td></tr>`;
     }).join('');
     window.lucide?.createIcons();
   }

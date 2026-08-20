@@ -57,21 +57,27 @@ test('Dashboard de Desempenho usa período dinâmico e recarrega módulos', () =
   assert.match(controller, /apex:pedidos-atualizado/);
 });
 
-test('shell e index versionam os módulos revisados na Fase 10', () => {
+test('shell e index versionam os módulos revisados na Fase 11', () => {
   const shell = ler('scripts/shell/apex-shell.js');
   const index = ler('index.html');
-  for (const rota of ['cardapio-digital', 'dashboard-desempenho', 'vendas-por-periodo', 'produtos-mais-vendidos', 'horarios-de-pico', 'avaliacoes-clientes', 'performance-equipe']) {
-    assert.match(shell, new RegExp(`${rota}[^\\n]*fase10`));
-  }
-  assert.match(index, /apex-shell\.js\?v=fase10/);
+  assert.match(shell, /['"]?comissoes['"]?:[^\n]*fase11/);
+  assert.match(shell, /vendas-por-periodo[^\n]*fase11/);
+  assert.match(index, /apex-shell\.js\?v=fase11/);
 });
 
-test('fragments revisados não exibem meses fixos da base de exemplo', () => {
+test('relatórios e comissões não exibem valores ou períodos fixos', () => {
   const arquivos = [
     'paginas/relatorios/produtos-mais-vendidos.html',
     'paginas/relatorios/performance-equipe.html',
     'paginas/desempenho/dashboard-desempenho.html',
+    'paginas/equipe/comissoes.html',
   ];
   const conjunto = arquivos.map(ler).join('\n');
-  assert.doesNotMatch(conjunto, /Agosto\/2026|Julho\/2026/);
+  const vendas = ler('scripts/relatorios/vendas-por-periodo.js');
+  const comissoes = ler('scripts/equipe/comissoes.js');
+  assert.doesNotMatch(conjunto, /Agosto\/2026|Julho\/2026|Junho\/2026/);
+  assert.doesNotMatch(vendas, /8\.6|5\.2|11\.8/);
+  assert.match(vendas, /calcularVariacao/);
+  assert.match(comissoes, /periodosDisponiveisComissao/);
+  assert.match(comissoes, /Nenhum registro encontrado para exportar/);
 });
