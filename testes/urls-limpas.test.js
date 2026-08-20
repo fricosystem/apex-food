@@ -25,8 +25,8 @@ test('Vercel habilita URLs limpas, PWA na raiz e rewrites do shell', () => {
   assert.equal(manifest.icons[0].type, 'image/png');
   assert.match(manifest.icons[0].purpose, /maskable/);
   assert.ok(vercel.redirects.some(redirect => redirect.source === '/paginas/autenticacao.html' && redirect.destination === '/autenticacao'));
-  assert.ok(vercel.routes.some(route => route.src === '^/autenticacao$' && route.dest === '/paginas/autenticacao.html'));
-  assert.ok(vercel.routes.some(route => route.src.includes('mapa-mesas') && route.dest === '/index.html'));
+  assert.ok(vercel.routes.some(route => route.src === '^/autenticacao$' && route.dest === '/paginas/autenticacao'));
+  assert.ok(vercel.routes.some(route => route.src.includes('mapa-mesas') && route.dest === '/index'));
 });
 
 test('links visíveis usam somente rotas públicas sem .html, /paginas/ ou hash', () => {

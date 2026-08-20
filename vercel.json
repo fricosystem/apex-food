@@ -66,8 +66,8 @@
     { "source": "/api/v1/financeiro", "destination": "/api/v1/operacional?modulo=financeiro" }
   ],
   "routes": [
-    { "src": "^/autenticacao$", "dest": "/paginas/autenticacao.html" },
-    { "src": "^/(novo-pedido|pedidos-ativos|historico-pedidos|fila-cozinha|operacional|dashboard-financeiro|dashboard-desempenho|categorias|produtos|promocoes|cardapio-digital|mapa-mesas|reservas|configuracao-mesas|funcionarios|escala-trabalho|comissoes|fechamento-caixa|fluxo-caixa|contas-pagar-receber|relatorios-financeiros|vendas-por-periodo|produtos-mais-vendidos|horarios-de-pico|avaliacoes-clientes|performance-equipe)$", "dest": "/index.html" }
+    { "src": "^/autenticacao$", "dest": "/paginas/autenticacao" },
+    { "src": "^/(novo-pedido|pedidos-ativos|historico-pedidos|fila-cozinha|operacional|dashboard-financeiro|dashboard-desempenho|categorias|produtos|promocoes|cardapio-digital|mapa-mesas|reservas|configuracao-mesas|funcionarios|escala-trabalho|comissoes|fechamento-caixa|fluxo-caixa|contas-pagar-receber|relatorios-financeiros|vendas-por-periodo|produtos-mais-vendidos|horarios-de-pico|avaliacoes-clientes|performance-equipe)$", "dest": "/index" }
   ],
   "headers": [
     {
