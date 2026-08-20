@@ -123,3 +123,13 @@ O primeiro deploy do commit `23e9270` falhou no plano Hobby porque a configuraç
 Para corrigir sem upgrade e sem alterar as rotas públicas, Cardápio, Salão e Equipe passaram a usar handlers internos em `api/_lib/`, um único agregador `api/v1/operacional.js` e rewrites de `/api/v1/cardapio`, `/api/v1/salao` e `/api/v1/equipe` para esse agregador. A contagem de funções foi reduzida sem remover autenticação, CSRF, RBAC, contexto de restaurante, transações, auditoria ou contratos públicos.
 
 Após a consolidação, a suíte local passou com 28 testes, a sintaxe dos handlers foi aprovada e `vercel.json` foi validado como JSON. Um novo commit de correção será publicado e acompanhado até `Ready`.
+
+O commit corretivo `e15722d` foi publicado e gerou um novo deployment Production na Vercel. Na primeira checagem, o deployment consolidado ainda estava em `Building` (aproximadamente 20 segundos); o smoke test remoto será executado somente após `Ready`.
+
+Na segunda checagem, o deployment `e15722d` ainda estava em `Building` aos aproximadamente 35 segundos. A publicação permanece em acompanhamento e o smoke test continua bloqueado até o estado final.
+
+Na terceira checagem, o deployment `e15722d` ainda estava em `Building` aos aproximadamente 48–49 segundos. A validação remota permanece bloqueada até a conclusão do deploy.
+
+## 11. Smoke test remoto após consolidação
+
+O deployment `e15722d` ficou `Ready` em Production. No domínio `https://apexfood.vercel.app`, `/api/v1/health` retornou `200` com `estado: ok` e ambiente `development`. Os caminhos públicos `/api/v1/cardapio`, `/api/v1/salao` e `/api/v1/equipe` foram resolvidos pelo agregador e retornaram `401 NAO_AUTENTICADO` sem sessão, sem `404` ou erro de função. A tentativa de abrir `index.html#/funcionarios` sem sessão redirecionou para `paginas/autenticacao.html`.
