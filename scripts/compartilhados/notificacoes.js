@@ -133,6 +133,26 @@
     return valor === 'pwa' ? 'Aplicativo instalado' : 'Navegador';
   }
 
+  function diagnosticoEntrega(dispositivo) {
+    const nomes = {
+      sem_teste: 'Ainda não testado',
+      enviado: 'Último teste aceito',
+      falhou: 'Último teste não aceito',
+      revogado: 'Token revogado',
+      indisponivel: 'Serviço indisponível',
+    };
+    const estado = nomes[dispositivo.ultimoResultadoEntrega] ? dispositivo.ultimoResultadoEntrega : 'sem_teste';
+    const falhas = Number(dispositivo.falhasConsecutivas || 0);
+    const complemento = falhas > 0 ? ` · ${falhas} falha(s) consecutiva(s)` : '';
+    return `${nomes[estado]}${complemento}`;
+  }
+
+  function corDiagnostico(dispositivo) {
+    if (dispositivo.ultimoResultadoEntrega === 'enviado') return 'text-emerald-300';
+    if (['falhou', 'revogado', 'indisponivel'].includes(dispositivo.ultimoResultadoEntrega)) return 'text-yellow-300';
+    return 'text-muted';
+  }
+
   function renderizarDispositivos() {
     const painel = obterPainel();
     const lista = painel.querySelector('#listaDispositivosApex');
@@ -156,7 +176,8 @@
     lista.innerHTML = `${aviso}<div class="border-b border-border2 px-4 py-3"><p class="text-[11px] leading-5 text-muted">Gerencie as instalações que podem receber avisos do APEX Food. Tokens e dados técnicos permanecem protegidos.</p></div>${estado.dispositivos.map(dispositivo => {
       const ativo = dispositivo.statusDispositivo === 'ativo';
       const preferencias = dispositivo.preferencias || {};
-      return `<article class="border-b border-border2 px-4 py-3"><div class="flex items-start gap-3"><div class="mt-0.5 rounded-lg bg-card2 p-2 text-accent"><i data-lucide="${dispositivo.plataforma === 'desktop' ? 'monitor' : 'smartphone'}" class="h-4 w-4"></i></div><div class="min-w-0 flex-1"><div class="flex items-start justify-between gap-2"><div><h3 class="text-xs font-semibold text-white">${escapar(nomePlataforma(dispositivo.plataforma))}</h3><p class="mt-1 text-[10px] text-muted">${escapar(nomeOrigem(dispositivo.origem))} · Último uso ${escapar(tempo(dispositivo.ultimoUsoEm))}</p></div><span class="rounded-md border ${ativo ? 'border-emerald-400/30 text-emerald-300' : 'border-border2 text-muted'} px-2 py-1 text-[10px]">${ativo ? 'Ativo' : 'Revogado'}</span></div><div class="mt-3 grid gap-2"><label class="flex items-center justify-between gap-3 text-[11px] text-muted"><span>Alertas operacionais</span><input type="checkbox" class="accent-accent" data-preferencia-dispositivo="operacionais" data-id-dispositivo="${escapar(dispositivo.id)}" ${preferencias.operacionais !== false && ativo ? 'checked' : ''} ${ativo ? '' : 'disabled'}></label><label class="flex items-center justify-between gap-3 text-[11px] text-muted"><span>Avisos do sistema</span><input type="checkbox" class="accent-accent" data-preferencia-dispositivo="sistema" data-id-dispositivo="${escapar(dispositivo.id)}" ${preferencias.sistema !== false && ativo ? 'checked' : ''} ${ativo ? '' : 'disabled'}></label></div><div class="mt-3 flex flex-wrap items-center gap-3"><button type="button" class="text-[10px] font-medium ${ativo ? 'text-accent hover:text-accentHover' : 'text-muted'}" data-teste-dispositivo="${escapar(dispositivo.id)}" ${ativo ? '' : 'disabled'}>Enviar teste</button><button type="button" class="text-[10px] font-medium ${ativo ? 'text-muted hover:text-red-300' : 'text-accent hover:text-accentHover'}" data-acao-dispositivo="${ativo ? 'revogar' : 'reativar'}" data-id-dispositivo="${escapar(dispositivo.id)}">${ativo ? 'Revogar este dispositivo' : 'Reativar este dispositivo'}</button></div></div></div></article>`;
+      const diagnostico = diagnosticoEntrega(dispositivo);
+      return `<article class="border-b border-border2 px-4 py-3"><div class="flex items-start gap-3"><div class="mt-0.5 rounded-lg bg-card2 p-2 text-accent"><i data-lucide="${dispositivo.plataforma === 'desktop' ? 'monitor' : 'smartphone'}" class="h-4 w-4"></i></div><div class="min-w-0 flex-1"><div class="flex items-start justify-between gap-2"><div><h3 class="text-xs font-semibold text-white">${escapar(nomePlataforma(dispositivo.plataforma))}</h3><p class="mt-1 text-[10px] text-muted">${escapar(nomeOrigem(dispositivo.origem))} · Último uso ${escapar(tempo(dispositivo.ultimoUsoEm))}</p><p class="mt-1 text-[10px] ${corDiagnostico(dispositivo)}">${escapar(diagnostico)}${dispositivo.ultimaEntregaEm ? ` · ${escapar(tempo(dispositivo.ultimaEntregaEm))}` : ''}</p></div><span class="rounded-md border ${ativo ? 'border-emerald-400/30 text-emerald-300' : 'border-border2 text-muted'} px-2 py-1 text-[10px]">${ativo ? 'Ativo' : 'Revogado'}</span></div><div class="mt-3 grid gap-2"><label class="flex items-center justify-between gap-3 text-[11px] text-muted"><span>Alertas operacionais</span><input type="checkbox" class="accent-accent" data-preferencia-dispositivo="operacionais" data-id-dispositivo="${escapar(dispositivo.id)}" ${preferencias.operacionais !== false && ativo ? 'checked' : ''} ${ativo ? '' : 'disabled'}></label><label class="flex items-center justify-between gap-3 text-[11px] text-muted"><span>Avisos do sistema</span><input type="checkbox" class="accent-accent" data-preferencia-dispositivo="sistema" data-id-dispositivo="${escapar(dispositivo.id)}" ${preferencias.sistema !== false && ativo ? 'checked' : ''} ${ativo ? '' : 'disabled'}></label></div><div class="mt-3 flex flex-wrap items-center gap-3"><button type="button" class="text-[10px] font-medium ${ativo ? 'text-accent hover:text-accentHover' : 'text-muted'}" data-teste-dispositivo="${escapar(dispositivo.id)}" ${ativo ? '' : 'disabled'}>Enviar teste</button><button type="button" class="text-[10px] font-medium ${ativo ? 'text-muted hover:text-red-300' : 'text-accent hover:text-accentHover'}" data-acao-dispositivo="${ativo ? 'revogar' : 'reativar'}" data-id-dispositivo="${escapar(dispositivo.id)}">${ativo ? 'Revogar este dispositivo' : 'Reativar este dispositivo'}</button></div></div></div></article>`;
     }).join('')}`;
     lista.querySelectorAll('[data-acao-dispositivo]').forEach(botao => botao.addEventListener('click', () => atualizarDispositivo(botao.dataset.idDispositivo, botao.dataset.acaoDispositivo)));
     lista.querySelectorAll('[data-teste-dispositivo]').forEach(botao => botao.addEventListener('click', () => testarDispositivo(botao.dataset.testeDispositivo)));

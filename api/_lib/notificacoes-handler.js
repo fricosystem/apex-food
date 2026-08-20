@@ -25,7 +25,7 @@ const {
   listarDispositivos,
   atualizarDispositivo,
 } = require('./dispositivos-notificacao');
-const { enviarNotificacaoFcm } = require('./fcm-notificacoes');
+const { enviarNotificacaoFcm, listarRegistrosEntrega } = require('./fcm-notificacoes');
 
 const PAPEIS_GESTAO = ['proprietario', 'administrador', 'gerente'];
 const PAPEIS_NOTIFICACOES_LEITURA = [...new Set([...PAPEIS_LEITURA, 'caixa'])];
@@ -111,6 +111,12 @@ async function listarNotificacoes(identidade, req) {
   };
 }
 
+async function listarDiagnosticoEntrega(identidade, req) {
+  exigirPapel(identidade, PAPEIS_GESTAO);
+  const limite = limitarInteiro(req.query?.limite, 30, 100);
+  return { corpo: { registros: await listarRegistrosEntrega({ idRestaurante: identidade.idRestaurante, limite }) } };
+}
+
 async function testarDispositivo(identidade, corpo, idRequisicao) {
   const idDispositivo = corpo.id ? idDocumento(corpo.id, 'idDispositivo') : null;
   const resultado = await enviarNotificacaoFcm({
@@ -132,6 +138,7 @@ async function testarDispositivo(identidade, corpo, idRequisicao) {
 }
 
 async function operarDispositivos(identidade, req, metodo, idRequisicao) {
+  if (metodo === 'GET' && req.query?.recurso === 'entregas') return listarDiagnosticoEntrega(identidade, req);
   if (metodo !== 'GET') await consumir(req, 'notificacoes_dispositivo', 30, 60 * 1000);
   if (metodo === 'GET') {
     const limite = limitarInteiro(req.query?.limite, 20, 50);

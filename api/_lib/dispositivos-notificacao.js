@@ -11,6 +11,7 @@ const ORIGENS = new Set(['pwa', 'navegador']);
 const STATUS = new Set(['ativo', 'revogado']);
 const ID_VALIDO = /^[a-f0-9]{40}$/;
 const RETENCAO_DISPOSITIVO_MS = 90 * 24 * 60 * 60 * 1000;
+const ESTADOS_ENTREGA = new Set(['sem_teste', 'enviado', 'falhou', 'revogado', 'indisponivel']);
 
 function texto(valor, campo, minimo = 1, maximo = 4096) {
   if (typeof valor !== 'string') throw new ApiError(400, 'DISPOSITIVO_PAYLOAD_INVALIDO', `${campo} é obrigatório.`);
@@ -67,6 +68,9 @@ function dtoDispositivo(documento) {
     ultimoUsoEm: timestampIso(dados.ultimoUsoEm),
     revogadoEm: timestampIso(dados.revogadoEm),
     expiraEm: timestampIso(dados.expiraEm),
+    ultimoResultadoEntrega: ESTADOS_ENTREGA.has(dados.ultimoResultadoEntrega) ? dados.ultimoResultadoEntrega : 'sem_teste',
+    ultimaEntregaEm: timestampIso(dados.ultimaEntregaEm),
+    falhasConsecutivas: Math.max(0, Number(dados.falhasConsecutivas || 0)),
   };
 }
 
@@ -113,6 +117,9 @@ async function registrarDispositivo({ identidade, corpo, idRequisicao, registrar
       ultimoUsoEm: FieldValue.serverTimestamp(),
       revogadoEm: null,
       expiraEm,
+      ultimoResultadoEntrega: dadosAtuais.ultimoResultadoEntrega || 'sem_teste',
+      ultimaEntregaEm: dadosAtuais.ultimaEntregaEm || null,
+      falhasConsecutivas: Math.max(0, Number(dadosAtuais.falhasConsecutivas || 0)),
     };
     transacao.set(referencia, dados, { merge: true });
     resultado = { recurso: 'dispositivoNotificacao', id, statusDispositivo: 'ativo', atualizado };

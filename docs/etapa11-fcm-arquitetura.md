@@ -60,3 +60,9 @@ A emissão real ficará separada do registro: o cliente obtém o token após per
 ## Validação visual preliminar
 
 O servidor HTTP local simples retornou 404 para `/autenticacao`, pelas mesmas limitações já registradas para URLs limpas sem rewrite. A rota publicada `https://apexfood.vercel.app/autenticacao` carregou HTTP 200 com o formulário de login, abas de autenticação, identidade visual e campos existentes preservados. A validação final dos assets FCM será feita diretamente na Vercel após a publicação da etapa.
+
+## Próxima etapa: administração de dispositivos
+
+A administração será incorporada ao painel de notificações já existente no shell único. A aba **Atualizações** continuará exibindo as notificações operacionais; a aba **Dispositivos** exibirá somente metadados não sensíveis da instalação autenticada, como plataforma, origem, estado e último uso. O usuário poderá revogar a instalação atual, reativá-la quando necessário e ajustar duas preferências: alertas operacionais e avisos do sistema.
+
+A interface não exibirá token FCM, hash, user-agent ou credenciais. O teste controlado de envio será permitido somente para a própria identidade autenticada e terá mensagem explicitamente identificada como teste. O servidor continuará usando a mesma função operacional consolidada, com CSRF, App Check, rate limit, auditoria e envio apenas para dispositivos ativos do próprio usuário.

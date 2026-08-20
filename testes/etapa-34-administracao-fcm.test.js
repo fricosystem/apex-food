@@ -38,6 +38,9 @@ test('administração permite teste controlado, preferências, revogação e rea
   assert.match(controller, /Revogar este dispositivo/);
   assert.match(controller, /Reativar este dispositivo/);
   assert.match(controller, /Nenhum dispositivo registrado/);
+  assert.match(controller, /Último teste aceito/);
+  assert.match(controller, /falha\(s\) consecutiva\(s\)/);
+  assert.match(controller, /ultimaEntregaEm/);
 });
 
 test('renderização usa apenas metadados públicos do dispositivo', () => {
