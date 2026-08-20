@@ -21,6 +21,7 @@ const {
   queryString,
   registrarAuditoriaOperacional,
 } = require('./modulos-operacionais');
+const { criarNotificacoesNaTransacao, TIPOS_NOTIFICACAO } = require('./notificacoes');
 
 const PAPEIS_PEDIDOS = ['proprietario', 'administrador', 'gerente', 'garcom', 'cozinha'];
 const PAPEIS_GARCOM = ['proprietario', 'administrador', 'gerente', 'garcom'];
@@ -396,6 +397,17 @@ async function encaminharComandaCaixa(identidade, corpo, idRequisicao) {
     };
     transacao.set(restaurante.collection('eventosMesas').doc(), evento);
     transacao.set(comandaRef.collection('historicoStatus').doc(), { ...evento, tipo: 'comanda', statusAnterior: statusComanda, statusNovo: 'encaminhada_caixa' });
+    criarNotificacoesNaTransacao(transacao, restaurante, {
+      tipoNotificacao: TIPOS_NOTIFICACAO.comandaEncaminhadaCaixa,
+      titulo: `Comanda aguardando caixa — mesa ${resumoOperacional.nomeMesa}`,
+      mensagem: `A comanda foi encerrada pelo garçom e aguarda conferência operacional do caixa.`,
+      prioridade: 'alta',
+      eventoOrigem: `comanda:${idComanda}:encaminhamento:encaminhada`,
+      idMesa: referenciaMesa.id,
+      idComanda,
+      idEncaminhamento: encaminhamentoRef.id,
+      idGarcomResponsavel: comanda.idGarcomResponsavel || null,
+    });
     resultado = { recurso: 'encaminhamentoCaixa', id: encaminhamentoRef.id, idComanda, idMesa: referenciaMesa.id, statusEncaminhamento: 'encaminhada', atualizado: true };
     transacao.create(idempotenciaRef, {
       idRestaurante: identidade.idRestaurante,
@@ -586,6 +598,36 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
     });
 
     resultado = { recurso: 'pedido', id, de, para, statusPedido: para, status: para, atualizado: true };
+    const tipoNotificacao = para === 'enviado_cozinha'
+      ? TIPOS_NOTIFICACAO.pedidoEnviadoCozinha
+      : para === 'pronto'
+        ? TIPOS_NOTIFICACAO.pedidoPronto
+        : para === 'rejeitado_garcom'
+          ? TIPOS_NOTIFICACAO.pedidoRejeitado
+          : para === 'cancelado'
+            ? TIPOS_NOTIFICACAO.pedidoCancelado
+            : null;
+    if (tipoNotificacao) {
+      const nomeMesa = String(pedido.nomeMesa || pedido.idMesa || mesaRef.id);
+      const nomeCliente = String(pedido.nomeCliente || 'Cliente');
+      const descricoes = {
+        [TIPOS_NOTIFICACAO.pedidoEnviadoCozinha]: `O pedido de ${nomeCliente} foi confirmado e aguarda preparo.`,
+        [TIPOS_NOTIFICACAO.pedidoPronto]: `O pedido da mesa ${nomeMesa} está pronto para servir.`,
+        [TIPOS_NOTIFICACAO.pedidoRejeitado]: `O pedido da mesa ${nomeMesa} foi rejeitado${motivo ? `: ${motivo}` : '.'}`,
+        [TIPOS_NOTIFICACAO.pedidoCancelado]: `O pedido da mesa ${nomeMesa} foi cancelado${motivo ? `: ${motivo}` : '.'}`,
+      };
+      criarNotificacoesNaTransacao(transacao, restaurante, {
+        tipoNotificacao,
+        titulo: tipoNotificacao === TIPOS_NOTIFICACAO.pedidoPronto ? `Pedido pronto — mesa ${nomeMesa}` : `Atualização do pedido — mesa ${nomeMesa}`,
+        mensagem: descricoes[tipoNotificacao],
+        prioridade: tipoNotificacao === TIPOS_NOTIFICACAO.pedidoPronto ? 'alta' : 'normal',
+        eventoOrigem: `pedido:${pedidoRef.id}:status:${para}:versao:${Number(pedido.versao || 1)}`,
+        idMesa: pedido.idMesa || null,
+        idComanda: pedido.idComanda || null,
+        idPedido: pedidoRef.id,
+        idGarcomResponsavel: agora.idGarcomResponsavel || pedido.idGarcomResponsavel || comanda.idGarcomResponsavel || null,
+      });
+    }
     transacao.create(idempotenciaRef, {
       idRestaurante: identidade.idRestaurante,
       idAtor: identidade.idUsuario,

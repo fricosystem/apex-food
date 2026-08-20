@@ -161,6 +161,14 @@
     return requisitar(`/operacional${query({ modulo: 'visao-geral', ...parametros })}`);
   }
 
+  async function listarNotificacoes(parametros = {}) {
+    return requisitar(`/operacional${query({ modulo: 'notificacoes', ...parametros })}`);
+  }
+
+  async function atualizarNotificacao(payload) {
+    return requisitar('/operacional?modulo=notificacoes', { method: 'PATCH', body: payload });
+  }
+
   async function criarContaFinanceira(payload) {
     return requisitar('/financeiro', { method: 'POST', body: { recurso: 'conta', chaveIdempotencia: payload?.chaveIdempotencia || gerarChaveIdempotencia('conta'), ...payload } });
   }
@@ -219,6 +227,8 @@
     atualizarEquipe,
     listarFinanceiro,
     listarVisaoGeral,
+    listarNotificacoes,
+    atualizarNotificacao,
     criarContaFinanceira,
     criarMovimentacaoFinanceira,
     atualizarContaFinanceira,

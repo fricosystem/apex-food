@@ -13,6 +13,7 @@ const {
 const { cookiesSeguros, origemAplicacao } = require('./config');
 const { caminhoRestaurante, textoOpcional, inteiroPositivo } = require('./modulos-operacionais');
 const { registrarAuditoria } = require('./auditoria');
+const { criarNotificacoesNaTransacao, TIPOS_NOTIFICACAO } = require('./notificacoes');
 
 const NOME_COOKIE_MESA = 'apex_mesa';
 const TTL_SESSAO_MESA_SEGUNDOS = 4 * 60 * 60;
@@ -678,6 +679,17 @@ async function criarPedidoPublico(req, res, corpo) {
       criadaEm: FieldValue.serverTimestamp(),
       expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000),
       versao: 1,
+    });
+    criarNotificacoesNaTransacao(transacao, contexto.restauranteRef, {
+      tipoNotificacao: TIPOS_NOTIFICACAO.novoPedidoGarcom,
+      titulo: `Novo pedido — mesa ${String(mesa.nome || mesa.numero || mesaRef.id)}`,
+      mensagem: `${String(participante.nomeExibicao || participante.nomeCompleto || 'Cliente')} enviou ${itensPersistidos.length} item(ns) para confirmação.`,
+      prioridade: 'normal',
+      eventoOrigem: `pedido:${pedidoRef.id}:status:${statusPedido}`,
+      idMesa: mesaRef.id,
+      idComanda: comandaRef.id,
+      idPedido: pedidoRef.id,
+      idGarcomResponsavel: comanda.idGarcomResponsavel || null,
     });
   });
   if (!repeticaoIdempotente) await registrarAuditoria({

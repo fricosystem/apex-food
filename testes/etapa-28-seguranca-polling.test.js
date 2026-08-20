@@ -65,11 +65,11 @@ test('mutação continua protegida por CSRF e sem armazenamento local', () => {
   assert.doesNotMatch(mesa, /localStorage|sessionStorage|deviceId|fingerprint/i);
 });
 
-test('versionamento da Etapa 8 preserva os contratos anteriores das telas administrativas', () => {
+test('versionamento da Etapa 9 preserva os contratos anteriores das telas administrativas', () => {
   const shell = ler('scripts/shell/apex-shell.js');
   const index = ler('index.html');
   assert.match(shell, /mesa[^\n]*etapa8-seguranca/);
   assert.match(shell, /historico-pedidos[^\n]*etapa7-historico/);
   assert.match(shell, /fechamento-caixa[^\n]*etapa7-historico/);
-  assert.match(index, /apex-shell\.js\?v=etapa8-seguranca/);
+  assert.match(index, /apex-shell\.js\?v=etapa9-notificacoes/);
 });

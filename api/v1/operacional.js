@@ -7,6 +7,7 @@ const handlers = Object.freeze({
   financeiro: require('../_lib/financeiro-handler'),
   'visao-geral': require('../_lib/visao-geral-handler'),
   pedidos: require('../_lib/pedidos-handler'),
+  notificacoes: require('../_lib/notificacoes-handler'),
 });
 
 function moduloDaRequisicao(req) {

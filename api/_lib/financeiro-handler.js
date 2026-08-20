@@ -36,6 +36,7 @@ const {
   listarColecao,
   registrarAuditoriaOperacional,
 } = require('./financeiro');
+const { criarNotificacoesNaTransacao, TIPOS_NOTIFICACAO } = require('./notificacoes');
 
 const RECURSOS_LEITURA = new Set(['resumos', 'relatorios', 'contas', 'movimentacoes', 'fechamentos', 'encaminhamentos', 'encaminhamentosCaixa']);
 const RECURSOS_MUTACAO = new Set(['conta', 'movimentacao', 'fechamento', 'encaminhamentoCaixa']);
@@ -354,6 +355,23 @@ async function atualizarEncaminhamentoCaixa(identidade, req, corpo, idRequisicao
       atualizadoEm: FieldValue.serverTimestamp(),
       versao: Number(encaminhamento.versao || 1) + 1,
     });
+    if (para === 'recebida' || para === 'concluida') {
+      const tipoNotificacao = para === 'recebida' ? TIPOS_NOTIFICACAO.comandaRecebidaCaixa : TIPOS_NOTIFICACAO.atendimentoEncerrado;
+      const nomeMesa = String(encaminhamento.resumoOperacional?.nomeMesa || encaminhamento.idMesa || mesaRef.id);
+      criarNotificacoesNaTransacao(transacao, restaurante, {
+        tipoNotificacao,
+        titulo: para === 'recebida' ? `Comanda recebida — mesa ${nomeMesa}` : `Mesa liberada — mesa ${nomeMesa}`,
+        mensagem: para === 'recebida'
+          ? 'O caixa recebeu a comanda para conferência operacional.'
+          : 'A conferência operacional foi concluída e a mesa está disponível novamente.',
+        prioridade: para === 'recebida' ? 'normal' : 'alta',
+        eventoOrigem: `encaminhamento:${id}:${para}:versao:${Number(encaminhamento.versao || 1)}`,
+        idMesa: encaminhamento.idMesa || mesaRef.id,
+        idComanda: encaminhamento.idComanda || comandaRef.id,
+        idEncaminhamento: id,
+        idGarcomResponsavel: encaminhamento.idGarcomResponsavel || encaminhamento.resumoOperacional?.idGarcomResponsavel || null,
+      });
+    }
     resultado = { recurso: 'encaminhamentoCaixa', id, idComanda: encaminhamento.idComanda, idMesa: encaminhamento.idMesa, de, para, statusEncaminhamento: para, atualizado: true };
     transacao.create(idempotenciaRef, {
       idRestaurante: identidade.idRestaurante,
