@@ -3,6 +3,8 @@
   const moeda = valor => window.ferramentasInterfaceApexFood?.formatarMoeda ? window.ferramentasInterfaceApexFood.formatarMoeda(valor) : Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const escapar = valor => window.ferramentasInterfaceApexFood?.escaparHtml ? window.ferramentasInterfaceApexFood.escaparHtml(valor) : String(valor ?? '');
   const aviso = mensagem => typeof window.mostrarAvisoPedido === 'function' ? window.mostrarAvisoPedido(mensagem) : window.alert(mensagem);
+  const csv = valor => `"${String(valor ?? '').replace(/"/g, '""')}"`;
+  function exportar(equipe) { if (!equipe.length) return aviso('Nenhum funcionário encontrado para exportar.'); const linhas = [['Posição', 'Funcionário', 'Cargo', 'Pedidos', 'Vendas', 'Avaliação', 'Comissão'], ...equipe.map(item => [item.posicao, item.nome, item.cargo, item.pedidos, item.vendas.toFixed(2), item.avaliacao.toFixed(1), item.comissao.toFixed(2)])]; const blob = new Blob([linhas.map(linha => linha.map(csv).join(';')).join('\n')], { type: 'text/csv;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'performance-equipe.csv'; link.click(); URL.revokeObjectURL(link.href); }
   const statusEl = document.getElementById('statusPerformanceEquipe');
 
   function obterEquipe() {
@@ -44,7 +46,8 @@
   }
 
   statusEl?.addEventListener('change', renderizar);
-  document.getElementById('periodoPerformanceEquipe')?.addEventListener('change', () => aviso('Período da performance atualizado no preview.'));
-  document.getElementById('exportarPerformanceEquipe')?.addEventListener('click', () => aviso('Exportação da performance preparada para integração.'));
+  document.getElementById('periodoPerformanceEquipe')?.addEventListener('change', renderizar);
+  document.getElementById('exportarPerformanceEquipe')?.addEventListener('click', () => exportar(obterEquipe()));
+  document.addEventListener('apex:relatorios-atualizado', renderizar);
   renderizar();
 })();

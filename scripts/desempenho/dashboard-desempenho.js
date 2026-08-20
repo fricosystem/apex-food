@@ -1,7 +1,7 @@
 (() => {
-  const equipe = window.dadosEquipeApexFood || { funcionarios: [], escalas: [], comissoes: [] };
-  const pedidos = window.dadosPedidosApexFood || { pedidosAtivos: [] };
-  const relatorios = window.dadosRelatoriosApexFood || { performanceEquipe: [], distribuicaoNotas: [], indicadores: {} };
+  const dadosEquipe = () => window.dadosEquipeApexFood || { funcionarios: [], escalas: [], comissoes: [] };
+  const dadosPedidos = () => window.dadosPedidosApexFood || { pedidosAtivos: [] };
+  const dadosRelatorios = () => window.dadosRelatoriosApexFood || { performanceEquipe: [], distribuicaoNotas: [], indicadores: {} };
   const moeda = valor => window.ferramentasInterfaceApexFood?.formatarMoeda ? window.ferramentasInterfaceApexFood.formatarMoeda(valor) : Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const escapar = valor => window.ferramentasInterfaceApexFood?.escaparHtml ? window.ferramentasInterfaceApexFood.escaparHtml(valor) : String(valor ?? '');
   const texto = (id, valor) => { const elemento = document.getElementById(id); if (elemento) elemento.textContent = valor; };
@@ -9,14 +9,14 @@
   const percentual = valor => `${Math.max(0, Math.min(100, Number(valor || 0)))}%`;
 
   function resumo() {
-    const funcionarios = equipe.funcionarios || [];
+    const funcionarios = dadosEquipe().funcionarios || [];
     const atendentes = funcionarios.filter(item => ['Garçom', 'Garçonete', 'Bartender'].includes(item.cargo));
     const ativos = funcionarios.filter(item => item.status === 'ativo');
-    const ranking = (relatorios.performanceEquipe?.length ? relatorios.performanceEquipe : atendentes.map(item => ({ ...item, nome: item.nome, vendas: item.vendasMes || 0, pedidos: item.pedidos || 0, avaliacao: item.avaliacao || 0 }))).sort((a, b) => Number(b.vendas || 0) - Number(a.vendas || 0));
+    const ranking = (dadosRelatorios().performanceEquipe?.length ? dadosRelatorios().performanceEquipe : atendentes.map(item => ({ ...item, nome: item.nome, vendas: item.vendasMes || 0, pedidos: item.pedidos || 0, avaliacao: item.avaliacao || 0 }))).sort((a, b) => Number(b.vendas || 0) - Number(a.vendas || 0));
     const vendas = ranking.reduce((total, item) => total + Number(item.vendas || 0), 0);
     const pedidosAtendidos = ranking.reduce((total, item) => total + Number(item.pedidos || 0), 0);
     const avaliacao = ranking.length ? ranking.reduce((total, item) => total + Number(item.avaliacao || 0), 0) / ranking.length : 0;
-    const escalas = (equipe.escalas || []).filter(item => ['Hoje', 'Amanhã'].includes(item.dia)).slice(0, 5);
+    const escalas = (dadosEquipe().escalas || []).filter(item => ['Hoje', 'Amanhã'].includes(item.dia)).slice(0, 5);
     return { funcionarios, atendentes, ativos, ranking, vendas, pedidosAtendidos, avaliacao, escalas };
   }
 
@@ -29,7 +29,8 @@
     texto('dashboardDesempenhoPedidos', dados.pedidosAtendidos);
     texto('dashboardDesempenhoPedidosSub', `${dados.ranking.length} profissionais com produção`);
     texto('dashboardDesempenhoAvaliacao', `${dados.avaliacao.toFixed(1).replace('.', ',')} / 5`);
-    texto('dashboardDesempenhoAvaliacaoSub', `${relatorios.indicadores?.totalAvaliacoes || 0} avaliações na base`);
+    texto('dashboardDesempenhoAvaliacaoSub', `${dadosRelatorios().indicadores?.totalAvaliacoes || 0} avaliações na base`);
+    texto('dashboardDesempenhoPeriodo', dadosRelatorios().atualizadoEm ? `Atualizado em ${dadosRelatorios().atualizadoEm}` : 'Período não informado');
   }
 
   function renderizarRanking() {
@@ -40,7 +41,7 @@
   }
 
   function renderizarOperacao() {
-    const ativos = pedidos.pedidosAtivos || [];
+    const ativos = dadosPedidos().pedidosAtivos || [];
     const tempos = ativos.map(item => Number.parseInt(item.tempo, 10)).filter(Number.isFinite);
     const tempoMedio = tempos.length ? Math.round(tempos.reduce((soma, item) => soma + item, 0) / tempos.length) : 0;
     const status = [
@@ -66,14 +67,13 @@
 
   function renderizarEscalas() {
     const dados = resumo();
-    const nomes = new Map((equipe.funcionarios || []).map(item => [item.id, item.nome]));
+    const nomes = new Map((dadosEquipe().funcionarios || []).map(item => [item.id, item.nome]));
     html('dashboardDesempenhoEscalas', dados.escalas.length ? dados.escalas.map(item => `<div class="flex items-center justify-between gap-3 rounded-lg bg-card2 border border-border2 p-3"><div class="flex items-center gap-2 min-w-0"><div class="w-8 h-8 rounded-lg bg-purple/10 flex items-center justify-center shrink-0"><i data-lucide="calendar-clock" class="w-4 h-4 text-purple"></i></div><div class="min-w-0"><strong class="block text-xs truncate">${escapar(nomes.get(item.funcionarioId) || 'Colaborador')}</strong><span class="text-[10px] text-muted">${escapar(item.dia)} · ${escapar(item.turno)}</span></div></div><span class="text-[10px] text-muted shrink-0">${escapar(item.entrada)}–${escapar(item.saida)}</span></div>`).join('') : '<p class="text-xs text-muted">Nenhuma escala próxima disponível.</p>');
   }
 
-  renderizarKpis();
-  renderizarRanking();
-  renderizarOperacao();
-  renderizarSetores();
-  renderizarEscalas();
-  window.lucide?.createIcons();
+  function renderizarTudo() { renderizarKpis(); renderizarRanking(); renderizarOperacao(); renderizarSetores(); renderizarEscalas(); window.lucide?.createIcons(); }
+  document.addEventListener('apex:relatorios-atualizado', renderizarTudo);
+  document.addEventListener('apex:equipe-atualizado', renderizarTudo);
+  document.addEventListener('apex:pedidos-atualizado', renderizarTudo);
+  renderizarTudo();
 })();

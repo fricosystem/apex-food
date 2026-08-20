@@ -13,7 +13,7 @@ test('Cardápio usa coleções canônicas em português', () => {
   assert.match(handler, /categorias:\s*'categoriasCardapio'/);
   assert.match(handler, /produtos:\s*'produtosCardapio'/);
   assert.match(handler, /promocoes:\s*'promocoesCardapio'/);
-  assert.match(handler, /const RECURSOS_ESCRITA = new Set\(\['categorias', 'produtos', 'promocoes', 'estoque'\]\)/);
+  assert.match(handler, /const RECURSOS_ESCRITA = new Set\(\['categorias', 'produtos', 'promocoes', 'configuracao', 'estoque'\]\)/);
 });
 
 test('Promoções possuem contrato de criação e atualização server-side', () => {

@@ -2,6 +2,7 @@
   const dados = window.dadosRelatoriosApexFood;
   const escapar = valor => window.ferramentasInterfaceApexFood?.escaparHtml ? window.ferramentasInterfaceApexFood.escaparHtml(valor) : String(valor ?? '');
   const aviso = mensagem => typeof window.mostrarAvisoPedido === 'function' ? window.mostrarAvisoPedido(mensagem) : window.alert(mensagem);
+  function exportar(mapa) { if (!mapa.length || !mapa.flat().some(Boolean)) return aviso('Nenhum registro de horário encontrado para exportar.'); const linhas = [['Dia', ...dados.faixasHorarias], ...mapa.map((linha, indice) => [dados.diasSemana[indice], ...linha])]; const blob = new Blob([linhas.map(linha => linha.join(';')).join('\n')], { type: 'text/csv;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'horarios-de-pico.csv'; link.click(); URL.revokeObjectURL(link.href); }
   const canalEl = document.getElementById('canalHorariosPico');
 
   function renderizar() {
@@ -9,6 +10,7 @@
     const fator = canal === 'salao' ? .78 : canal === 'delivery' ? .34 : 1;
     const mapa = dados.mapaCalor.map(linha => linha.map(valor => Math.round(valor * fator)));
     const maior = Math.max(...mapa.flat(), 1);
+    if (!mapa.length || !mapa.flat().some(Boolean)) { document.getElementById('picoAlmocoHorarios').textContent = '—'; document.getElementById('picoAlmocoPedidos').textContent = 'Nenhum registro encontrado'; document.getElementById('picoJantarHorarios').textContent = '—'; document.getElementById('picoJantarPedidos').textContent = 'Nenhum registro encontrado'; document.getElementById('diaPicoHorarios').textContent = '—'; document.getElementById('diaPicoPedidos').textContent = 'Nenhum registro encontrado'; document.getElementById('ocupacaoPicoHorarios').textContent = '—'; document.getElementById('mapaCalorHorarios').innerHTML = '<p class="text-sm text-muted text-center py-8">Nenhum registro de horário encontrado.</p>'; document.getElementById('leiturasHorariosPico').innerHTML = '<p class="text-sm text-muted">Nenhuma leitura disponível.</p>'; document.getElementById('recomendacoesHorariosPico').innerHTML = '<p class="text-sm text-muted">Nenhuma recomendação disponível.</p>'; return; }
     const encontrarPico = (inicio, fim) => mapa.reduce((melhor, linha, dia) => linha.reduce((melhorHora, valor, hora) => (hora >= inicio && hora < fim && valor > melhorHora.valor) ? { valor, dia, hora } : melhorHora, melhor), { valor: 0, dia: 0, hora: inicio });
     const maiorAlmoco = encontrarPico(0, 5);
     const maiorJantar = encontrarPico(6, 10);
@@ -44,7 +46,8 @@
   }
 
   canalEl?.addEventListener('change', renderizar);
-  document.getElementById('periodoHorariosPico')?.addEventListener('change', () => aviso('Período dos horários atualizado no preview.'));
-  document.getElementById('exportarHorariosPico')?.addEventListener('click', () => aviso('Exportação do mapa de calor preparada para integração.'));
+  document.getElementById('periodoHorariosPico')?.addEventListener('change', renderizar);
+  document.getElementById('exportarHorariosPico')?.addEventListener('click', () => exportar(dados.mapaCalor));
+  document.addEventListener('apex:relatorios-atualizado', renderizar);
   renderizar();
 })();

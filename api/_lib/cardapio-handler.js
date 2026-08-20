@@ -20,8 +20,8 @@ const {
   registrarAuditoriaOperacional,
 } = require('./modulos-operacionais');
 
-const RECURSOS_LEITURA = new Set(['categorias', 'produtos', 'promocoes']);
-const RECURSOS_ESCRITA = new Set(['categorias', 'produtos', 'promocoes', 'estoque']);
+const RECURSOS_LEITURA = new Set(['categorias', 'produtos', 'promocoes', 'configuracao']);
+const RECURSOS_ESCRITA = new Set(['categorias', 'produtos', 'promocoes', 'configuracao', 'estoque']);
 const TIPOS_ESTOQUE = new Set(['entrada', 'saida', 'ajuste']);
 const TIPOS_PROMOCAO = new Set(['Combo', 'Produto', 'Horário', 'Fidelidade']);
 const ESTADOS_PROMOCAO = new Set(['ativa', 'agendada', 'inativa']);
@@ -29,6 +29,7 @@ const COLECOES_CARDAPIO = Object.freeze({
   categorias: 'categoriasCardapio',
   produtos: 'produtosCardapio',
   promocoes: 'promocoesCardapio',
+  configuracao: 'configuracoesCardapioDigital',
 });
 
 function normalizarRecurso(valor) {
@@ -36,6 +37,7 @@ function normalizarRecurso(valor) {
   if (valor === 'produto') return 'produtos';
   if (valor === 'promocao') return 'promocoes';
   if (valor === 'movimentacao-estoque' || valor === 'movimentacaoEstoque') return 'estoque';
+  if (valor === 'configuracao-digital' || valor === 'configuracaoCardapioDigital') return 'configuracao';
   return valor;
 }
 
@@ -67,11 +69,12 @@ async function listarCardapio(identidade, req) {
     throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso de cardápio inválido.');
   }
   const limite = limitarInteiro(req.query?.limite, 100, 200);
-  const colecoes = recurso ? [recurso] : ['categorias', 'produtos', 'promocoes'];
+  const colecoes = recurso ? [recurso] : ['categorias', 'produtos', 'promocoes', 'configuracao'];
   const documentos = await Promise.all(colecoes.map((colecao) => listarColecao(identidade.idRestaurante, nomeColecao(colecao), limite)));
-  const resposta = { categorias: [], produtos: [], promocoes: [] };
+  const resposta = { categorias: [], produtos: [], promocoes: [], configuracao: null };
   colecoes.forEach((colecao, indice) => {
-    resposta[colecao] = dadosVisiveis(documentos[indice]);
+    const dados = dadosVisiveis(documentos[indice]);
+    resposta[colecao] = colecao === 'configuracao' ? (dados[0] || null) : dados;
   });
   return { corpo: { ...resposta, meta: { idRestaurante: identidade.idRestaurante, limite } } };
 }
@@ -83,6 +86,16 @@ function validarCategoria(corpo) {
     icone: textoObrigatorio(corpo.icone || 'utensils', 'icone', 60),
     cor: textoObrigatorio(corpo.cor || 'orange', 'cor', 30),
     ordem: corpo.ordem === undefined ? 0 : inteiroNaoNegativo(corpo.ordem, 'ordem', 10000),
+  };
+}
+
+function validarConfiguracao(corpo) {
+  return {
+    publicado: corpo.publicado === true,
+    exibirPrecos: corpo.exibirPrecos !== false,
+    aceitarPedidos: corpo.aceitarPedidos === true,
+    mostrarPromocoes: corpo.mostrarPromocoes !== false,
+    linkPublico: textoOpcional(corpo.linkPublico, 'linkPublico', 500),
   };
 }
 
@@ -168,8 +181,11 @@ async function criarRecurso(identidade, corpo, idRequisicao) {
     ? validarCategoria(corpo)
     : recurso === 'produtos'
       ? await validarProduto(identidade.idRestaurante, corpo)
-      : validarPromocao(corpo);
-  const referencia = caminhoRestaurante(identidade.idRestaurante).collection(colecao).doc();
+      : recurso === 'promocoes'
+        ? validarPromocao(corpo)
+        : validarConfiguracao(corpo);
+  const referenciaColecao = caminhoRestaurante(identidade.idRestaurante).collection(colecao);
+  const referencia = recurso === 'configuracao' ? referenciaColecao.doc('configuracao') : referenciaColecao.doc();
   await referencia.set({
     ...dados,
     idRestaurante: identidade.idRestaurante,
@@ -200,6 +216,17 @@ function camposAtualizaveisPromocao(corpo) {
   return atualizacoes;
 }
 
+function camposAtualizaveisConfiguracao(corpo) {
+  const atualizacoes = {};
+  if (corpo.publicado !== undefined) atualizacoes.publicado = corpo.publicado === true;
+  if (corpo.exibirPrecos !== undefined) atualizacoes.exibirPrecos = corpo.exibirPrecos === true;
+  if (corpo.aceitarPedidos !== undefined) atualizacoes.aceitarPedidos = corpo.aceitarPedidos === true;
+  if (corpo.mostrarPromocoes !== undefined) atualizacoes.mostrarPromocoes = corpo.mostrarPromocoes === true;
+  if (corpo.linkPublico !== undefined) atualizacoes.linkPublico = textoOpcional(corpo.linkPublico, 'linkPublico', 500);
+  if (!Object.keys(atualizacoes).length) throw new ApiError(400, 'PAYLOAD_INVALIDO', 'Nenhum campo atualizável foi informado.');
+  return atualizacoes;
+}
+
 function camposAtualizaveisProduto(corpo) {
   const atualizacoes = {};
   if (corpo.nome !== undefined) atualizacoes.nome = textoObrigatorio(corpo.nome, 'nome', 140);
@@ -223,12 +250,14 @@ async function atualizarRecurso(identidade, corpo, idRequisicao) {
   }
   const id = idDocumento(corpo.id, 'id');
   const colecao = nomeColecao(recurso);
-  const referencia = caminhoRestaurante(identidade.idRestaurante).collection(colecao).doc(id);
+  const referencia = caminhoRestaurante(identidade.idRestaurante).collection(colecao).doc(recurso === 'configuracao' ? 'configuracao' : id);
   const atualizacoes = recurso === 'categorias'
     ? validarCategoria(corpo)
     : recurso === 'produtos'
       ? camposAtualizaveisProduto(corpo)
-      : camposAtualizaveisPromocao(corpo);
+      : recurso === 'promocoes'
+        ? camposAtualizaveisPromocao(corpo)
+        : camposAtualizaveisConfiguracao(corpo);
   const db = referencia.firestore;
   await db.runTransaction(async (transacao) => {
     const documento = await transacao.get(referencia);

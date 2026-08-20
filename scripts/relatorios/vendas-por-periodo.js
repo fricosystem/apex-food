@@ -3,6 +3,9 @@
   const moeda = valor => window.ferramentasInterfaceApexFood?.formatarMoeda ? window.ferramentasInterfaceApexFood.formatarMoeda(valor) : Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const escapar = valor => window.ferramentasInterfaceApexFood?.escaparHtml ? window.ferramentasInterfaceApexFood.escaparHtml(valor) : String(valor ?? '');
   const aviso = mensagem => typeof window.mostrarAvisoPedido === 'function' ? window.mostrarAvisoPedido(mensagem) : window.alert(mensagem);
+  const csv = valor => `"${String(valor ?? '').replace(/"/g, '""')}"`;
+  function exportar(registros) { if (!registros.length) return aviso('Nenhum registro encontrado para exportar.'); const linhas = [['Período', 'Pedidos', 'Vendas', 'Ticket médio'], ...registros.map(item => [item.label || item.periodo, item.pedidos, item.vendas.toFixed(2), item.ticketMedio.toFixed(2)])]; const blob = new Blob([linhas.map(linha => linha.map(csv).join(';')).join('\n')], { type: 'text/csv;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'vendas-por-periodo.csv'; link.click(); URL.revokeObjectURL(link.href); }
+  const imprimir = () => window.print();
   const periodoEl = document.getElementById('periodoVendasOperacionais');
   const canalEl = document.getElementById('canalVendasOperacionais');
 
@@ -63,7 +66,8 @@
 
   periodoEl?.addEventListener('change', renderizar);
   canalEl?.addEventListener('change', renderizar);
-  document.getElementById('exportarVendasOperacionais')?.addEventListener('click', () => aviso('Exportação de vendas preparada para integração.'));
-  document.getElementById('imprimirVendasOperacionais')?.addEventListener('click', () => aviso('Impressão do detalhamento preparada para integração.'));
+  document.getElementById('exportarVendasOperacionais')?.addEventListener('click', () => exportar(configuracaoAtual().registros));
+  document.getElementById('imprimirVendasOperacionais')?.addEventListener('click', imprimir);
+  document.addEventListener('apex:relatorios-atualizado', renderizar);
   renderizar();
 })();

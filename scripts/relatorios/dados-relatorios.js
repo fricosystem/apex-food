@@ -1,148 +1,154 @@
 (() => {
-  const pedidos = window.dadosPedidosApexFood || { pedidosAtivos: [], pedidosHistorico: [], produtos: [], categorias: [] };
-  const cardapio = window.dadosCardapioApexFood || { produtos: [], categorias: [] };
-  const equipe = window.dadosEquipeApexFood || { funcionarios: [], comissoes: [] };
+  'use strict';
 
-  const produtosPorNome = new Map([...(cardapio.produtos || []), ...(pedidos.produtos || [])].map(produto => [produto.nome, produto]));
-  const categoriaPorId = new Map([...(cardapio.categorias || []), ...(pedidos.categorias || [])].map(categoria => [categoria.id, categoria]));
-  const moeda = valor => Number(Number(valor || 0).toFixed(2));
-
-  const vendasDiarias = [
-    { data: '12/08/2026', label: '12 ago', pedidos: 28, vendas: 4280.40, ticketMedio: 152.87 },
-    { data: '13/08/2026', label: '13 ago', pedidos: 31, vendas: 4865.70, ticketMedio: 156.96 },
-    { data: '14/08/2026', label: '14 ago', pedidos: 36, vendas: 5720.20, ticketMedio: 158.89 },
-    { data: '15/08/2026', label: '15 ago', pedidos: 42, vendas: 6842.90, ticketMedio: 162.93 },
-    { data: '16/08/2026', label: '16 ago', pedidos: 38, vendas: 6294.30, ticketMedio: 165.64 },
-    { data: '17/08/2026', label: '17 ago', pedidos: 44, vendas: 7586.80, ticketMedio: 172.43 },
-    { data: '18/08/2026', label: '18 ago', pedidos: 32, vendas: 5298.60, ticketMedio: 165.58 }
-  ];
-
-  const vendasSemanais = [
-    { periodo: '15–21 jul', pedidos: 188, vendas: 29840.50, ticketMedio: 158.73 },
-    { periodo: '22–28 jul', pedidos: 204, vendas: 32580.80, ticketMedio: 159.71 },
-    { periodo: '29 jul–04 ago', pedidos: 219, vendas: 35420.20, ticketMedio: 161.74 },
-    { periodo: '05–11 ago', pedidos: 236, vendas: 38860.70, ticketMedio: 164.66 },
-    { periodo: '12–18 ago', pedidos: 251, vendas: 40889.00, ticketMedio: 162.90 }
-  ];
-
-  const vendasMensais = [
-    { periodo: 'Mar/2026', pedidos: 812, vendas: 128450.80, ticketMedio: 158.19 },
-    { periodo: 'Abr/2026', pedidos: 846, vendas: 136280.40, ticketMedio: 161.09 },
-    { periodo: 'Mai/2026', pedidos: 879, vendas: 143920.70, ticketMedio: 163.73 },
-    { periodo: 'Jun/2026', pedidos: 904, vendas: 150840.20, ticketMedio: 166.86 },
-    { periodo: 'Jul/2026', pedidos: 946, vendas: 158620.50, ticketMedio: 167.67 },
-    { periodo: 'Ago/2026', pedidos: 523, vendas: 85890.40, ticketMedio: 164.16 }
-  ];
-
-  const canais = [
-    { id: 'salao', nome: 'Salão', percentual: 62, vendas: 25350.20, cor: 'bg-accent', icone: 'armchair' },
-    { id: 'delivery', nome: 'Delivery', percentual: 24, vendas: 9813.36, cor: 'bg-blue', icone: 'bike' },
-    { id: 'retirada', nome: 'Retirada', percentual: 14, vendas: 5725.44, cor: 'bg-purple', icone: 'shopping-bag' }
-  ];
-
-  const rankingBase = [
-    { produtoId: 1, quantidade: 84, receita: 5031.60, variacao: 18.4 },
-    { produtoId: 2, quantidade: 72, receita: 4968.00, variacao: 12.8 },
-    { produtoId: 4, quantidade: 68, receita: 2917.20, variacao: 9.6 },
-    { produtoId: 3, quantidade: 55, receita: 2695.00, variacao: 6.2 },
-    { produtoId: 6, quantidade: 51, receita: 1524.90, variacao: -3.4 },
-    { produtoId: 10, quantidade: 44, receita: 924.00, variacao: 14.1 },
-    { produtoId: 12, quantidade: 41, receita: 492.00, variacao: 4.8 },
-    { produtoId: 5, quantidade: 37, receita: 1217.30, variacao: -1.7 },
-    { produtoId: 8, quantidade: 35, receita: 451.50, variacao: 8.3 },
-    { produtoId: 11, quantidade: 29, receita: 548.10, variacao: 2.5 }
-  ];
-
-  const produtosMaisVendidos = rankingBase.map((item, indice) => {
-    const produto = produtosPorNome.get((pedidos.produtos || []).find(p => p.id === item.produtoId)?.nome) || (cardapio.produtos || []).find(p => p.id === item.produtoId) || {};
-    const categoria = categoriaPorId.get(produto.categoria) || { nome: 'Outros', cor: 'muted' };
-    return {
-      ...item,
-      posicao: indice + 1,
-      nome: produto.nome || `Produto ${item.produtoId}`,
-      preco: produto.preco || 0,
-      categoria: categoria.nome,
-      categoriaId: produto.categoria || 'outros',
-      custo: produto.custo || moeda((produto.preco || 0) * 0.38),
-      margem: produto.preco ? Math.round(((produto.preco - (produto.custo || produto.preco * 0.38)) / produto.preco) * 100) : 0
-    };
+  const estadoVazio = () => ({
+    atualizadoEm: '',
+    pedidosConsiderados: 0,
+    produtosBase: 0,
+    vendasDiarias: [],
+    vendasSemanais: [],
+    vendasMensais: [],
+    canais: [],
+    produtosMaisVendidos: [],
+    diasSemana: ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'],
+    faixasHorarias: ['11h–12h', '12h–13h', '13h–14h', '14h–15h', '15h–16h', '18h–19h', '19h–20h', '20h–21h', '21h–22h', '22h–23h'],
+    mapaCalor: [],
+    avaliacoes: [],
+    distribuicaoNotas: [],
+    performanceEquipe: [],
+    indicadores: { notaMedia: 0, totalAvaliacoes: 0, taxaResposta: 0, vendasHoje: 0, pedidosHoje: 0, picoAlmoco: '—', picoJantar: '—' },
   });
 
-  const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
-  const faixasHorarias = ['11h–12h', '12h–13h', '13h–14h', '14h–15h', '15h–16h', '18h–19h', '19h–20h', '20h–21h', '21h–22h', '22h–23h'];
-  const mapaCalor = [
-    [14, 38, 64, 42, 22, 8, 16, 32, 28, 14],
-    [12, 42, 70, 48, 24, 10, 20, 38, 34, 18],
-    [16, 45, 74, 52, 28, 12, 22, 44, 39, 20],
-    [18, 52, 78, 60, 32, 14, 28, 55, 49, 26],
-    [24, 64, 91, 72, 40, 18, 36, 76, 82, 48],
-    [30, 82, 100, 88, 54, 26, 58, 94, 96, 72],
-    [26, 70, 86, 76, 46, 20, 42, 68, 66, 44]
-  ];
+  window.dadosRelatoriosApexFood = estadoVazio();
 
-  const avaliacoes = [
-    { id: 'AVA-201', cliente: 'Fernanda Souza', iniciais: 'FS', nota: 5, categoria: 'Atendimento', comentario: 'Atendimento impecável e os pratos chegaram muito rápido. Voltaremos com certeza!', data: '18/08/2026', canal: 'Google', respondida: false },
-    { id: 'AVA-202', cliente: 'João Santos', iniciais: 'JS', nota: 5, categoria: 'Qualidade dos pratos', comentario: 'O Filé Mignon estava no ponto perfeito. Saboroso e muito bem apresentado.', data: '18/08/2026', canal: 'App APEX', respondida: true },
-    { id: 'AVA-203', cliente: 'Carla Ferreira', iniciais: 'CF', nota: 4, categoria: 'Ambiente', comentario: 'Ambiente agradável e música na altura certa. Poderia ter mais opções vegetarianas.', data: '17/08/2026', canal: 'Google', respondida: false },
-    { id: 'AVA-204', cliente: 'Marcos Oliveira', iniciais: 'MO', nota: 5, categoria: 'Atendimento', comentario: 'O garçom João foi muito atencioso durante toda a experiência.', data: '17/08/2026', canal: 'App APEX', respondida: true },
-    { id: 'AVA-205', cliente: 'Beatriz Ramos', iniciais: 'BR', nota: 3, categoria: 'Tempo de espera', comentario: 'A comida estava boa, mas esperamos um pouco mais do que o esperado.', data: '16/08/2026', canal: 'iFood', respondida: false },
-    { id: 'AVA-206', cliente: 'Lucas Martins', iniciais: 'LM', nota: 5, categoria: 'Qualidade dos pratos', comentario: 'Pizza Margherita deliciosa, massa leve e ingredientes frescos.', data: '16/08/2026', canal: 'Google', respondida: true },
-    { id: 'AVA-207', cliente: 'Ana Costa', iniciais: 'AC', nota: 4, categoria: 'Delivery', comentario: 'Pedido chegou bem embalado e ainda quente. A entrega poderia ser um pouco mais rápida.', data: '15/08/2026', canal: 'iFood', respondida: false }
-  ];
-
-  const distribuicaoNotas = [
-    { nota: 5, quantidade: 128, percentual: 71 },
-    { nota: 4, quantidade: 36, percentual: 20 },
-    { nota: 3, quantidade: 10, percentual: 6 },
-    { nota: 2, quantidade: 4, percentual: 2 },
-    { nota: 1, quantidade: 2, percentual: 1 }
-  ];
-
-  const comissoesPorFuncionario = new Map((equipe.comissoes || []).map(item => [item.funcionarioId, item]));
-  const performanceEquipe = (equipe.funcionarios || []).filter(funcionario => ['Garçom', 'Garçonete', 'Bartender'].includes(funcionario.cargo)).map(funcionario => {
-    const comissao = comissoesPorFuncionario.get(funcionario.id) || {};
-    return {
-      funcionarioId: funcionario.id,
-      nome: funcionario.nome,
-      iniciais: funcionario.iniciais,
-      cargo: funcionario.cargo,
-      turno: funcionario.turno,
-      status: funcionario.status,
-      vendas: funcionario.vendasMes || 0,
-      pedidos: funcionario.pedidos || 0,
-      avaliacao: funcionario.avaliacao || 0,
-      percentualComissao: comissao.percentual || funcionario.comissao || 0,
-      comissao: comissao.comissao || moeda((funcionario.vendasMes || 0) * ((funcionario.comissao || 0) / 100)),
-      variacao: comissao.variacao || 0,
-      cor: funcionario.cor
-    };
-  }).sort((a, b) => b.vendas - a.vendas).map((item, indice) => ({ ...item, posicao: indice + 1 }));
-
-  const pedidosConsiderados = [...(pedidos.pedidosAtivos || []), ...(pedidos.pedidosHistorico || [])];
-  window.dadosRelatoriosApexFood = {
-    atualizadoEm: '18/08/2026 15:30',
-    origem: 'Base operacional de preview do APEX Food',
-    pedidosConsiderados: pedidosConsiderados.length,
-    produtosBase: produtosPorNome.size,
-    vendasDiarias,
-    vendasSemanais,
-    vendasMensais,
-    canais,
-    produtosMaisVendidos,
-    diasSemana,
-    faixasHorarias,
-    mapaCalor,
-    avaliacoes,
-    distribuicaoNotas,
-    performanceEquipe,
-    indicadores: {
-      notaMedia: 4.6,
-      totalAvaliacoes: 180,
-      taxaResposta: 64,
-      vendasHoje: vendasDiarias[vendasDiarias.length - 1].vendas,
-      pedidosHoje: vendasDiarias[vendasDiarias.length - 1].pedidos,
-      picoAlmoco: '12h–14h',
-      picoJantar: '19h–21h'
-    }
+  const lista = (resposta, chave) => {
+    if (!resposta) return [];
+    if (Array.isArray(resposta)) return resposta;
+    if (Array.isArray(resposta[chave])) return resposta[chave];
+    if (resposta.dados && Array.isArray(resposta.dados[chave])) return resposta.dados[chave];
+    return [];
   };
+
+  const numero = valor => {
+    if (valor === null || valor === undefined || valor === '') return 0;
+    const convertido = Number(valor);
+    return Number.isFinite(convertido) ? convertido : 0;
+  };
+
+  const valorMonetario = objeto => {
+    if (!objeto) return 0;
+    if (objeto.valorCentavos !== undefined) return numero(objeto.valorCentavos) / 100;
+    if (objeto.totalCentavos !== undefined) return numero(objeto.totalCentavos) / 100;
+    return numero(objeto.valor ?? objeto.total ?? objeto.valorTotal ?? objeto.receita);
+  };
+
+  const dataObjeto = objeto => {
+    const valor = objeto?.criadoEm || objeto?.dataCriacao || objeto?.data || objeto?.atualizadoEm || objeto?.timestamp;
+    if (!valor) return null;
+    if (typeof valor === 'object' && typeof valor.toDate === 'function') return valor.toDate();
+    if (typeof valor === 'number') return new Date(valor);
+    if (typeof valor === 'string' && /^\d{2}\/\d{2}\/\d{4}/.test(valor)) {
+      const [dia, mes, ano] = valor.slice(0, 10).split('/').map(Number);
+      return new Date(ano, mes - 1, dia);
+    }
+    const convertido = new Date(valor);
+    return Number.isNaN(convertido.getTime()) ? null : convertido;
+  };
+
+  const chaveDia = data => data ? `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}` : '';
+  const nomeMes = data => data.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+  const inicioSemana = data => { const copia = new Date(data); const dia = copia.getDay() || 7; copia.setDate(copia.getDate() - dia + 1); copia.setHours(0, 0, 0, 0); return copia; };
+  const formatarAtualizacao = data => data ? data.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+
+  function pedidoValido(pedido) {
+    return !['cancelado', 'cancelada', 'excluido', 'excluida'].includes(String(pedido?.status || pedido?.estado || '').toLowerCase());
+  }
+
+  function itensPedido(pedido) {
+    return Array.isArray(pedido?.itens) ? pedido.itens : Array.isArray(pedido?.items) ? pedido.items : [];
+  }
+
+  function construirDados(respostas) {
+    const pedidos = lista(respostas.pedidos, 'pedidos').filter(pedidoValido);
+    const cardapio = respostas.cardapio || {};
+    const produtos = lista(cardapio, 'produtos');
+    const categorias = lista(cardapio, 'categorias');
+    const equipe = respostas.equipe || {};
+    const funcionarios = lista(equipe, 'funcionarios');
+    const comissoes = lista(equipe, 'comissoes');
+    const financeiro = respostas.financeiro || {};
+    const movimentacoes = lista(financeiro, 'movimentacoes');
+    const mapaProdutos = new Map(produtos.map(produto => [String(produto.id), produto]));
+    const mapaCategorias = new Map(categorias.map(categoria => [String(categoria.id), categoria]));
+    const agora = new Date();
+
+    const porDia = new Map();
+    const porSemana = new Map();
+    const porMes = new Map();
+    const porCanal = new Map();
+    const porProduto = new Map();
+    const porHorario = new Map();
+
+    pedidos.forEach(pedido => {
+      const data = dataObjeto(pedido);
+      const valor = valorMonetario(pedido) || itensPedido(pedido).reduce((total, item) => total + (numero(item.quantidade || item.qtd || 1) * valorMonetario(item)), 0);
+      const canalId = String(pedido.canal || pedido.origem || pedido.tipoAtendimento || 'outros').toLowerCase();
+      const canalNome = { salao: 'Salão', delivery: 'Delivery', retirada: 'Retirada', mesa: 'Salão' }[canalId] || 'Outros';
+      const canalAtual = porCanal.get(canalNome) || { nome: canalNome, vendas: 0, pedidos: 0 };
+      canalAtual.vendas += valor; canalAtual.pedidos += 1; porCanal.set(canalNome, canalAtual);
+      if (data) {
+        const dia = chaveDia(data);
+        const registroDia = porDia.get(dia) || { data: dia, label: `${String(data.getDate()).padStart(2, '0')} ${nomeMes(data)}`, pedidos: 0, vendas: 0 };
+        registroDia.pedidos += 1; registroDia.vendas += valor; porDia.set(dia, registroDia);
+        const semanaData = inicioSemana(data); const semana = chaveDia(semanaData);
+        const registroSemana = porSemana.get(semana) || { inicio: semana, pedidos: 0, vendas: 0 };
+        registroSemana.pedidos += 1; registroSemana.vendas += valor; porSemana.set(semana, registroSemana);
+        const mes = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+        const registroMes = porMes.get(mes) || { periodo: data.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }), pedidos: 0, vendas: 0 };
+        registroMes.pedidos += 1; registroMes.vendas += valor; porMes.set(mes, registroMes);
+        const hora = data.getHours();
+        if (hora >= 11) {
+          const faixa = hora < 16 ? Math.min(hora - 11, 4) : Math.min(Math.max(hora - 18, 0) + 5, 9);
+          const chave = `${data.getDay() || 7}-${faixa}`;
+          porHorario.set(chave, (porHorario.get(chave) || 0) + 1);
+        }
+      }
+      itensPedido(pedido).forEach(item => {
+        const produtoId = String(item.produtoId || item.idProduto || item.produto || 'sem-produto');
+        const produtoBase = mapaProdutos.get(produtoId) || {};
+        const atual = porProduto.get(produtoId) || { produtoId, nome: item.nome || item.nomeProduto || produtoBase.nome || 'Produto sem identificação', categoriaId: item.categoriaId || produtoBase.categoria || 'outros', quantidade: 0, receita: 0, preco: valorMonetario(item) || numero(produtoBase.preco) };
+        const quantidade = Math.max(1, numero(item.quantidade || item.qtd || 1));
+        const totalItem = item.totalCentavos !== undefined ? numero(item.totalCentavos) / 100 : (item.total !== undefined ? numero(item.total) : valorMonetario(item) * quantidade);
+        atual.quantidade += quantidade; atual.receita += totalItem; porProduto.set(produtoId, atual);
+      });
+    });
+
+    const vendasDiarias = [...porDia.values()].sort((a, b) => a.data.localeCompare(b.data)).slice(-31).map(item => ({ ...item, ticketMedio: item.vendas / Math.max(item.pedidos, 1) }));
+    const vendasSemanais = [...porSemana.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-12).map(([, item]) => ({ periodo: item.inicio.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', ''), pedidos: item.pedidos, vendas: item.vendas, ticketMedio: item.vendas / Math.max(item.pedidos, 1) }));
+    const vendasMensais = [...porMes.values()].slice(-12).map(item => ({ ...item, ticketMedio: item.vendas / Math.max(item.pedidos, 1) }));
+    const totalVendas = pedidos.reduce((total, pedido) => total + valorMonetario(pedido), 0);
+    const canais = [...porCanal.values()].map((item, indice) => ({ ...item, percentual: totalVendas ? Math.round(item.vendas / totalVendas * 100) : 0, cor: ['bg-accent', 'bg-blue', 'bg-purple', 'bg-green'][indice % 4], icone: ['armchair', 'bike', 'shopping-bag', 'layers'][indice % 4] }));
+    const produtosMaisVendidos = [...porProduto.values()].sort((a, b) => b.quantidade - a.quantidade).map((item, indice) => { const categoria = mapaCategorias.get(String(item.categoriaId)); const produto = mapaProdutos.get(String(item.produtoId)) || {}; const preco = item.preco || numero(produto.preco); const custo = numero(produto.custo); return { ...item, posicao: indice + 1, categoria: categoria?.nome || 'Sem categoria', preco, custo, margem: preco && custo ? Math.round((preco - custo) / preco * 100) : 0, variacao: 0 }; });
+    const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+    const faixasHorarias = ['11h–12h', '12h–13h', '13h–14h', '14h–15h', '15h–16h', '18h–19h', '19h–20h', '20h–21h', '21h–22h', '22h–23h'];
+    const mapaCalor = diasSemana.map((_, dia) => faixasHorarias.map((_, faixa) => porHorario.get(`${dia + 1}-${faixa}`) || 0));
+    const comissoesMapa = new Map(comissoes.map(item => [String(item.funcionarioId), item]));
+    const performanceEquipe = funcionarios.filter(item => ['Garçom', 'Garçonete', 'Bartender'].includes(item.cargo)).map(item => { const comissao = comissoesMapa.get(String(item.id)) || {}; return { funcionarioId: item.id, nome: item.nome, iniciais: item.iniciais || '', cargo: item.cargo, turno: item.turno || '', status: item.status, vendas: numero(item.vendasMes || item.vendas), pedidos: numero(item.pedidos), avaliacao: numero(item.avaliacao), percentualComissao: numero(comissao.percentual || item.comissao), comissao: numero(comissao.comissao), variacao: numero(comissao.variacao), cor: item.cor || 'from-accent to-orange-400' }; }).sort((a, b) => b.vendas - a.vendas).map((item, indice) => ({ ...item, posicao: indice + 1 }));
+    const hoje = pedidos.filter(pedido => { const data = dataObjeto(pedido); return data && chaveDia(data) === chaveDia(agora); });
+    const atualizado = pedidos.map(dataObjeto).filter(Boolean).sort((a, b) => b - a)[0] || agora;
+    return { atualizadoEm: formatarAtualizacao(atualizado), pedidosConsiderados: pedidos.length, produtosBase: produtos.length, vendasDiarias, vendasSemanais, vendasMensais, canais, produtosMaisVendidos, diasSemana, faixasHorarias, mapaCalor, avaliacoes: [], distribuicaoNotas: [], performanceEquipe, indicadores: { notaMedia: 0, totalAvaliacoes: 0, taxaResposta: 0, vendasHoje: hoje.reduce((total, pedido) => total + valorMonetario(pedido), 0), pedidosHoje: hoje.length, picoAlmoco: '—', picoJantar: '—' } };
+  }
+
+  async function carregarDadosRelatorios() {
+    const api = window.apexModulosApi;
+    if (!api) return window.dadosRelatoriosApexFood;
+    const resultados = await Promise.allSettled([api.listarPedidos(), api.listarCardapio(), api.listarEquipe(), api.listarFinanceiro()]);
+    const respostas = { pedidos: resultados[0].status === 'fulfilled' ? resultados[0].value : {}, cardapio: resultados[1].status === 'fulfilled' ? resultados[1].value : {}, equipe: resultados[2].status === 'fulfilled' ? resultados[2].value : {}, financeiro: resultados[3].status === 'fulfilled' ? resultados[3].value : {} };
+    Object.assign(window.dadosRelatoriosApexFood, construirDados(respostas));
+    document.dispatchEvent(new CustomEvent('apex:relatorios-atualizado'));
+    return window.dadosRelatoriosApexFood;
+  }
+
+  window.recarregarRelatorios = carregarDadosRelatorios;
+  carregarDadosRelatorios().catch(() => { document.dispatchEvent(new CustomEvent('apex:relatorios-atualizado')); });
 })();

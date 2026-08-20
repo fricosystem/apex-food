@@ -3,6 +3,8 @@
   const moeda = valor => window.ferramentasInterfaceApexFood?.formatarMoeda ? window.ferramentasInterfaceApexFood.formatarMoeda(valor) : Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const escapar = valor => window.ferramentasInterfaceApexFood?.escaparHtml ? window.ferramentasInterfaceApexFood.escaparHtml(valor) : String(valor ?? '');
   const aviso = mensagem => typeof window.mostrarAvisoPedido === 'function' ? window.mostrarAvisoPedido(mensagem) : window.alert(mensagem);
+  const csv = valor => `"${String(valor ?? '').replace(/"/g, '""')}"`;
+  function exportar(itens) { if (!itens.length) return aviso('Nenhum produto encontrado para exportar.'); const linhas = [['Posição', 'Produto', 'Categoria', 'Quantidade', 'Receita', 'Margem'], ...itens.map(item => [item.posicao, item.nome, item.categoria, item.quantidade, item.receita.toFixed(2), item.margem])]; const blob = new Blob([linhas.map(linha => linha.map(csv).join(';')).join('\n')], { type: 'text/csv;charset=utf-8' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'produtos-mais-vendidos.csv'; link.click(); URL.revokeObjectURL(link.href); }
   const categoriaEl = document.getElementById('categoriaProdutosVendidos');
 
   function dadosFiltrados() {
@@ -44,7 +46,8 @@
   }
 
   categoriaEl?.addEventListener('change', renderizar);
-  document.getElementById('periodoProdutosVendidos')?.addEventListener('change', () => aviso('Período do ranking atualizado no preview.'));
-  document.getElementById('exportarProdutosVendidos')?.addEventListener('click', () => aviso('Exportação do ranking preparada para integração.'));
+  document.getElementById('periodoProdutosVendidos')?.addEventListener('change', renderizar);
+  document.getElementById('exportarProdutosVendidos')?.addEventListener('click', () => exportar(dadosFiltrados()));
+  document.addEventListener('apex:relatorios-atualizado', renderizar);
   renderizar();
 })();
