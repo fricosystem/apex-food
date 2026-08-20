@@ -21,6 +21,9 @@ test('Vercel habilita URLs limpas e o PWA inicia na raiz', () => {
   assert.equal(vercel.cleanUrls, true);
   assert.equal(manifest.start_url, '/');
   assert.equal(manifest.scope, '/');
+  assert.equal(manifest.icons[0].src, '/assets/apex-food-logo-aprimorada.png');
+  assert.equal(manifest.icons[0].type, 'image/png');
+  assert.match(manifest.icons[0].purpose, /maskable/);
 });
 
 test('links visíveis do shell e do sidebar não expõem .html', () => {
@@ -42,19 +45,19 @@ test('fragmentos internos continuam referenciando arquivos HTML físicos', () =>
   }
 });
 
-test('autenticação usa logo transparente e links sem .html', () => {
+test('autenticação usa logo aprimorada e links sem .html', () => {
   const autenticacao = ler('paginas/autenticacao.html');
   const imagens = [...autenticacao.matchAll(/<img\s+src="([^"]+)"/g)].map(match => match[1]);
   const marcas = imagens.filter(src => src.includes('apex-food-logo'));
   assert.equal(marcas.length, 2);
-  assert.ok(marcas.every(src => src.endsWith('apex-food-logo-transparente.png')));
+  assert.ok(marcas.every(src => src.endsWith('apex-food-logo-aprimorada.png')));
   assert.doesNotMatch(autenticacao, /<img[^>]+apex-food-logo\.jpg/);
   assert.doesNotMatch(autenticacao, /href="\.\.\/index\.html"/);
-  assert.equal(fs.existsSync(path.join(raiz, 'assets/apex-food-logo-transparente.png')), true);
+  assert.equal(fs.existsSync(path.join(raiz, 'assets/apex-food-logo-aprimorada.png')), true);
 });
 
-test('logo transparente é PNG com canal alfa', () => {
-  const buffer = fs.readFileSync(path.join(raiz, 'assets/apex-food-logo-transparente.png'));
+test('logo aprimorada é PNG com canal alfa', () => {
+  const buffer = fs.readFileSync(path.join(raiz, 'assets/apex-food-logo-aprimorada.png'));
   assert.deepEqual([...buffer.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
   assert.equal(buffer.toString('ascii', 12, 16), 'IHDR');
   const tipoCor = buffer[25];

@@ -12,9 +12,9 @@
   "background_color": "#000000",
   "icons": [
     {
-      "src": "/assets/apex-food-logo.jpg",
-      "sizes": "1024x1024",
-      "type": "image/jpeg",
+      "src": "/assets/apex-food-logo-aprimorada.png",
+      "sizes": "2048x2048",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]
