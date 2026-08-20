@@ -247,6 +247,138 @@ async function criarPedido(identidade, corpo, idRequisicao) {
   return { status: 201, corpo: { recurso: 'pedido', id: pedidoRef.id, idComanda: comandaRef.id, status: 'novo', valorCentavos } };
 }
 
+function exigirPapelEncaminhamentoCaixa(identidade) {
+  exigirPapel(identidade, PAPEIS_GARCOM);
+}
+
+async function encaminharComandaCaixa(identidade, corpo, idRequisicao) {
+  const idComanda = idDocumento(corpo.idComanda || corpo.id, 'idComanda');
+  const motivo = textoOpcional(corpo.observacaoOperacional || corpo.motivo, 'observacaoOperacional', 500);
+  exigirPapelEncaminhamentoCaixa(identidade);
+  const chave = chaveIdempotenciaPedido(corpo.chaveIdempotencia, idRequisicao);
+  const restaurante = caminhoRestaurante(identidade.idRestaurante);
+  const comandaRef = restaurante.collection('comandas').doc(idComanda);
+  const encaminhamentoRef = restaurante.collection('encaminhamentosCaixa').doc(idComanda);
+  const mesaRef = corpo.idMesa ? restaurante.collection('mesas').doc(idDocumento(String(corpo.idMesa), 'idMesa')) : null;
+  const idOperacao = hashOperacao(`${identidade.idRestaurante}:${identidade.idUsuario}:comanda-caixa:${idComanda}:${chave}`);
+  const idempotenciaRef = restaurante.collection('chavesIdempotencia').doc(idOperacao);
+  const hashPayload = hashOperacao(JSON.stringify({ idComanda, motivo }));
+  const pedidosQuery = restaurante.collection('pedidos').where('idComanda', '==', idComanda).limit(300);
+  let resultado;
+  let repeticaoIdempotente = false;
+
+  await comandaRef.firestore.runTransaction(async transacao => {
+    const [idempotenciaDocumento, comandaDocumento, encaminhamentoDocumento, pedidosDocumentos] = await Promise.all([
+      transacao.get(idempotenciaRef),
+      transacao.get(comandaRef),
+      transacao.get(encaminhamentoRef),
+      transacao.get(pedidosQuery),
+    ]);
+    if (idempotenciaDocumento.exists) {
+      const anterior = idempotenciaDocumento.data() || {};
+      if (anterior.hashPayload !== hashPayload) throw new ApiError(409, 'IDEMPOTENCIA_REUTILIZADA', 'A chave de encaminhamento já foi utilizada com outros dados.');
+      resultado = anterior.resultado;
+      repeticaoIdempotente = true;
+      return;
+    }
+    if (!comandaDocumento.exists || comandaDocumento.data()?.estado === 'excluido') throw new ApiError(404, 'COMANDA_NAO_ENCONTRADA', 'Comanda não encontrada.');
+    const comanda = comandaDocumento.data() || {};
+    const statusComanda = comanda.statusComanda || comanda.status || 'aberta';
+    if (statusComanda !== 'em_consumo') throw new ApiError(409, 'COMANDA_NAO_EM_CONSUMO', 'A comanda precisa estar em consumo para ser encaminhada ao caixa.');
+    if (encaminhamentoDocumento.exists && ['encaminhada', 'recebida'].includes(encaminhamentoDocumento.data()?.statusEncaminhamento)) throw new ApiError(409, 'COMANDA_JA_ENCAMINHADA', 'Esta comanda já foi encaminhada ao caixa.');
+    const pedidos = pedidosDocumentos.docs.filter(documento => documento.data()?.estado !== 'excluido');
+    if (!pedidos.length) throw new ApiError(409, 'COMANDA_SEM_PEDIDOS', 'A comanda não possui pedidos para encaminhamento.');
+    const estadosPendentes = new Set(['rascunho', 'aguardando_confirmacao_garcom', 'confirmado_garcom', 'enviado_cozinha', 'em_preparo', 'pronto', 'novo', 'preparo']);
+    const pendentes = pedidos.filter(documento => estadosPendentes.has(statusPedidoOperacional(documento.data())));
+    if (pendentes.length) throw new ApiError(409, 'COMANDA_COM_PEDIDOS_PENDENTES', 'A comanda possui pedidos que ainda precisam ser concluídos antes do caixa.');
+    const mesaId = String(comanda.idMesa || corpo.idMesa || '');
+    const referenciaMesa = mesaId ? restaurante.collection('mesas').doc(mesaId) : mesaRef;
+    if (!referenciaMesa) throw new ApiError(409, 'MESA_NAO_ENCONTRADA', 'A comanda não está vinculada a uma mesa.');
+    const mesaDocumento = await transacao.get(referenciaMesa);
+    if (!mesaDocumento.exists) throw new ApiError(404, 'MESA_NAO_ENCONTRADA', 'Mesa da comanda não encontrada.');
+    const mesa = mesaDocumento.data() || {};
+    const totalCentavos = Number(comanda.totalCentavos ?? comanda.valorCentavos ?? 0);
+    const pedidosServidos = pedidos.filter(documento => ['servido', 'entregue', 'finalizado'].includes(statusPedidoOperacional(documento.data()))).length;
+    const resumoOperacional = {
+      idComanda,
+      idMesa: referenciaMesa.id,
+      nomeMesa: String(mesa.nome || mesa.numero || referenciaMesa.id),
+      idGarcomResponsavel: comanda.idGarcomResponsavel || null,
+      nomeGarcom: String(comanda.nomeGarcomResponsavel || comanda.nomeGarcom || ''),
+      totalCentavos: Number.isSafeInteger(totalCentavos) && totalCentavos >= 0 ? totalCentavos : 0,
+      quantidadePedidos: pedidos.length,
+      pedidosServidos,
+      participantes: Number(comanda.participantesAtivos || 0),
+    };
+    transacao.set(encaminhamentoRef, {
+      idRestaurante: identidade.idRestaurante,
+      idEncaminhamento: encaminhamentoRef.id,
+      idComanda,
+      idMesa: referenciaMesa.id,
+      idGarcomResponsavel: comanda.idGarcomResponsavel || null,
+      statusEncaminhamento: 'encaminhada',
+      resumoOperacional,
+      observacaoOperacional: motivo,
+      encaminhadaEm: FieldValue.serverTimestamp(),
+      recebidaEm: null,
+      concluidaEm: null,
+      idOperadorCaixa: null,
+      criadoPor: identidade.idUsuario,
+      atualizadoPor: identidade.idUsuario,
+      criadoEm: FieldValue.serverTimestamp(),
+      atualizadoEm: FieldValue.serverTimestamp(),
+      chaveIdempotencia: chave,
+      versao: 1,
+    });
+    transacao.update(comandaRef, {
+      statusComanda: 'encaminhada_caixa',
+      status: 'encaminhada_caixa',
+      encaminhadaCaixaEm: FieldValue.serverTimestamp(),
+      quantidadePedidosAbertos: 0,
+      resumoOperacional,
+      atualizadoPor: identidade.idUsuario,
+      atualizadaEm: FieldValue.serverTimestamp(),
+      versao: Number(comanda.versao || 1) + 1,
+    });
+    transacao.update(referenciaMesa, {
+      estado: 'ocupada',
+      estadoAtendimento: 'encaminhada_caixa',
+      idComandaAberta: idComanda,
+      atualizadoPor: identidade.idUsuario,
+      atualizadoEm: FieldValue.serverTimestamp(),
+      versao: Number(mesa.versao || 1) + 1,
+    });
+    const evento = {
+      idRestaurante: identidade.idRestaurante,
+      idMesa: referenciaMesa.id,
+      idComanda,
+      acao: 'encaminhada_caixa',
+      estadoAnterior: mesa.estadoAtendimento || 'ocupada',
+      estadoNovo: 'encaminhada_caixa',
+      idAtor: identidade.idUsuario,
+      idOperacao,
+      criadoEm: FieldValue.serverTimestamp(),
+    };
+    transacao.set(restaurante.collection('eventosMesas').doc(), evento);
+    transacao.set(comandaRef.collection('historicoStatus').doc(), { ...evento, tipo: 'comanda', statusAnterior: statusComanda, statusNovo: 'encaminhada_caixa' });
+    resultado = { recurso: 'encaminhamentoCaixa', id: encaminhamentoRef.id, idComanda, idMesa: referenciaMesa.id, statusEncaminhamento: 'encaminhada', atualizado: true };
+    transacao.create(idempotenciaRef, {
+      idRestaurante: identidade.idRestaurante,
+      idAtor: identidade.idUsuario,
+      endpoint: '/api/v1/pedidos',
+      tipoOperacao: 'encaminhar_comanda_caixa',
+      idComanda,
+      resultado,
+      hashPayload,
+      criadaEm: FieldValue.serverTimestamp(),
+      expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      versao: 1,
+    });
+  });
+  if (!repeticaoIdempotente) await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: 'comanda.encaminhadaCaixa', tipoRecurso: 'comanda', idRecurso: idComanda });
+  return { corpo: { ...resultado, idempotente: repeticaoIdempotente } };
+}
+
 function exigirPapelTransicaoQr(identidade, para) {
   if (['confirmado_garcom', 'rejeitado_garcom', 'enviado_cozinha', 'servido'].includes(para)) {
     exigirPapel(identidade, PAPEIS_GARCOM);
@@ -481,7 +613,11 @@ module.exports = async function pedidos(req, res) {
     const identidade = await obterIdentidadeOperacional(req, mutacao ? PAPEIS_PEDIDOS : PAPEIS_LEITURA);
     if (metodo === 'GET') return listarPedidos(identidade, req);
     const corpo = await lerCorpoJson(req);
-    if (metodo === 'POST') return criarPedido(identidade, corpo, idRequisicao);
+    if (metodo === 'POST') {
+      if (corpo.recurso === 'encaminhamentoCaixa' || corpo.recurso === 'encaminharComandaCaixa') return encaminharComandaCaixa(identidade, corpo, idRequisicao);
+      return criarPedido(identidade, corpo, idRequisicao);
+    }
+    if (corpo.recurso === 'encaminhamentoCaixa' || corpo.recurso === 'encaminharComandaCaixa') return encaminharComandaCaixa(identidade, corpo, idRequisicao);
     if (corpo.recurso !== 'pedido' && corpo.recurso !== 'status') throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso de pedidos inválido.');
     return atualizarStatusPedido(identidade, corpo, idRequisicao);
   });

@@ -32,7 +32,8 @@ const dadosFinanceirosPreview = {
   ],
   categorias: [
     { nome: 'Pratos principais', valor: 18642, percentual: 38, cor: 'bg-accent' }, { nome: 'Bebidas', valor: 11205, percentual: 23, cor: 'bg-blue' }, { nome: 'Entradas', valor: 8330, percentual: 17, cor: 'bg-green' }, { nome: 'Sobremesas', valor: 5380, percentual: 11, cor: 'bg-purple' }, { nome: 'Delivery', valor: 4890, percentual: 10, cor: 'bg-yellow' }
-  ]
+  ],
+  encaminhamentos: []
 };
 
 
@@ -42,7 +43,7 @@ const dadosFinanceirosPreview = {
     if (window.apexModulosClientPromise) return window.apexModulosClientPromise;
     window.apexModulosClientPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = '/scripts/api/modulos-client.js?v=fase9';
+      script.src = '/scripts/api/modulos-client.js?v=etapa6-caixa';
       script.dataset.apexModuloClient = 'true';
       script.onload = () => resolve(window.apexModulosApi);
       script.onerror = () => reject(new Error('Não foi possível carregar o cliente dos módulos.'));
@@ -55,7 +56,7 @@ const dadosFinanceirosPreview = {
     return ['localhost', '127.0.0.1'].includes(window.location.hostname);
   }
 
-  const estadoFinanceiroVazio = { caixaAtual: {}, recebimentos: [], fluxo: [], contas: [], relatoriosMensais: [], categorias: [] };
+  const estadoFinanceiroVazio = { caixaAtual: {}, recebimentos: [], fluxo: [], contas: [], relatoriosMensais: [], categorias: [], encaminhamentos: [] };
   window.dadosFinanceirosApexFood = emPreviewLocal() ? dadosFinanceirosPreview : estadoFinanceiroVazio;
 
   function aplicarDadosRemotos(dados) {
@@ -66,6 +67,7 @@ const dadosFinanceirosPreview = {
       contas: Array.isArray(dados.contas) ? dados.contas : [],
       relatoriosMensais: Array.isArray(dados.relatoriosMensais) ? dados.relatoriosMensais : [],
       categorias: Array.isArray(dados.categorias) ? dados.categorias : [],
+      encaminhamentos: Array.isArray(dados.encaminhamentos) ? dados.encaminhamentos : Array.isArray(dados.encaminhamentosCaixa) ? dados.encaminhamentosCaixa : [],
     });
   }
 
@@ -98,6 +100,7 @@ const dadosFinanceirosPreview = {
           contas: [],
           relatoriosMensais: [],
           categorias: [],
+          encaminhamentos: [],
         });
         document.dispatchEvent(new CustomEvent('apex:financeiro-indisponivel'));
       }

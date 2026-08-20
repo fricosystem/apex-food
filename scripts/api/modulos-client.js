@@ -177,6 +177,18 @@
     return requisitar('/financeiro', { method: 'PATCH', body: { recurso: 'movimentacao', ...payload } });
   }
 
+  async function listarEncaminhamentosCaixa(parametros = {}) {
+    return requisitar(`/financeiro${query({ recurso: 'encaminhamentos', ...parametros })}`);
+  }
+
+  async function atualizarEncaminhamentoCaixa(payload) {
+    return requisitar('/financeiro', { method: 'PATCH', body: { recurso: 'encaminhamentoCaixa', ...payload } });
+  }
+
+  async function encaminharComandaCaixa(payload) {
+    return requisitar('/pedidos', { method: 'POST', body: { recurso: 'encaminhamentoCaixa', ...payload } });
+  }
+
   async function fecharCaixaFinanceiro(payload) {
     return requisitar('/financeiro', { method: 'POST', body: { recurso: 'fechamento', ...payload } });
   }
@@ -208,5 +220,8 @@
     atualizarContaFinanceira,
     atualizarMovimentacaoFinanceira,
     fecharCaixaFinanceiro,
+    listarEncaminhamentosCaixa,
+    atualizarEncaminhamentoCaixa,
+    encaminharComandaCaixa,
   });
 })();

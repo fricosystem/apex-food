@@ -184,8 +184,8 @@ async function carregarPedidosReais() {
     const dados = window.dadosPedidosApexFood;
     substituirLista(dados.categorias, cardapioCategorias);
     substituirLista(dados.produtos, cardapioProdutos);
-    substituirLista(dados.pedidosAtivos, pedidos.filter(item => ['novo', 'rascunho', 'aguardando_confirmacao_garcom', 'confirmado_garcom', 'enviado_cozinha', 'preparo', 'em_preparo', 'pronto'].includes(item.status)));
-    substituirLista(dados.pedidosHistorico, pedidos.filter(item => ['servido', 'entregue', 'finalizado', 'rejeitado_garcom', 'cancelado'].includes(item.status)));
+    substituirLista(dados.pedidosAtivos, pedidos.filter(item => ['novo', 'rascunho', 'aguardando_confirmacao_garcom', 'confirmado_garcom', 'enviado_cozinha', 'preparo', 'em_preparo', 'pronto', 'servido'].includes(item.status)));
+    substituirLista(dados.pedidosHistorico, pedidos.filter(item => ['entregue', 'finalizado', 'rejeitado_garcom', 'cancelado'].includes(item.status)));
     dados.mesas = Array.isArray(salaoResposta?.mesas) ? salaoResposta.mesas : [];
     dados.funcionarios = Array.isArray(equipeResposta?.funcionarios) ? equipeResposta.funcionarios : [];
     window.dadosPedidosRemotoAtivo = true;

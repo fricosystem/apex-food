@@ -88,7 +88,7 @@ test('Etapa 4 mantém seus assets e o shell principal avança para etapa5-garcom
   assert.match(shell, /mesaPublico|paginas\/publico\/mesa\.html\?v=etapa4-cardapio/);
   assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa4-cardapio/);
   assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa4-cardapio/);
-  assert.match(index, /apex-shell\.js\?v=etapa5-garcom-cozinha/);
+  assert.match(index, /apex-shell\.js\?v=etapa6-caixa/);
 });
 
 test('cookie da sessão é assinado com restaurante e sessão na ordem correta', () => {

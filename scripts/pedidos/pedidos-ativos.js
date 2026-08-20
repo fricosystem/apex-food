@@ -7,6 +7,7 @@ const statusAtivos = [
   { id: 'enviado_cozinha', titulo: 'Na fila da cozinha', icone: 'inbox', cor: 'text-blue', descricao: 'Aguardando início do preparo' },
   { id: 'em_preparo', estados: ['em_preparo', 'preparo'], titulo: 'Em preparo', icone: 'chef-hat', cor: 'text-yellow', descricao: 'Em produção na cozinha' },
   { id: 'pronto', titulo: 'Prontos', icone: 'check-circle-2', cor: 'text-green', descricao: 'Aguardando serviço na mesa' },
+  { id: 'servido', titulo: 'Servidos', icone: 'send', cor: 'text-accent', descricao: 'Aguardando encaminhamento ao caixa' },
 ];
 const statusOrdem = statusAtivos.map(item => item.id);
 const elementosAtivos = { painel: document.getElementById('painelPedidos'), busca: document.getElementById('buscaAtivo'), canal: document.getElementById('filtroCanal') };
@@ -68,12 +69,16 @@ function abrirModalAtivo(id) {
   document.getElementById('observacoesModalPedido').textContent = pedido.observacoes || 'Sem observações.';
   const acao = document.getElementById('acaoModalPedido');
   const recusar = document.getElementById('recusarModalPedido');
+  const encaminhar = document.getElementById('encaminharCaixaModalPedido');
   acao.dataset.pedidoId = pedido.id;
   recusar.dataset.pedidoId = pedido.id;
+  encaminhar.dataset.pedidoId = pedido.id;
   const proximo = pedido.status === 'novo' ? 'preparo' : pedido.status === 'preparo' ? 'pronto' : pedido.status === 'aguardando_confirmacao_garcom' ? 'confirmado_garcom' : pedido.status === 'confirmado_garcom' ? 'enviado_cozinha' : pedido.status === 'pronto' ? (pedido.origem === 'cardapioDigital' ? 'servido' : 'entregue') : '';
   acao.querySelector('span').textContent = proximo === 'confirmado_garcom' ? 'Confirmar pedido' : proximo === 'enviado_cozinha' ? 'Enviar à cozinha' : proximo === 'servido' ? 'Marcar como servido' : proximo === 'preparo' ? 'Iniciar preparo' : proximo === 'pronto' ? 'Marcar como pronto' : proximo === 'entregue' ? 'Marcar como entregue' : 'Aguardando operação';
   acao.classList.toggle('hidden', !proximo);
   recusar.classList.toggle('hidden', pedido.status !== 'aguardando_confirmacao_garcom');
+  encaminhar.classList.toggle('hidden', pedido.status !== 'servido');
+  acao.classList.toggle('hidden', pedido.status === 'servido' || !proximo);
   const modal = document.getElementById('modalPedido'); modal.classList.add('aberto'); modal.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; window.lucide?.createIcons(); document.getElementById('fecharModalPedido').focus();
 }
 function fecharModalAtivo() { const modal = document.getElementById('modalPedido'); modal.classList.remove('aberto'); modal.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
@@ -93,6 +98,20 @@ async function avancarPedidoAtivo() {
     mostrarAvisoPedido(`${pedido.id} avançado para ${statusPedido({ status: proximo }).label}.`);
   } catch (erro) { mostrarAvisoPedido(erro.message || 'Não foi possível alterar o status do pedido.'); }
   finally { acao.disabled = false; }
+}
+async function encaminharComandaAoCaixa() {
+  const botao = document.getElementById('encaminharCaixaModalPedido');
+  const pedido = pedidosAtivos().find(item => String(item.id) === String(botao.dataset.pedidoId));
+  if (!pedido || pedido.status !== 'servido') return;
+  if (!window.dadosPedidosRemotoAtivo || !window.apexModulosApi?.encaminharComandaCaixa) { mostrarAvisoPedido('Não foi possível encaminhar a comanda ao caixa. Tente novamente.'); return; }
+  botao.disabled = true;
+  try {
+    await window.apexModulosApi.encaminharComandaCaixa({ idComanda: String(pedido.idComanda || ''), idMesa: String(pedido.idMesa || ''), chaveIdempotencia: gerarChaveStatus() });
+    fecharModalAtivo();
+    await atualizarPedidosAtivos();
+    mostrarAvisoPedido('Comanda encaminhada ao caixa para conferência operacional.');
+  } catch (erro) { mostrarAvisoPedido(erro.message || 'Não foi possível encaminhar a comanda ao caixa.'); }
+  finally { botao.disabled = false; }
 }
 async function recusarPedidoAtivo() {
   const botao = document.getElementById('recusarModalPedido');
@@ -118,6 +137,7 @@ document.getElementById('fecharModalPedidoBtn').addEventListener('click', fechar
 document.getElementById('backdropPedido').addEventListener('click', fecharModalAtivo);
 document.getElementById('acaoModalPedido').addEventListener('click', avancarPedidoAtivo);
 document.getElementById('recusarModalPedido').addEventListener('click', recusarPedidoAtivo);
+document.getElementById('encaminharCaixaModalPedido').addEventListener('click', encaminharComandaAoCaixa);
 document.addEventListener('keydown', event => { if (event.key === 'Escape') fecharModalAtivo(); });
 document.addEventListener('apex:pedidos-atualizado', () => { atualizarIndicadoresAtivos(); renderizarPainelAtivos(); });
 atualizarIndicadoresAtivos();

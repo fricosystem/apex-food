@@ -8,6 +8,9 @@ const {
   PAPEIS_LEITURA_FINANCEIRO,
   PAPEIS_MUTACAO_FINANCEIRO,
   PAPEIS_FECHAMENTO,
+  PAPEIS_LEITURA_CAIXA,
+  PAPEIS_MUTACAO_CAIXA,
+  ESTADOS_ENCAMINHAMENTO_CAIXA,
   ESTADOS_FECHAMENTO,
   idDocumento,
   dataFinanceira,
@@ -16,6 +19,7 @@ const {
   dtoMovimentacao,
   dtoConta,
   dtoFechamento,
+  dtoEncaminhamentoCaixa,
   dtoRelatorio,
   dtoResumoFinanceiro,
   validarConta,
@@ -26,13 +30,15 @@ const {
   caminhoRestaurante,
   obterIdentidadeOperacional,
   limitarInteiro,
+  textoOpcional,
+  enumObrigatorio,
   queryString,
   listarColecao,
   registrarAuditoriaOperacional,
 } = require('./financeiro');
 
-const RECURSOS_LEITURA = new Set(['resumos', 'relatorios', 'contas', 'movimentacoes', 'fechamentos']);
-const RECURSOS_MUTACAO = new Set(['conta', 'movimentacao', 'fechamento']);
+const RECURSOS_LEITURA = new Set(['resumos', 'relatorios', 'contas', 'movimentacoes', 'fechamentos', 'encaminhamentos', 'encaminhamentosCaixa']);
+const RECURSOS_MUTACAO = new Set(['conta', 'movimentacao', 'fechamento', 'encaminhamentoCaixa']);
 
 function normalizarRecurso(valor) {
   const mapa = {
@@ -47,6 +53,10 @@ function normalizarRecurso(valor) {
     contaReceber: 'contas',
     fechamentoCaixa: 'fechamentos',
     fechamento: 'fechamento',
+    encaminhamento: 'encaminhamentos',
+    encaminhamentosCaixa: 'encaminhamentos',
+    encaminhamentoCaixa: 'encaminhamentoCaixa',
+    caixa: 'encaminhamentos',
   };
   return mapa[valor] || valor;
 }
@@ -102,16 +112,18 @@ async function listarFinanceiro(identidade, req) {
   const limite = limitarInteiro(req.query?.limite, 100, 200);
   const periodo = queryString(req, 'periodo');
   const restaurante = caminhoRestaurante(identidade.idRestaurante);
-  const [fechamentos, movimentacoes, pagar, receber, relatorios, resumos] = await Promise.all([
+  const [fechamentos, movimentacoes, pagar, receber, relatorios, resumos, encaminhamentos] = await Promise.all([
     listarColecao(identidade.idRestaurante, 'fechamentosCaixa', limite),
     listarColecao(identidade.idRestaurante, 'movimentacoesCaixa', limite),
     listarColecao(identidade.idRestaurante, 'contasPagar', limite),
     listarColecao(identidade.idRestaurante, 'contasReceber', limite),
     listarColecao(identidade.idRestaurante, 'relatoriosFinanceiros', limite),
     listarColecao(identidade.idRestaurante, 'resumosFinanceiros', 10),
+    listarColecao(identidade.idRestaurante, 'encaminhamentosCaixa', limite),
   ]);
   const fechamentoDtos = documentosVisiveis(fechamentos).map(dtoFechamento);
   const movimentacaoDtos = documentosVisiveis(movimentacoes).map(dtoMovimentacao);
+  const encaminhamentoDtos = documentosVisiveis(encaminhamentos).map(dtoEncaminhamentoCaixa);
   const contasPagar = documentosVisiveis(pagar).map((documento) => dtoConta(documento, 'pagar'));
   const contasReceber = documentosVisiveis(receber).map((documento) => dtoConta(documento, 'receber'));
   let relatorioDtos = documentosVisiveis(relatorios).map(dtoRelatorio);
@@ -125,6 +137,8 @@ async function listarFinanceiro(identidade, req) {
     relatoriosMensais: relatorioDtos,
     categorias: relatorioDtos.flatMap((item) => item.categorias || []).slice(0, 100),
     resumoFinanceiro: resumo,
+    encaminhamentos: encaminhamentoDtos,
+    encaminhamentosCaixa: encaminhamentoDtos,
     meta: { idRestaurante: identidade.idRestaurante, limite, periodo: periodo || null },
   };
   if (!recurso) return { corpo };
@@ -133,6 +147,7 @@ async function listarFinanceiro(identidade, req) {
   if (recurso === 'contas') return { corpo: { contas: corpo.contas, meta: corpo.meta } };
   if (recurso === 'relatorios') return { corpo: { relatorios: relatorioDtos, meta: corpo.meta } };
   if (recurso === 'resumos') return { corpo: { resumoFinanceiro: resumo, meta: corpo.meta } };
+  if (recurso === 'encaminhamentos' || recurso === 'encaminhamentosCaixa') return { corpo: { encaminhamentos: encaminhamentoDtos, encaminhamentosCaixa: encaminhamentoDtos, meta: corpo.meta } };
   return { corpo };
 }
 
@@ -217,6 +232,132 @@ async function atualizarMovimentacao(identidade, corpo, idRequisicao) {
   return { corpo: { recurso: 'movimentacao', id, atualizado: true } };
 }
 
+function exigirPapelCaixa(identidade, papeis) {
+  if (!Array.isArray(identidade.papeis) || !identidade.papeis.some(papel => papeis.includes(papel))) {
+    throw new ApiError(403, 'PAPEL_NAO_AUTORIZADO', 'Seu perfil não possui permissão para operar a fila do caixa.');
+  }
+}
+
+function statusEncaminhamentoAtual(documento) {
+  return documento.data()?.statusEncaminhamento || 'encaminhada';
+}
+
+async function atualizarEncaminhamentoCaixa(identidade, req, corpo, idRequisicao) {
+  const id = idDocumento(corpo.id || corpo.idEncaminhamento || corpo.idComanda, 'idEncaminhamento');
+  const para = enumObrigatorio(corpo.status, new Set(['recebida', 'concluida', 'cancelada']), 'status');
+  const motivo = textoOpcional(corpo.observacaoOperacional || corpo.motivo, 'observacaoOperacional', 500);
+  const chave = idempotenciaDaRequisicao(req, corpo);
+  const restaurante = caminhoRestaurante(identidade.idRestaurante);
+  const encaminhamentoRef = restaurante.collection('encaminhamentosCaixa').doc(id);
+  const idOperacao = crypto.createHash('sha256').update(`${identidade.idRestaurante}:${identidade.idUsuario}:encaminhamento-caixa:${id}:${chave}`).digest('hex');
+  const idempotenciaRef = restaurante.collection('chavesIdempotencia').doc(idOperacao);
+  const hashPayload = crypto.createHash('sha256').update(JSON.stringify({ id, para, motivo })).digest('hex').slice(0, 40);
+  let resultado;
+  let reutilizado = false;
+
+  await encaminhamentoRef.firestore.runTransaction(async transacao => {
+    const idempotenciaDocumento = await transacao.get(idempotenciaRef);
+    if (idempotenciaDocumento.exists) {
+      const anterior = idempotenciaDocumento.data() || {};
+      if (anterior.hashPayload !== hashPayload) throw new ApiError(409, 'IDEMPOTENCIA_REUTILIZADA', 'A chave do caixa já foi utilizada com outros dados.');
+      resultado = anterior.resultado;
+      reutilizado = true;
+      return;
+    }
+    const encaminhamentoDocumento = await transacao.get(encaminhamentoRef);
+    if (!encaminhamentoDocumento.exists) throw new ApiError(404, 'ENCAMINHAMENTO_NAO_ENCONTRADO', 'Encaminhamento de caixa não encontrado.');
+    const encaminhamento = encaminhamentoDocumento.data() || {};
+    const de = statusEncaminhamentoAtual(encaminhamentoDocumento);
+    const permitido = de === 'encaminhada' && ['recebida', 'cancelada'].includes(para) || de === 'recebida' && para === 'concluida';
+    if (!permitido) throw new ApiError(409, 'TRANSICAO_CAIXA_INVALIDA', `Não é permitido alterar o encaminhamento de ${de} para ${para}.`);
+    if (para === 'concluida') exigirPapelCaixa(identidade, PAPEIS_MUTACAO_CAIXA);
+    else exigirPapelCaixa(identidade, PAPEIS_MUTACAO_CAIXA);
+
+    const comandaRef = restaurante.collection('comandas').doc(String(encaminhamento.idComanda || ''));
+    const mesaRef = restaurante.collection('mesas').doc(String(encaminhamento.idMesa || ''));
+    const pedidosConsulta = restaurante.collection('pedidos').where('idComanda', '==', encaminhamento.idComanda).limit(300);
+    const sessoesConsulta = restaurante.collection('sessoesMesa').where('idComanda', '==', encaminhamento.idComanda).limit(300);
+    const [comandaDocumento, mesaDocumento, pedidosDocumentos, sessoesDocumentos] = await Promise.all([
+      transacao.get(comandaRef),
+      transacao.get(mesaRef),
+      transacao.get(pedidosConsulta),
+      transacao.get(sessoesConsulta),
+    ]);
+    if (!comandaDocumento.exists) throw new ApiError(409, 'COMANDA_NAO_ENCONTRADA', 'A comanda relacionada ao caixa não foi encontrada.');
+    if (!mesaDocumento.exists) throw new ApiError(409, 'MESA_NAO_ENCONTRADA', 'A mesa relacionada ao caixa não foi encontrada.');
+    const comanda = comandaDocumento.data() || {};
+    if (para === 'concluida') {
+      const estadosPendentes = new Set(['rascunho', 'aguardando_confirmacao_garcom', 'confirmado_garcom', 'enviado_cozinha', 'em_preparo', 'pronto', 'novo', 'preparo']);
+      const pedidos = pedidosDocumentos.docs.filter(documento => documento.data()?.estado !== 'excluido');
+      if (pedidos.some(documento => estadosPendentes.has(documento.data()?.statusPedido || documento.data()?.status))) {
+        throw new ApiError(409, 'COMANDA_COM_PEDIDOS_PENDENTES', 'A comanda ainda possui pedidos pendentes.');
+      }
+      if (!['encaminhada_caixa', 'em_consumo'].includes(comanda.statusComanda || comanda.status)) throw new ApiError(409, 'COMANDA_NAO_ENCAMINHADA', 'A comanda não está disponível para conclusão no caixa.');
+      transacao.update(comandaRef, {
+        statusComanda: 'encerrada',
+        status: 'encerrada',
+        encerradaEm: FieldValue.serverTimestamp(),
+        encerradaPor: identidade.idUsuario,
+        atualizadaEm: FieldValue.serverTimestamp(),
+        atualizadoPor: identidade.idUsuario,
+        versao: Number(comanda.versao || 1) + 1,
+      });
+      transacao.update(mesaRef, {
+        estado: 'disponivel',
+        estadoAtendimento: null,
+        idComandaAberta: null,
+        idGarcomResponsavel: null,
+        atualizadoEm: FieldValue.serverTimestamp(),
+        atualizadoPor: identidade.idUsuario,
+        versao: Number(mesaDocumento.data()?.versao || 1) + 1,
+      });
+      for (const sessaoDocumento of sessoesDocumentos.docs) {
+        const sessao = sessaoDocumento.data() || {};
+        transacao.update(sessaoDocumento.ref, { estadoSessao: 'encerrada', encerradaEm: FieldValue.serverTimestamp(), atualizadoEm: FieldValue.serverTimestamp(), versao: Number(sessao.versao || 1) + 1 });
+        if (sessao.idParticipante) {
+          const participanteRef = comandaRef.collection('participantes').doc(String(sessao.idParticipante));
+          transacao.set(participanteRef, { estadoParticipante: 'encerrado', saiuEm: FieldValue.serverTimestamp(), atualizadoEm: FieldValue.serverTimestamp() }, { merge: true });
+        }
+      }
+      transacao.set(restaurante.collection('eventosMesas').doc(), {
+        idRestaurante: identidade.idRestaurante,
+        idMesa: mesaRef.id,
+        idComanda: comandaRef.id,
+        acao: 'disponivel',
+        estadoAnterior: 'encaminhada_caixa',
+        estadoNovo: 'disponivel',
+        idAtor: identidade.idUsuario,
+        idOperacao,
+        criadoEm: FieldValue.serverTimestamp(),
+      });
+      transacao.set(comandaRef.collection('historicoStatus').doc(), { statusAnterior: comanda.statusComanda || comanda.status, statusNovo: 'encerrada', idAtor: identidade.idUsuario, motivo: motivo || 'Conferência operacional concluída pelo caixa.', criadoEm: FieldValue.serverTimestamp() });
+    }
+    transacao.update(encaminhamentoRef, {
+      statusEncaminhamento: para,
+      ...(para === 'recebida' ? { recebidaEm: FieldValue.serverTimestamp() } : {}),
+      ...(para === 'concluida' ? { concluidaEm: FieldValue.serverTimestamp(), idOperadorCaixa: identidade.idUsuario } : {}),
+      ...(motivo ? { observacaoOperacional: motivo } : {}),
+      atualizadoPor: identidade.idUsuario,
+      atualizadoEm: FieldValue.serverTimestamp(),
+      versao: Number(encaminhamento.versao || 1) + 1,
+    });
+    resultado = { recurso: 'encaminhamentoCaixa', id, idComanda: encaminhamento.idComanda, idMesa: encaminhamento.idMesa, de, para, statusEncaminhamento: para, atualizado: true };
+    transacao.create(idempotenciaRef, {
+      idRestaurante: identidade.idRestaurante,
+      idAtor: identidade.idUsuario,
+      endpoint: '/api/v1/financeiro',
+      tipoOperacao: `encaminhamento_caixa_${para}`,
+      resultado,
+      hashPayload,
+      criadaEm: FieldValue.serverTimestamp(),
+      expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      versao: 1,
+    });
+  });
+  if (!reutilizado) await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: `caixa.encaminhamento.${para}`, tipoRecurso: 'encaminhamentoCaixa', idRecurso: id });
+  return { corpo: { ...resultado, repetido: reutilizado } };
+}
+
 async function fecharCaixa(identidade, corpo, idRequisicao) {
   const id = idDocumento(corpo.id, 'id');
   const dados = validarFechamento(corpo);
@@ -253,6 +394,8 @@ module.exports = async function financeiro(req, res) {
     const recurso = normalizarRecurso(corpo?.recurso || queryString(req, 'recurso'));
     let papeis = PAPEIS_LEITURA_FINANCEIRO;
     if (recurso === 'fechamento' || recurso === 'fechamentos') papeis = PAPEIS_FECHAMENTO;
+    else if (recurso === 'encaminhamentos' || recurso === 'encaminhamentosCaixa') papeis = PAPEIS_LEITURA_CAIXA;
+    else if (recurso === 'encaminhamentoCaixa') papeis = PAPEIS_MUTACAO_CAIXA;
     else if (mutacao) papeis = PAPEIS_MUTACAO_FINANCEIRO;
     const identidade = await obterIdentidadeOperacional(req, papeis);
     if (metodo === 'GET') return listarFinanceiro(identidade, req);
@@ -260,10 +403,12 @@ module.exports = async function financeiro(req, res) {
     if (metodo === 'POST') {
       if (recurso === 'conta') return criarConta(identidade, req, corpo, idRequisicao);
       if (recurso === 'movimentacao') return criarMovimentacao(identidade, req, corpo, idRequisicao);
-      return fecharCaixa(identidade, corpo, idRequisicao);
+      if (recurso === 'fechamento') return fecharCaixa(identidade, corpo, idRequisicao);
+      throw new ApiError(400, 'RECURSO_INVALIDO', 'Este recurso não aceita criação por POST.');
     }
     if (recurso === 'conta') return atualizarConta(identidade, corpo, idRequisicao);
     if (recurso === 'movimentacao') return atualizarMovimentacao(identidade, corpo, idRequisicao);
+    if (recurso === 'encaminhamentoCaixa') return atualizarEncaminhamentoCaixa(identidade, req, corpo, idRequisicao);
     throw new ApiError(400, 'RECURSO_INVALIDO', 'Fechamentos usam POST e não podem ser editados após aprovação.');
   });
 };

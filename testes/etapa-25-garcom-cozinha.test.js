@@ -95,9 +95,10 @@ test('fila da cozinha só opera pedidos enviados e não marca pedido como entreg
   assert.doesNotMatch(controller, /localStorage|sessionStorage/);
 });
 
-test('assets das telas administrativas usam o identificador da Etapa 5', () => {
+test('assets das telas administrativas preservam a Etapa 5 e versionam Pedidos Ativos na Etapa 6', () => {
   const shell = ler('scripts/shell/apex-shell.js');
-  for (const rota of ['novo-pedido', 'pedidos-ativos', 'historico-pedidos', 'fila-cozinha']) {
+  for (const rota of ['novo-pedido', 'historico-pedidos', 'fila-cozinha']) {
     assert.match(shell, new RegExp(`${rota}[^\\n]*etapa5-garcom-cozinha`));
   }
+  assert.match(shell, /pedidos-ativos[^\\n]*etapa6-caixa/);
 });

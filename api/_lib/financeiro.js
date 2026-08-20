@@ -18,6 +18,9 @@ const {
 const PAPEIS_LEITURA_FINANCEIRO = ['proprietario', 'administrador', 'financeiro', 'analista', 'auditor'];
 const PAPEIS_MUTACAO_FINANCEIRO = ['proprietario', 'financeiro'];
 const PAPEIS_FECHAMENTO = ['proprietario', 'financeiro'];
+const PAPEIS_LEITURA_CAIXA = ['proprietario', 'administrador', 'gerente', 'financeiro', 'caixa'];
+const PAPEIS_MUTACAO_CAIXA = ['proprietario', 'administrador', 'gerente', 'financeiro', 'caixa'];
+const ESTADOS_ENCAMINHAMENTO_CAIXA = new Set(['encaminhada', 'recebida', 'concluida', 'cancelada']);
 const TIPOS_MOVIMENTACAO = new Set(['entrada', 'saida']);
 const ESTADOS_MOVIMENTACAO = new Set(['pendente', 'conciliado', 'cancelada', 'excluida']);
 const ESTADOS_PAGAR = new Set(['pendente', 'vencida', 'pago', 'cancelada', 'excluida']);
@@ -185,6 +188,29 @@ function dtoRelatorio(documento) {
   };
 }
 
+function dtoEncaminhamentoCaixa(documento) {
+  const dados = documento.data() || {};
+  const resumo = dados.resumoOperacional || {};
+  return {
+    id: documento.id,
+    idComanda: dados.idComanda || '',
+    idMesa: dados.idMesa || '',
+    idGarcomResponsavel: dados.idGarcomResponsavel || null,
+    nomeMesa: resumo.nomeMesa || dados.nomeMesa || '',
+    nomeGarcom: resumo.nomeGarcom || dados.nomeGarcom || '',
+    totalCentavos: Number(resumo.totalCentavos ?? dados.totalCentavos ?? 0),
+    quantidadePedidos: Number(resumo.quantidadePedidos || dados.quantidadePedidos || 0),
+    participantes: Number(resumo.participantes || dados.participantes || 0),
+    statusEncaminhamento: dados.statusEncaminhamento || 'encaminhada',
+    observacaoOperacional: String(dados.observacaoOperacional || ''),
+    encaminhadaEm: timestampParaIso(dados.encaminhadaEm),
+    recebidaEm: timestampParaIso(dados.recebidaEm),
+    concluidaEm: timestampParaIso(dados.concluidaEm),
+    idOperadorCaixa: dados.idOperadorCaixa || null,
+    versao: Number(dados.versao || 1),
+  };
+}
+
 function dtoResumoFinanceiro(dados = {}) {
   const caixa = dados.caixaAtual || dados.caixa || {};
   const caixaAtual = {
@@ -266,6 +292,9 @@ module.exports = {
   PAPEIS_LEITURA_FINANCEIRO,
   PAPEIS_MUTACAO_FINANCEIRO,
   PAPEIS_FECHAMENTO,
+  PAPEIS_LEITURA_CAIXA,
+  PAPEIS_MUTACAO_CAIXA,
+  ESTADOS_ENCAMINHAMENTO_CAIXA,
   TIPOS_MOVIMENTACAO,
   ESTADOS_MOVIMENTACAO,
   ESTADOS_PAGAR,
@@ -283,6 +312,7 @@ module.exports = {
   dtoMovimentacao,
   dtoConta,
   dtoFechamento,
+  dtoEncaminhamentoCaixa,
   dtoRelatorio,
   dtoResumoFinanceiro,
   validarConta,

@@ -60,10 +60,11 @@ test('Dashboard Financeiro e Fechamento não exibem períodos ou alertas fixos',
 test('shell e index versionam as rotas financeiras da Fase 9', () => {
   const shell = ler('scripts/shell/apex-shell.js');
   const index = ler('index.html');
-  for (const rota of ['dashboard-financeiro', 'fechamento-caixa', 'fluxo-caixa', 'contas-pagar-receber', 'relatorios-financeiros']) {
+  for (const rota of ['dashboard-financeiro', 'fluxo-caixa', 'contas-pagar-receber', 'relatorios-financeiros']) {
     assert.match(shell, new RegExp(`${rota}[^\\n]*(?:fase9|fase10)`));
   }
-  assert.match(index, /apex-shell\.js\?v=etapa5-garcom-cozinha/);
+  assert.match(shell, /fechamento-caixa[^\\n]*etapa6-caixa/);
+  assert.match(index, /apex-shell\.js\?v=etapa6-caixa/);
 });
 
 test('contrato financeiro documenta coleções, estados e permissões', () => {

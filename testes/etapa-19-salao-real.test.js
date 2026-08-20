@@ -47,11 +47,11 @@ test('controllers de Salão usam operações persistidas e não mantêm placehol
   }
 });
 
-test('shell versiona as três rotas da Fase 7', () => {
+test('shell preserva Salão e versiona Mapa de Mesas na Etapa 6', () => {
   const shell = ler('scripts/shell/apex-shell.js');
-  assert.match(shell, /mapa-mesas\.html\?v=fase7/);
+  assert.match(shell, /mapa-mesas\.html\?v=etapa6-caixa/);
   assert.match(shell, /reservas\.html\?v=fase7/);
   assert.match(shell, /configuracao-mesas\.html\?v=fase7/);
-  assert.match(shell, /scripts\/salao\/dados-mesas\.js\?v=fase7/);
+  assert.match(shell, /scripts\/salao\/dados-mesas\.js\?v=etapa6-caixa/);
   assert.match(shell, /scripts\/salao\/dados-reservas\.js\?v=fase7/);
 });

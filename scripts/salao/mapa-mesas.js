@@ -70,6 +70,11 @@ function obterTextoReserva(mesa) {
   return reserva.label;
 }
 
+function obterTextoAtendimento(mesa) {
+  const mapa = { aguardando_confirmacao: 'Aguardando confirmação', em_preparo: 'Em preparo', pedido_pronto: 'Pedido pronto', encaminhada_caixa: 'Encaminhada ao caixa' };
+  return mapa[mesa.estadoAtendimento] || '';
+}
+
 function obterTextoHorario(mesa) {
   if (mesa.status === 'ocupada' && mesa.chegada) return `Entrada às ${mesa.chegada}`;
   if (mesa.horarioReserva) return `Reserva às ${mesa.horarioReserva}`;
@@ -127,7 +132,7 @@ function criarCardMesa(mesa) {
     <div class="flex items-start justify-between gap-3">
       <div>
         <div class="text-base sm:text-lg font-bold">${escaparHtml(mesa.nome)}</div>
-        <div class="text-xs text-muted mt-1">${mesa.capacidade} lugares · ${escaparHtml(mesa.pedidoAtual || 'Sem pedido')}</div>
+        <div class="text-xs text-muted mt-1">${mesa.capacidade} lugares · ${escaparHtml(mesa.pedidoAtual || 'Sem pedido')}</div>${obterTextoAtendimento(mesa) ? `<div class="text-[10px] text-accent mt-1">${escaparHtml(obterTextoAtendimento(mesa))}</div>` : ''}
       </div>
       <div class="w-9 h-9 rounded-lg ${status.avatar} flex items-center justify-center flex-shrink-0">
         <i data-lucide="${status.icon}" class="w-4 h-4"></i>
@@ -192,7 +197,7 @@ function abrirModal(id) {
   preencherTexto('modalChegada', mesa.chegada, mesa.status === 'ocupada' ? 'Não registrado' : 'Ainda não chegou');
   preencherTexto('modalDuracao', mesa.duracao, 'Não iniciado');
   preencherTexto('modalComanda', mesa.comanda, 'Sem comanda');
-  preencherTexto('modalPedido', mesa.pedidoAtual, 'Sem pedido');
+  preencherTexto('modalPedido', mesa.pedidoAtual ? `${mesa.pedidoAtual}${obterTextoAtendimento(mesa) ? ` · ${obterTextoAtendimento(mesa)}` : ''}` : (obterTextoAtendimento(mesa) || 'Sem pedido'), 'Sem pedido');
   preencherTexto('modalValor', mesa.valorGasto ? formatarMoeda(mesa.valorGasto) : 'R$ 0,00');
   preencherTexto('modalObservacoes', mesa.observacoes, 'Sem observações adicionais.');
   preencherTexto('modalPagamento', mesa.formaPagamento, 'Não definido');
