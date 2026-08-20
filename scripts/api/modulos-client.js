@@ -169,6 +169,18 @@
     return requisitar('/operacional?modulo=notificacoes', { method: 'PATCH', body: payload });
   }
 
+  async function listarDispositivosNotificacao(parametros = {}) {
+    return requisitar(`/operacional${query({ modulo: 'notificacoes', recurso: 'dispositivos', ...parametros })}`);
+  }
+
+  async function registrarDispositivoNotificacao(payload) {
+    return requisitar('/operacional?modulo=notificacoes&recurso=dispositivos', { method: 'POST', body: payload });
+  }
+
+  async function atualizarDispositivoNotificacao(payload) {
+    return requisitar('/operacional?modulo=notificacoes&recurso=dispositivos', { method: 'PATCH', body: payload });
+  }
+
   async function criarContaFinanceira(payload) {
     return requisitar('/financeiro', { method: 'POST', body: { recurso: 'conta', chaveIdempotencia: payload?.chaveIdempotencia || gerarChaveIdempotencia('conta'), ...payload } });
   }
@@ -229,6 +241,9 @@
     listarVisaoGeral,
     listarNotificacoes,
     atualizarNotificacao,
+    listarDispositivosNotificacao,
+    registrarDispositivoNotificacao,
+    atualizarDispositivoNotificacao,
     criarContaFinanceira,
     criarMovimentacaoFinanceira,
     atualizarContaFinanceira,

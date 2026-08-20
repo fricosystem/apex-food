@@ -61,10 +61,10 @@ test('visibilidade respeita papel, usuário destinado e expiração', () => {
   assert.equal(notificacoes.visivelParaIdentidade({ papelDestino: 'caixa', idUsuarioDestino: null, expiraEm: new Date(Date.now() + 10000) }, identidadeGarcom), false);
 });
 
-test('handler autenticado usa GET/PATCH, CSRF em mutação e endpoint operacional consolidado', () => {
+test('handler autenticado usa GET/POST/PATCH, CSRF em mutação e endpoint operacional consolidado', () => {
   const handler = ler('api/_lib/notificacoes-handler.js');
   const dispatcher = ler('api/v1/operacional.js');
-  assert.match(handler, /metodos: \['GET', 'PATCH'\]/);
+  assert.match(handler, /metodos: \['GET', 'POST', 'PATCH'\]/);
   assert.match(handler, /mutacao, appCheck: true/);
   assert.match(handler, /obterIdentidadeOperacional\(req, PAPEIS_NOTIFICACOES_LEITURA\)/);
   assert.match(handler, /runTransaction/);

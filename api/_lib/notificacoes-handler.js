@@ -13,12 +13,18 @@ const {
   registrarAuditoriaOperacional,
 } = require('./modulos-operacionais');
 const { exigirPapel } = require('./autorizacao');
+const { consumir } = require('./limite');
 const {
   PAPEIS_NOTIFICACAO,
   STATUS_NOTIFICACAO,
   dtoNotificacao,
   visivelParaIdentidade,
 } = require('./notificacoes');
+const {
+  registrarDispositivo,
+  listarDispositivos,
+  atualizarDispositivo,
+} = require('./dispositivos-notificacao');
 
 const PAPEIS_GESTAO = ['proprietario', 'administrador', 'gerente'];
 const PAPEIS_NOTIFICACOES_LEITURA = [...new Set([...PAPEIS_LEITURA, 'caixa'])];
@@ -104,6 +110,30 @@ async function listarNotificacoes(identidade, req) {
   };
 }
 
+async function operarDispositivos(identidade, req, metodo, idRequisicao) {
+  if (metodo !== 'GET') await consumir(req, 'notificacoes_dispositivo', 30, 60 * 1000);
+  if (metodo === 'GET') {
+    const limite = limitarInteiro(req.query?.limite, 20, 50);
+    return { corpo: await listarDispositivos({ identidade, limite }) };
+  }
+  const corpo = await lerCorpoJson(req);
+  if (metodo === 'POST') {
+    return registrarDispositivo({
+      identidade,
+      corpo,
+      idRequisicao,
+      registrarAuditoria: registrarAuditoriaOperacional,
+    });
+  }
+  return atualizarDispositivo({
+    identidade,
+    corpo,
+    idRequisicao,
+    podeGerenciar: identidade.papeis.some(papel => PAPEIS_GESTAO.includes(papel)),
+    registrarAuditoria: registrarAuditoriaOperacional,
+  });
+}
+
 async function atualizarNotificacao(identidade, req, corpo, idRequisicao) {
   const id = idDocumento(corpo.id, 'idNotificacao');
   const acao = corpo.acao === 'arquivar' ? 'arquivar' : corpo.acao === 'marcar_lida' ? 'marcar_lida' : null;
@@ -158,9 +188,11 @@ async function atualizarNotificacao(identidade, req, corpo, idRequisicao) {
 
 module.exports = async function notificacoes(req, res) {
   const metodo = String(req.method || '').toUpperCase();
-  const mutacao = metodo === 'PATCH';
-  return executar(req, res, { metodos: ['GET', 'PATCH'], mutacao, appCheck: true }, async ({ idRequisicao }) => {
+  const mutacao = ['POST', 'PATCH'].includes(metodo);
+  const recurso = queryString(req, 'recurso');
+  return executar(req, res, { metodos: ['GET', 'POST', 'PATCH'], mutacao, appCheck: true }, async ({ idRequisicao }) => {
     const identidade = await obterIdentidadeOperacional(req, PAPEIS_NOTIFICACOES_LEITURA);
+    if (recurso === 'dispositivos') return operarDispositivos(identidade, req, metodo, idRequisicao);
     if (metodo === 'GET') return listarNotificacoes(identidade, req);
     const corpo = await lerCorpoJson(req);
     return atualizarNotificacao(identidade, req, corpo, idRequisicao);

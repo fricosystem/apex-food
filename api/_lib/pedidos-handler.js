@@ -22,6 +22,7 @@ const {
   registrarAuditoriaOperacional,
 } = require('./modulos-operacionais');
 const { criarNotificacoesNaTransacao, TIPOS_NOTIFICACAO } = require('./notificacoes');
+const { enviarNotificacaoFcm } = require('./fcm-notificacoes');
 
 const PAPEIS_PEDIDOS = ['proprietario', 'administrador', 'gerente', 'garcom', 'cozinha'];
 const PAPEIS_GARCOM = ['proprietario', 'administrador', 'gerente', 'garcom'];
@@ -292,6 +293,7 @@ async function encaminharComandaCaixa(identidade, corpo, idRequisicao) {
   const hashPayload = hashOperacao(JSON.stringify({ idComanda, motivo }));
   const pedidosQuery = restaurante.collection('pedidos').where('idComanda', '==', idComanda).limit(300);
   let resultado;
+  let eventoFcm = null;
   let repeticaoIdempotente = false;
 
   await comandaRef.firestore.runTransaction(async transacao => {
@@ -397,7 +399,7 @@ async function encaminharComandaCaixa(identidade, corpo, idRequisicao) {
     };
     transacao.set(restaurante.collection('eventosMesas').doc(), evento);
     transacao.set(comandaRef.collection('historicoStatus').doc(), { ...evento, tipo: 'comanda', statusAnterior: statusComanda, statusNovo: 'encaminhada_caixa' });
-    criarNotificacoesNaTransacao(transacao, restaurante, {
+    eventoFcm = {
       tipoNotificacao: TIPOS_NOTIFICACAO.comandaEncaminhadaCaixa,
       titulo: `Comanda aguardando caixa — mesa ${resumoOperacional.nomeMesa}`,
       mensagem: `A comanda foi encerrada pelo garçom e aguarda conferência operacional do caixa.`,
@@ -407,7 +409,8 @@ async function encaminharComandaCaixa(identidade, corpo, idRequisicao) {
       idComanda,
       idEncaminhamento: encaminhamentoRef.id,
       idGarcomResponsavel: comanda.idGarcomResponsavel || null,
-    });
+    };
+    criarNotificacoesNaTransacao(transacao, restaurante, eventoFcm);
     resultado = { recurso: 'encaminhamentoCaixa', id: encaminhamentoRef.id, idComanda, idMesa: referenciaMesa.id, statusEncaminhamento: 'encaminhada', atualizado: true };
     transacao.create(idempotenciaRef, {
       idRestaurante: identidade.idRestaurante,
@@ -422,7 +425,10 @@ async function encaminharComandaCaixa(identidade, corpo, idRequisicao) {
       versao: 1,
     });
   });
-  if (!repeticaoIdempotente) await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: 'comanda.encaminhadaCaixa', tipoRecurso: 'comanda', idRecurso: idComanda });
+  if (!repeticaoIdempotente) {
+    await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: 'comanda.encaminhadaCaixa', tipoRecurso: 'comanda', idRecurso: idComanda });
+    await enviarNotificacaoFcm({ idRestaurante: identidade.idRestaurante, evento: eventoFcm });
+  }
   return { corpo: { ...resultado, idempotente: repeticaoIdempotente } };
 }
 
@@ -453,6 +459,7 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
   const idempotenciaRef = restaurante.collection('chavesIdempotencia').doc(idOperacao);
   const db = pedidoRef.firestore;
   let resultado;
+  let eventoFcm = null;
   let repeticaoIdempotente = false;
 
   await db.runTransaction(async transacao => {
@@ -616,7 +623,7 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
         [TIPOS_NOTIFICACAO.pedidoRejeitado]: `O pedido da mesa ${nomeMesa} foi rejeitado${motivo ? `: ${motivo}` : '.'}`,
         [TIPOS_NOTIFICACAO.pedidoCancelado]: `O pedido da mesa ${nomeMesa} foi cancelado${motivo ? `: ${motivo}` : '.'}`,
       };
-      criarNotificacoesNaTransacao(transacao, restaurante, {
+      eventoFcm = {
         tipoNotificacao,
         titulo: tipoNotificacao === TIPOS_NOTIFICACAO.pedidoPronto ? `Pedido pronto — mesa ${nomeMesa}` : `Atualização do pedido — mesa ${nomeMesa}`,
         mensagem: descricoes[tipoNotificacao],
@@ -626,7 +633,8 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
         idComanda: pedido.idComanda || null,
         idPedido: pedidoRef.id,
         idGarcomResponsavel: agora.idGarcomResponsavel || pedido.idGarcomResponsavel || comanda.idGarcomResponsavel || null,
-      });
+      };
+      criarNotificacoesNaTransacao(transacao, restaurante, eventoFcm);
     }
     transacao.create(idempotenciaRef, {
       idRestaurante: identidade.idRestaurante,
@@ -641,7 +649,10 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
       versao: 1,
     });
   });
-  if (!repeticaoIdempotente) await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: `pedidos.status.${para}`, tipoRecurso: 'pedido', idRecurso: id });
+  if (!repeticaoIdempotente) {
+    await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: `pedidos.status.${para}`, tipoRecurso: 'pedido', idRecurso: id });
+    if (eventoFcm) await enviarNotificacaoFcm({ idRestaurante: identidade.idRestaurante, evento: eventoFcm });
+  }
   return { corpo: { ...resultado, idempotente: repeticaoIdempotente } };
 }
 

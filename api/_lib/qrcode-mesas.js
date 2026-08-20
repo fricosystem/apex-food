@@ -14,6 +14,7 @@ const { cookiesSeguros, origemAplicacao } = require('./config');
 const { caminhoRestaurante, textoOpcional, inteiroPositivo } = require('./modulos-operacionais');
 const { registrarAuditoria } = require('./auditoria');
 const { criarNotificacoesNaTransacao, TIPOS_NOTIFICACAO } = require('./notificacoes');
+const { enviarNotificacaoFcm } = require('./fcm-notificacoes');
 
 const NOME_COOKIE_MESA = 'apex_mesa';
 const TTL_SESSAO_MESA_SEGUNDOS = 4 * 60 * 60;
@@ -553,6 +554,7 @@ async function criarPedidoPublico(req, res, corpo) {
   const configRef = contexto.restauranteRef.collection('configuracoesCardapioDigital').doc('configuracao');
   const hashPayload = hashSha256(JSON.stringify({ itens, observacoes, idComanda: comandaRef.id, idParticipante: contexto.participanteDocumento.id }));
   let resultado;
+  let eventoFcm = null;
   let repeticaoIdempotente = false;
   const db = contexto.restauranteRef.firestore;
 
@@ -680,7 +682,7 @@ async function criarPedidoPublico(req, res, corpo) {
       expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000),
       versao: 1,
     });
-    criarNotificacoesNaTransacao(transacao, contexto.restauranteRef, {
+    eventoFcm = {
       tipoNotificacao: TIPOS_NOTIFICACAO.novoPedidoGarcom,
       titulo: `Novo pedido — mesa ${String(mesa.nome || mesa.numero || mesaRef.id)}`,
       mensagem: `${String(participante.nomeExibicao || participante.nomeCompleto || 'Cliente')} enviou ${itensPersistidos.length} item(ns) para confirmação.`,
@@ -690,19 +692,23 @@ async function criarPedidoPublico(req, res, corpo) {
       idComanda: comandaRef.id,
       idPedido: pedidoRef.id,
       idGarcomResponsavel: comanda.idGarcomResponsavel || null,
+    };
+    criarNotificacoesNaTransacao(transacao, contexto.restauranteRef, eventoFcm);
+  });
+  if (!repeticaoIdempotente) {
+    await registrarAuditoria({
+      idRestaurante: contexto.cookie.idRestaurante,
+      idAtor: `sessao:${contexto.sessaoDocumento.id}`,
+      papeisDoAtor: ['cliente_mesa'],
+      acao: 'mesa.pedido.enviado',
+      tipoRecurso: 'pedido',
+      idRecurso: resultado.idPedido,
+      idOperacao,
+      idRequisicao: chave,
+      resultado: 'criado',
     });
-  });
-  if (!repeticaoIdempotente) await registrarAuditoria({
-    idRestaurante: contexto.cookie.idRestaurante,
-    idAtor: `sessao:${contexto.sessaoDocumento.id}`,
-    papeisDoAtor: ['cliente_mesa'],
-    acao: 'mesa.pedido.enviado',
-    tipoRecurso: 'pedido',
-    idRecurso: resultado.idPedido,
-    idOperacao,
-    idRequisicao: chave,
-    resultado: 'criado',
-  });
+    await enviarNotificacaoFcm({ idRestaurante: contexto.cookie.idRestaurante, evento: eventoFcm });
+  }
   return {
     pedido: resultado,
     comanda: { id: comandaRef.id, status: 'em_consumo' },

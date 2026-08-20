@@ -37,6 +37,7 @@ const {
   registrarAuditoriaOperacional,
 } = require('./financeiro');
 const { criarNotificacoesNaTransacao, TIPOS_NOTIFICACAO } = require('./notificacoes');
+const { enviarNotificacaoFcm } = require('./fcm-notificacoes');
 
 const RECURSOS_LEITURA = new Set(['resumos', 'relatorios', 'contas', 'movimentacoes', 'fechamentos', 'encaminhamentos', 'encaminhamentosCaixa']);
 const RECURSOS_MUTACAO = new Set(['conta', 'movimentacao', 'fechamento', 'encaminhamentoCaixa']);
@@ -257,6 +258,7 @@ async function atualizarEncaminhamentoCaixa(identidade, req, corpo, idRequisicao
   const idempotenciaRef = restaurante.collection('chavesIdempotencia').doc(idOperacao);
   const hashPayload = crypto.createHash('sha256').update(JSON.stringify({ id, para, motivo })).digest('hex').slice(0, 40);
   let resultado;
+  let eventoFcm = null;
   let reutilizado = false;
 
   await encaminhamentoRef.firestore.runTransaction(async transacao => {
@@ -358,7 +360,7 @@ async function atualizarEncaminhamentoCaixa(identidade, req, corpo, idRequisicao
     if (para === 'recebida' || para === 'concluida') {
       const tipoNotificacao = para === 'recebida' ? TIPOS_NOTIFICACAO.comandaRecebidaCaixa : TIPOS_NOTIFICACAO.atendimentoEncerrado;
       const nomeMesa = String(encaminhamento.resumoOperacional?.nomeMesa || encaminhamento.idMesa || mesaRef.id);
-      criarNotificacoesNaTransacao(transacao, restaurante, {
+      eventoFcm = {
         tipoNotificacao,
         titulo: para === 'recebida' ? `Comanda recebida — mesa ${nomeMesa}` : `Mesa liberada — mesa ${nomeMesa}`,
         mensagem: para === 'recebida'
@@ -370,7 +372,8 @@ async function atualizarEncaminhamentoCaixa(identidade, req, corpo, idRequisicao
         idComanda: encaminhamento.idComanda || comandaRef.id,
         idEncaminhamento: id,
         idGarcomResponsavel: encaminhamento.idGarcomResponsavel || encaminhamento.resumoOperacional?.idGarcomResponsavel || null,
-      });
+      };
+      criarNotificacoesNaTransacao(transacao, restaurante, eventoFcm);
     }
     resultado = { recurso: 'encaminhamentoCaixa', id, idComanda: encaminhamento.idComanda, idMesa: encaminhamento.idMesa, de, para, statusEncaminhamento: para, atualizado: true };
     transacao.create(idempotenciaRef, {
@@ -385,7 +388,10 @@ async function atualizarEncaminhamentoCaixa(identidade, req, corpo, idRequisicao
       versao: 1,
     });
   });
-  if (!reutilizado) await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: `caixa.encaminhamento.${para}`, tipoRecurso: 'encaminhamentoCaixa', idRecurso: id });
+  if (!reutilizado) {
+    await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: `caixa.encaminhamento.${para}`, tipoRecurso: 'encaminhamentoCaixa', idRecurso: id });
+    if (eventoFcm) await enviarNotificacaoFcm({ idRestaurante: identidade.idRestaurante, evento: eventoFcm });
+  }
   return { corpo: { ...resultado, repetido: reutilizado } };
 }
 

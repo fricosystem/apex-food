@@ -7,12 +7,16 @@
     icone: '/assets/apex-food-logo-aprimorada.png',
     badge: '/assets/apex-food-logo-aprimorada.png',
     url: '/',
+    firebaseSdkVersion: '12.1.0',
   });
 
   const estado = {
     registro: null,
     inicializado: false,
     notificacaoEnviada: false,
+    fcm: null,
+    tokenRegistrado: false,
+    foregroundRegistrado: false,
   };
 
   function suporteNotificacao() {
@@ -31,13 +35,108 @@
     }
   }
 
+  let fcmPromise = null;
+
+  async function carregarFirebaseMessaging() {
+    const configuracao = window.apexFirebaseMessagingConfig;
+    if (!configuracao?.firebaseConfig || !configuracao.vapidKey) return null;
+    if (estado.fcm) return estado.fcm;
+    if (!fcmPromise) {
+      fcmPromise = Promise.all([
+        import(`https://www.gstatic.com/firebasejs/${CONFIG.firebaseSdkVersion}/firebase-app.js`),
+        import(`https://www.gstatic.com/firebasejs/${CONFIG.firebaseSdkVersion}/firebase-messaging.js`),
+      ])
+        .then(([appSdk, messagingSdk]) => {
+          const appExistente = appSdk.getApps().find(app => app.name === 'apex-food-messaging');
+          const app = appExistente || appSdk.initializeApp(configuracao.firebaseConfig, 'apex-food-messaging');
+          const messaging = messagingSdk.getMessaging(app);
+          estado.fcm = { app, messaging, messagingSdk, configuracao };
+          return estado.fcm;
+        })
+        .catch(() => null);
+    }
+    return fcmPromise;
+  }
+
+  function plataformaAtual() {
+    const larguraPequena = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 700px)').matches;
+    const agente = `${navigator.userAgent || ''} ${navigator.userAgentData?.platform || ''}`;
+    if (/Android/i.test(agente)) return larguraPequena ? 'android' : 'tablet';
+    if (/iPad|Tablet/i.test(agente)) return 'tablet';
+    return 'desktop';
+  }
+
+  function origemAtual() {
+    return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true
+      ? 'pwa'
+      : 'navegador';
+  }
+
+  async function registrarTokenFcm() {
+    if (estado.tokenRegistrado || !suporteNotificacao() || Notification.permission !== 'granted') return false;
+    const api = window.apexModulosApi;
+    if (!api?.registrarDispositivoNotificacao) return false;
+    const fcm = await carregarFirebaseMessaging();
+    if (!fcm) return false;
+    const registro = await registrarServiceWorker();
+    if (!registro) return false;
+    try {
+      const token = await fcm.messagingSdk.getToken(fcm.messaging, {
+        vapidKey: fcm.configuracao.vapidKey,
+        serviceWorkerRegistration: registro,
+      });
+      if (!token) return false;
+      await api.registrarDispositivoNotificacao({
+        tokenFcm: token,
+        plataforma: plataformaAtual(),
+        origem: origemAtual(),
+        preferencias: { operacionais: true, sistema: true },
+      });
+      estado.tokenRegistrado = true;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function ativarMensagensEmPrimeiroPlano() {
+    if (estado.foregroundRegistrado) return false;
+    const fcm = await carregarFirebaseMessaging();
+    if (!fcm || typeof fcm.messagingSdk.onMessage !== 'function') return false;
+    fcm.messagingSdk.onMessage(async payload => {
+      const notification = payload?.notification || {};
+      const dados = payload?.data || {};
+      const registro = await registrarServiceWorker();
+      if (!registro) return;
+      await registro.showNotification(notification.title || dados.titulo || 'APEX Food', {
+        body: notification.body || dados.mensagem || 'Há uma atualização operacional.',
+        icon: notification.icon || CONFIG.icone,
+        badge: notification.badge || CONFIG.badge,
+        tag: `apex-food-real-${dados.idNotificacao || Date.now()}`,
+        data: { url: dados.url || CONFIG.url },
+      });
+      await definirBadge();
+    });
+    estado.foregroundRegistrado = true;
+    return true;
+  }
+
   async function solicitarPermissao() {
     if (!suporteNotificacao()) return 'unsupported';
     await registrarServiceWorker();
-    if (Notification.permission === 'granted') return 'granted';
+    if (Notification.permission === 'granted') {
+      await registrarTokenFcm();
+      await ativarMensagensEmPrimeiroPlano();
+      return 'granted';
+    }
     if (Notification.permission !== 'default') return Notification.permission;
     try {
-      return await Notification.requestPermission();
+      const permissao = await Notification.requestPermission();
+      if (permissao === 'granted') {
+        await registrarTokenFcm();
+        await ativarMensagensEmPrimeiroPlano();
+      }
+      return permissao;
     } catch {
       return 'denied';
     }
@@ -91,6 +190,8 @@
   async function tratarSessaoAutenticada(evento) {
     const origemMarcada = limparMarcadorLogin();
     const origem = origemMarcada === 'login' || evento?.detail?.origem === 'login' ? 'login' : 'abertura';
+    await registrarTokenFcm();
+    await ativarMensagensEmPrimeiroPlano();
     await notificarAbertura(origem);
   }
 
@@ -104,6 +205,8 @@
   window.apexNotificacoesSistema = Object.freeze({
     registrarServiceWorker,
     solicitarPermissao,
+    registrarTokenFcm,
+    ativarMensagensEmPrimeiroPlano,
     notificarAbertura,
     definirBadge,
   });

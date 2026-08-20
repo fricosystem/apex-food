@@ -28,7 +28,7 @@ test('controlador registra Service Worker e envia notificação pela API do PWA'
   assert.match(sistema, /navigator\.setAppBadge/);
   assert.match(sistema, /tag: `apex-food-teste-\$\{origem\}`/);
   assert.match(sistema, /requireInteraction: false/);
-  assert.doesNotMatch(sistema, /localStorage|sessionStorage|firebase|FIREBASE_PRIVATE_KEY|idToken/i);
+  assert.doesNotMatch(sistema, /localStorage|sessionStorage|FIREBASE_PRIVATE_KEY|CSRF_SECRET|SESSION_SECRET|idToken|refreshToken/i);
 });
 
 test('notificação somente acompanha sessão autenticada e marcador temporário de login', () => {
@@ -47,9 +47,9 @@ test('notificação somente acompanha sessão autenticada e marcador temporário
 test('autenticação e shell carregam o controller sem duplicar navegação', () => {
   const autenticacao = ler('paginas/autenticacao.html');
   const index = ler('index.html');
-  assert.match(autenticacao, /notificacoes-sistema\.js\?v=etapa10-notificacao-teste/);
-  assert.match(index, /notificacoes-sistema\.js\?v=etapa10-notificacao-teste/);
-  assert.match(index, /notificacoes-sistema\.js\?v=etapa10-notificacao-teste/);
+  assert.match(autenticacao, /notificacoes-sistema\.js\?v=etapa11-fcm/);
+  assert.match(index, /notificacoes-sistema\.js\?v=etapa11-fcm/);
+  assert.match(index, /notificacoes-sistema\.js\?v=etapa11-fcm/);
   assert.equal((index.match(/id="sidebarContentDesktop"/g) || []).length, 1);
   assert.equal((index.match(/id="conteudoPagina"/g) || []).length, 1);
 });
@@ -58,6 +58,6 @@ test('service worker não processa credenciais nem cria notificações operacion
   const serviceWorker = ler('service-worker.js');
   assert.match(serviceWorker, /notificationclick/);
   assert.match(serviceWorker, /clients\.openWindow/);
-  assert.doesNotMatch(serviceWorker, /FIREBASE_PRIVATE_KEY|localStorage|sessionStorage|apiKey|idToken/i);
+  assert.doesNotMatch(serviceWorker, /FIREBASE_PRIVATE_KEY|CSRF_SECRET|SESSION_SECRET|localStorage|sessionStorage|idToken|refreshToken/i);
   assert.doesNotMatch(serviceWorker, /pedidos|comandas|cozinha|caixa/i);
 });
