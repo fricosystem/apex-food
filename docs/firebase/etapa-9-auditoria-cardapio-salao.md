@@ -125,3 +125,13 @@ As rotas `index.html#/promocoes` e `index.html#/cardapio-digital` carregaram sem
 A suíte local passou com **19 testes**, incluindo os 11 contratos já existentes da API e oito verificações novas da Etapa 9. Foram validados limites de paginação, textos e valores em centavos, enumerações fechadas, máscara de contato, remoção de autoria interna dos DTOs, transação/conflito de reserva, eventos de mesa, coleções em português e ausência de Firebase Client SDK, `localStorage`, `sessionStorage`, ID token e refresh token no frontend operacional. A sintaxe dos endpoints, helper e scripts de Cardápio e Salão passou com `node --check`.
 
 A revisão estática confirmou que o navegador chama somente endpoints same-origin, usa CSRF em memória para mutações e não recebe acesso direto às credenciais do Admin SDK. O fallback de preview permanece permitido somente em `localhost`/`127.0.0.1`; em domínio publicado, falha de tenant, sessão ou autorização limpa os dados simulados em vez de ocultar uma falha remota com dados de demonstração. O Firestore continua protegido pelas Rules deny-by-default.
+
+## 10. Publicação
+
+O commit `be87ec5` foi publicado na branch `main` do GitHub e apareceu na Vercel como deployment Production. Na primeira checagem remota, o deployment ainda estava em estado `Building`; o smoke test remoto será executado somente após o estado `Ready`.
+
+O deployment Production do commit `be87ec5` passou para `Ready` na Vercel. A URL pública principal permanece `https://apexfood.vercel.app`; a URL imutável do deployment Ready foi exibida pela Vercel como `https://apexfood-jmrcaxy70-frico-systems-projects.vercel.app`.
+
+## 11. Smoke test remoto
+
+Em `https://apexfood.vercel.app`, o endpoint `/api/v1/health` respondeu `200` com `{"estado":"ok","ambiente":"development","servico":"apex-food-api"}`. Os endpoints `/api/v1/cardapio?recurso=produtos` e `/api/v1/salao?recurso=mesas` responderam `401` com `NAO_AUTENTICADO`, confirmando proteção server-side e ausência de dados sem sessão. O acesso sem sessão a `index.html#/produtos` foi redirecionado para `paginas/autenticacao.html`, e a aba de cadastro publicada exibiu nome completo, email `@apexfood.com`, senha, confirmação e botão de criação.
