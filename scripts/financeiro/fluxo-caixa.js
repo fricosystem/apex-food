@@ -7,4 +7,29 @@ function renderizarGraficoFluxo() { const dados = dadosFluxo.relatoriosMensais; 
 function renderizarFluxo() { const lista = movimentacoesFiltradas(); document.getElementById('resultadoMovimentacoesFluxo').textContent = `${lista.length} ${lista.length === 1 ? 'movimentação encontrada' : 'movimentações encontradas'}.`; document.getElementById('estadoVazioFluxo').classList.toggle('hidden', Boolean(lista.length)); document.getElementById('listaFluxo').innerHTML = lista.map(item => `<tr class="border-b border-border hover:bg-card2/50 transition"><td class="p-4 text-xs text-muted">${escapeFluxo(item.data)}</td><td class="p-4"><div class="font-medium">${escapeFluxo(item.descricao)}</div><div class="text-[10px] text-muted mt-1">#${escapeFluxo(item.id)}</div></td><td class="p-4 text-xs">${escapeFluxo(item.categoria)}</td><td class="p-4 text-xs text-muted">${escapeFluxo(item.origem)}</td><td class="p-4 text-xs text-muted">${escapeFluxo(item.forma)}</td><td class="p-4 font-semibold ${item.tipo === 'entrada' ? 'text-green' : 'text-red'}">${item.tipo === 'entrada' ? '+' : '-'} ${moedaFluxo(item.valor)}</td><td class="p-4"><span class="status-financeiro ${item.status} px-2.5 py-1 rounded-md text-xs font-medium">${item.status === 'conciliado' ? 'Conciliado' : item.status}</span></td><td class="p-4 text-right"><button type="button" class="p-2 rounded-lg hover:bg-card2 text-muted" aria-label="Ver movimentação"><i data-lucide="chevron-right" class="w-4 h-4"></i></button></td></tr>`).join(''); window.lucide?.createIcons(); }
 function abrirModalFluxo() { const modal = document.getElementById('modalFluxo'); document.getElementById('formFluxo').reset(); modal.classList.add('aberto'); modal.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; document.getElementById('descricaoFluxo').focus(); }
 function fecharModalFluxo() { const modal = document.getElementById('modalFluxo'); modal.classList.remove('aberto'); modal.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
-document.getElementById('novoLancamentoFluxo').addEventListener('click', abrirModalFluxo); document.getElementById('fecharModalFluxo').addEventListener('click', fecharModalFluxo); document.getElementById('cancelarFluxo').addEventListener('click', fecharModalFluxo); document.getElementById('backdropFluxo').addEventListener('click', fecharModalFluxo); ['buscaFluxo','filtroTipoFluxo','filtroCategoriaFluxo'].forEach(id => document.getElementById(id).addEventListener(id === 'buscaFluxo' ? 'input' : 'change', renderizarFluxo)); document.getElementById('periodoFluxo').addEventListener('change', () => mostrarAvisoPedido('Período do fluxo atualizado no preview.')); document.getElementById('formFluxo').addEventListener('submit', event => { event.preventDefault(); fecharModalFluxo(); mostrarAvisoPedido('Lançamento salvo no preview.'); }); document.addEventListener('keydown', event => { if (event.key === 'Escape') fecharModalFluxo(); }); atualizarIndicadoresFluxo(); renderizarGraficoFluxo(); renderizarFluxo(); window.lucide?.createIcons();
+document.getElementById('novoLancamentoFluxo').addEventListener('click', abrirModalFluxo); document.getElementById('fecharModalFluxo').addEventListener('click', fecharModalFluxo); document.getElementById('cancelarFluxo').addEventListener('click', fecharModalFluxo); document.getElementById('backdropFluxo').addEventListener('click', fecharModalFluxo); ['buscaFluxo','filtroTipoFluxo','filtroCategoriaFluxo'].forEach(id => document.getElementById(id).addEventListener(id === 'buscaFluxo' ? 'input' : 'change', renderizarFluxo)); document.getElementById('periodoFluxo').addEventListener('change', () => mostrarAvisoPedido('Período do fluxo atualizado no preview.')); document.getElementById('formFluxo').addEventListener('submit', event => {
+  event.preventDefault();
+  const payload = {
+    tipo: document.getElementById('tipoFluxo').value,
+    descricao: document.getElementById('descricaoFluxo').value,
+    categoria: document.getElementById('categoriaFluxo').value,
+    valor: document.getElementById('valorFluxo').value,
+    origem: 'Manual',
+    forma: 'Não informado',
+  };
+  const local = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  Promise.resolve(window.dadosFinanceirosPronto).then(async () => {
+    if (!window.dadosFinanceirosRemotoAtivo) {
+      if (local) { fecharModalFluxo(); mostrarAvisoPedido('Lançamento salvo no preview.'); return; }
+      throw new Error('Não há restaurante ativo para lançar movimentações.');
+    }
+    await window.apexModulosApi.criarMovimentacaoFinanceira(payload);
+    await window.apexFinanceiroRecarregar();
+    fecharModalFluxo();
+    mostrarAvisoPedido('Lançamento salvo com segurança.');
+  }).catch((erro) => mostrarAvisoPedido(erro.message || 'Não foi possível salvar o lançamento.'));
+}); document.addEventListener('keydown', event => { if (event.key === 'Escape') fecharModalFluxo(); }); atualizarIndicadoresFluxo(); renderizarGraficoFluxo(); renderizarFluxo(); window.lucide?.createIcons();
+
+
+document.addEventListener('apex:financeiro-atualizado', () => { atualizarIndicadoresFluxo(); renderizarGraficoFluxo(); renderizarFluxo(); });
+document.addEventListener('apex:financeiro-indisponivel', () => { atualizarIndicadoresFluxo(); renderizarGraficoFluxo(); renderizarFluxo(); });

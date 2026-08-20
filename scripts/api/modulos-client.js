@@ -116,6 +116,35 @@
     return requisitar('/equipe', { method: 'PATCH', body: payload });
   }
 
+  function gerarChaveIdempotencia(prefixo = 'financeiro') {
+    const identificador = typeof crypto?.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return `${prefixo}:${identificador}`;
+  }
+
+  async function listarFinanceiro(recurso = '', parametros = {}) {
+    return requisitar(`/financeiro${query({ recurso, ...parametros })}`);
+  }
+
+  async function criarContaFinanceira(payload) {
+    return requisitar('/financeiro', { method: 'POST', body: { recurso: 'conta', chaveIdempotencia: payload?.chaveIdempotencia || gerarChaveIdempotencia('conta'), ...payload } });
+  }
+
+  async function criarMovimentacaoFinanceira(payload) {
+    return requisitar('/financeiro', { method: 'POST', body: { recurso: 'movimentacao', chaveIdempotencia: payload?.chaveIdempotencia || gerarChaveIdempotencia('movimentacao'), ...payload } });
+  }
+
+  async function atualizarContaFinanceira(payload) {
+    return requisitar('/financeiro', { method: 'PATCH', body: { recurso: 'conta', ...payload } });
+  }
+
+  async function atualizarMovimentacaoFinanceira(payload) {
+    return requisitar('/financeiro', { method: 'PATCH', body: { recurso: 'movimentacao', ...payload } });
+  }
+
+  async function fecharCaixaFinanceiro(payload) {
+    return requisitar('/financeiro', { method: 'POST', body: { recurso: 'fechamento', ...payload } });
+  }
+
   window.apexModulosApi = Object.freeze({
     obterCsrf,
     requisitar,
@@ -128,5 +157,11 @@
     listarEquipe,
     criarEquipe,
     atualizarEquipe,
+    listarFinanceiro,
+    criarContaFinanceira,
+    criarMovimentacaoFinanceira,
+    atualizarContaFinanceira,
+    atualizarMovimentacaoFinanceira,
+    fecharCaixaFinanceiro,
   });
 })();

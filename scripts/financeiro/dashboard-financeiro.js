@@ -72,4 +72,6 @@
   renderizarRecebimentos();
   renderizarCompromissos();
   window.lucide?.createIcons();
+  document.addEventListener('apex:financeiro-atualizado', () => { renderizarKpis(); renderizarGraficoMensal(); renderizarCaixa(); renderizarRecebimentos(); renderizarCompromissos(); window.lucide?.createIcons(); });
+  document.addEventListener('apex:financeiro-indisponivel', () => { renderizarKpis(); renderizarGraficoMensal(); renderizarCaixa(); renderizarRecebimentos(); renderizarCompromissos(); window.lucide?.createIcons(); });
 })();

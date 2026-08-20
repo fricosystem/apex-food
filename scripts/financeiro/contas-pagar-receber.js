@@ -7,4 +7,29 @@ function renderizarResumoContas() { const pagar = dadosContas.contas.filter(cont
 function renderizarContas() { const lista = contasFiltradas(); document.getElementById('resultadoContas').textContent = `${lista.length} ${lista.length === 1 ? 'título encontrado' : 'títulos encontrados'}.`; document.getElementById('estadoVazioContas').classList.toggle('hidden', Boolean(lista.length)); document.getElementById('listaContas').innerHTML = lista.map(conta => `<tr class="border-b border-border hover:bg-card2/50 transition"><td class="p-4"><div class="font-medium">${escapeContas(conta.descricao)}</div><div class="text-[10px] text-muted mt-1">#${escapeContas(conta.id)}${conta.recorrente ? ' · Recorrente' : ''}</div></td><td class="p-4"><span class="flex items-center gap-1.5 text-xs ${conta.tipo === 'pagar' ? 'text-red' : 'text-green'}"><i data-lucide="${conta.tipo === 'pagar' ? 'arrow-up-right' : 'arrow-down-left'}" class="w-3.5 h-3.5"></i>${conta.tipo === 'pagar' ? 'A pagar' : 'A receber'}</span></td><td class="p-4 text-xs text-muted">${escapeContas(conta.categoria)}</td><td class="p-4 text-xs">${escapeContas(conta.vencimento)}</td><td class="p-4 font-semibold ${conta.tipo === 'pagar' ? 'text-red' : 'text-green'}">${moedaContas(conta.valor)}</td><td class="p-4"><span class="status-financeiro ${conta.status} px-2.5 py-1 rounded-md text-xs font-medium">${conta.status === 'pendente' ? 'Pendente' : conta.status === 'prevista' ? 'Prevista' : 'Vencida'}</span></td><td class="p-4 text-right"><button type="button" class="p-2 rounded-lg hover:bg-card2 text-muted" aria-label="Abrir título"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button></td></tr>`).join(''); window.lucide?.createIcons(); }
 function abrirModalTituloFinanceiro() { const modal = document.getElementById('modalTituloFinanceiro'); document.getElementById('formTituloFinanceiro').reset(); modal.classList.add('aberto'); modal.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; document.getElementById('descricaoTituloFinanceiro').focus(); }
 function fecharModalTituloFinanceiro() { const modal = document.getElementById('modalTituloFinanceiro'); modal.classList.remove('aberto'); modal.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
-document.getElementById('novoTituloFinanceiro').addEventListener('click', abrirModalTituloFinanceiro); document.getElementById('fecharModalTitulo').addEventListener('click', fecharModalTituloFinanceiro); document.getElementById('cancelarTituloFinanceiro').addEventListener('click', fecharModalTituloFinanceiro); document.getElementById('backdropTituloFinanceiro').addEventListener('click', fecharModalTituloFinanceiro); ['buscaContas','filtroTipoContas','filtroStatusContas'].forEach(id => document.getElementById(id).addEventListener(id === 'buscaContas' ? 'input' : 'change', renderizarContas)); document.getElementById('formTituloFinanceiro').addEventListener('submit', event => { event.preventDefault(); fecharModalTituloFinanceiro(); mostrarAvisoPedido('Título financeiro salvo no preview.'); }); document.addEventListener('keydown', event => { if (event.key === 'Escape') fecharModalTituloFinanceiro(); }); atualizarIndicadoresContas(); renderizarResumoContas(); renderizarContas(); window.lucide?.createIcons();
+document.getElementById('novoTituloFinanceiro').addEventListener('click', abrirModalTituloFinanceiro); document.getElementById('fecharModalTitulo').addEventListener('click', fecharModalTituloFinanceiro); document.getElementById('cancelarTituloFinanceiro').addEventListener('click', fecharModalTituloFinanceiro); document.getElementById('backdropTituloFinanceiro').addEventListener('click', fecharModalTituloFinanceiro); ['buscaContas','filtroTipoContas','filtroStatusContas'].forEach(id => document.getElementById(id).addEventListener(id === 'buscaContas' ? 'input' : 'change', renderizarContas)); document.getElementById('formTituloFinanceiro').addEventListener('submit', event => {
+  event.preventDefault();
+  const payload = {
+    tipo: document.getElementById('tipoTituloFinanceiro').value,
+    descricao: document.getElementById('descricaoTituloFinanceiro').value,
+    categoria: document.getElementById('categoriaTituloFinanceiro').value,
+    valor: document.getElementById('valorTituloFinanceiro').value,
+    vencimento: document.getElementById('vencimentoTituloFinanceiro').value,
+    recorrente: document.getElementById('recorrenteTituloFinanceiro')?.checked === true,
+  };
+  const local = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  Promise.resolve(window.dadosFinanceirosPronto).then(async () => {
+    if (!window.dadosFinanceirosRemotoAtivo) {
+      if (local) { fecharModalTituloFinanceiro(); mostrarAvisoPedido('Título financeiro salvo no preview.'); return; }
+      throw new Error('Não há restaurante ativo para cadastrar este título.');
+    }
+    await window.apexModulosApi.criarContaFinanceira(payload);
+    await window.apexFinanceiroRecarregar();
+    fecharModalTituloFinanceiro();
+    mostrarAvisoPedido('Título financeiro salvo com segurança.');
+  }).catch((erro) => mostrarAvisoPedido(erro.message || 'Não foi possível salvar o título financeiro.'));
+}); document.addEventListener('keydown', event => { if (event.key === 'Escape') fecharModalTituloFinanceiro(); }); atualizarIndicadoresContas(); renderizarResumoContas(); renderizarContas(); window.lucide?.createIcons();
+
+
+document.addEventListener('apex:financeiro-atualizado', () => { atualizarIndicadoresContas(); renderizarResumoContas(); renderizarContas(); });
+document.addEventListener('apex:financeiro-indisponivel', () => { atualizarIndicadoresContas(); renderizarResumoContas(); renderizarContas(); });
