@@ -109,3 +109,17 @@ A Etapa 10 somente será considerada concluída após testes de usuário sem ses
 A rota `#/funcionarios` carregou dentro do shell único com os oito cards de preview, indicadores, busca, filtros, ordenação e formulário de novo funcionário preservados. A rota `#/escala-trabalho` carregou com agenda de cinco dias, quatro turnos de hoje, indicadores de presença/cobertura, filtros e tabela sem erros visíveis. A conversão do formato de data remoto para o formato visual `dd/mm/aaaa` preservou os quatro turnos do dia atual.
 
 A rota `#/comissoes` carregou com quatro colaboradores no período, indicadores de vendas/comissões/ticket, melhor desempenho, ranking, distribuição, busca, seletor de período e modal preservados. O console do navegador não apresentou saída após o carregamento da rota, sem erros de script visíveis.
+
+## 9. Publicação
+
+O commit `23e9270` foi publicado na branch `main` e apareceu na Vercel como deployment Production. Na primeira checagem remota, o deployment ainda estava em estado `Building`; o smoke test remoto será executado somente após o estado `Ready`.
+
+O deployment `23e9270` permaneceu em `Building` nas checagens de aproximadamente 32 e 39 segundos. Nenhum smoke test autenticado ou de dados operacionais será executado antes do estado `Ready`.
+
+## 10. Correção do limite de funções da Vercel
+
+O primeiro deploy do commit `23e9270` falhou no plano Hobby porque a configuração passou a exceder o limite de 12 Serverless Functions por deployment. O build dos arquivos foi concluído, mas a Vercel recusou a publicação durante a etapa de deploy.
+
+Para corrigir sem upgrade e sem alterar as rotas públicas, Cardápio, Salão e Equipe passaram a usar handlers internos em `api/_lib/`, um único agregador `api/v1/operacional.js` e rewrites de `/api/v1/cardapio`, `/api/v1/salao` e `/api/v1/equipe` para esse agregador. A contagem de funções foi reduzida sem remover autenticação, CSRF, RBAC, contexto de restaurante, transações, auditoria ou contratos públicos.
+
+Após a consolidação, a suíte local passou com 28 testes, a sintaxe dos handlers foi aprovada e `vercel.json` foi validado como JSON. Um novo commit de correção será publicado e acompanhado até `Ready`.

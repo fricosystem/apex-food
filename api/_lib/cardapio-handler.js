@@ -1,8 +1,8 @@
 'use strict';
 
 const { FieldValue } = require('firebase-admin/firestore');
-const { executar } = require('../../_lib/middleware');
-const { lerCorpoJson, ApiError } = require('../../_lib/http');
+const { executar } = require('./middleware');
+const { lerCorpoJson, ApiError } = require('./http');
 const {
   PAPEIS_LEITURA,
   PAPEIS_CARDAPIO,
@@ -17,7 +17,7 @@ const {
   listarColecao,
   queryString,
   registrarAuditoriaOperacional,
-} = require('../../_lib/modulos-operacionais');
+} = require('./modulos-operacionais');
 
 const RECURSOS_LEITURA = new Set(['categorias', 'produtos', 'promocoes']);
 const RECURSOS_ESCRITA = new Set(['categoria', 'produto']);

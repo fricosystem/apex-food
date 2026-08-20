@@ -62,7 +62,7 @@ test('DTOs de escala e comissão retornam somente o contrato visual mínimo', ()
 });
 
 test('endpoint de Equipe usa coleções canônicas, auditoria e transação de jornada', () => {
-  const endpoint = fs.readFileSync(path.join(__dirname, '../api/v1/equipe/index.js'), 'utf8');
+  const endpoint = fs.readFileSync(path.join(__dirname, '../api/_lib/equipe-handler.js'), 'utf8');
   const helper = fs.readFileSync(path.join(__dirname, '../api/_lib/equipe.js'), 'utf8');
   assert.match(endpoint, /funcionarios/);
   assert.match(endpoint, /dadosPrivadosFuncionarios/);
@@ -85,6 +85,17 @@ test('frontend de Equipe não usa Firebase client, localStorage ou tokens', () =
     const conteudo = fs.readFileSync(path.join(__dirname, relativo), 'utf8');
     assert.doesNotMatch(conteudo, /localStorage|sessionStorage|firebase\/app|idToken|refreshToken|private_key/);
   }
+});
+
+test('agregador mantém os módulos operacionais em uma única função pública', () => {
+  const agregador = fs.readFileSync(path.join(__dirname, '../api/v1/operacional.js'), 'utf8');
+  const vercel = fs.readFileSync(path.join(__dirname, '../vercel.json'), 'utf8');
+  assert.match(agregador, /cardapio-handler/);
+  assert.match(agregador, /salao-handler/);
+  assert.match(agregador, /equipe-handler/);
+  assert.match(vercel, /operacional\?modulo=cardapio/);
+  assert.match(vercel, /operacional\?modulo=salao/);
+  assert.match(vercel, /operacional\?modulo=equipe/);
 });
 
 test('documentação de Equipe mantém PII privada e cálculo server-side', () => {

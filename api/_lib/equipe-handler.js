@@ -2,8 +2,8 @@
 
 const crypto = require('node:crypto');
 const { FieldValue } = require('firebase-admin/firestore');
-const { executar } = require('../../_lib/middleware');
-const { lerCorpoJson, ApiError } = require('../../_lib/http');
+const { executar } = require('./middleware');
+const { lerCorpoJson, ApiError } = require('./http');
 const {
   PAPEIS_LEITURA_EQUIPE,
   PAPEIS_MUTACAO_EQUIPE,
@@ -30,7 +30,7 @@ const {
   STATUS_ESCALA,
   TURNOS,
   SETORES,
-} = require('../../_lib/equipe');
+} = require('./equipe');
 
 const RECURSOS_LEITURA = new Set(['funcionarios', 'escalas', 'comissoes']);
 const RECURSOS_MUTACAO = new Set(['funcionario', 'escala']);

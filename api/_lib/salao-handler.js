@@ -1,8 +1,8 @@
 'use strict';
 
 const { FieldValue, Timestamp } = require('firebase-admin/firestore');
-const { executar } = require('../../_lib/middleware');
-const { lerCorpoJson, ApiError } = require('../../_lib/http');
+const { executar } = require('./middleware');
+const { lerCorpoJson, ApiError } = require('./http');
 const {
   PAPEIS_LEITURA,
   PAPEIS_SALAO,
@@ -20,7 +20,7 @@ const {
   queryString,
   mascararContato,
   registrarAuditoriaOperacional,
-} = require('../../_lib/modulos-operacionais');
+} = require('./modulos-operacionais');
 
 const RECURSOS_LEITURA = new Set(['mesas', 'reservas', 'configuracao']);
 const RECURSOS_ESCRITA = new Set(['reserva', 'mesa']);

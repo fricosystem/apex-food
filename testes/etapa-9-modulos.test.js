@@ -52,8 +52,8 @@ test('mantém enumerações de mesas e reservas fechadas', () => {
 });
 
 test('endpoints usam transação e auditoria para mutações operacionais', () => {
-  const cardapio = fs.readFileSync(path.join(__dirname, '../api/v1/cardapio/index.js'), 'utf8');
-  const salao = fs.readFileSync(path.join(__dirname, '../api/v1/salao/index.js'), 'utf8');
+  const cardapio = fs.readFileSync(path.join(__dirname, '../api/_lib/cardapio-handler.js'), 'utf8');
+  const salao = fs.readFileSync(path.join(__dirname, '../api/_lib/salao-handler.js'), 'utf8');
   assert.match(cardapio, /runTransaction/);
   assert.match(cardapio, /registrarAuditoriaOperacional/);
   assert.match(salao, /runTransaction/);
@@ -75,8 +75,8 @@ test('frontend operacional não usa Firebase client, localStorage ou tokens', ()
 });
 
 test('nomes de coleções permanecem em português e dentro do tenant', () => {
-  const cardapio = fs.readFileSync(path.join(__dirname, '../api/v1/cardapio/index.js'), 'utf8');
-  const salao = fs.readFileSync(path.join(__dirname, '../api/v1/salao/index.js'), 'utf8');
+  const cardapio = fs.readFileSync(path.join(__dirname, '../api/_lib/cardapio-handler.js'), 'utf8');
+  const salao = fs.readFileSync(path.join(__dirname, '../api/_lib/salao-handler.js'), 'utf8');
   assert.match(cardapio, /categoriasCardapio/);
   assert.match(cardapio, /produtos/);
   assert.match(cardapio, /promocoes/);
