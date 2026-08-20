@@ -2,8 +2,11 @@
 
 **Projeto:** APEX Food  
 **Ambiente:** Development na Vercel (`apexfood.vercel.app`)  
-**Data da execução:** 20/08/2026  
+**Data da execução:** 20/08/2026
+
 **Autor:** Manus AI
+
+**Status:** Concluída e publicada no commit `a825229`
 
 ## Objetivo
 
@@ -38,7 +41,7 @@ Os assets alterados foram versionados como `fase11` no shell e o `index.html` pa
 
 ## Critérios de aceite
 
-A fase será considerada concluída quando os testes locais e do clone permanecerem em 112/112, os assets forem publicados na branch `main`, o deployment atingir estado disponível e as rotas `/comissoes` e `/vendas-por-periodo` confirmarem publicamente os estados dinâmicos, sem períodos de exemplo ou variações fixas.
+A fase foi concluída com 112/112 testes no workspace e no clone, publicação na branch `main`, deployment disponível e validação pública das rotas `/comissoes` e `/vendas-por-periodo`. O smoke test pós-deploy confirmou HTTP 200 nas 28 rotas canônicas; o auditor das rotas públicas terminou com `TOTAL_ACHADOS=0`; e o console da tela corrigida permaneceu sem erros.
 
 ## Referências
 
