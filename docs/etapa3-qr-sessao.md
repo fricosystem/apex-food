@@ -2,7 +2,7 @@
 
 **Projeto:** APEX Food  
 **Ambiente:** Development  
-**Status:** Implementação preparada; aguardando validação pública e aprovação para a Etapa 4  
+**Status:** Validada no deployment Development; aguardando aprovação para a Etapa 4
 **Escopo:** gerar, revogar, validar QR Code e abrir sessão temporária com nome completo  
 **Fora do escopo:** cardápio público, envio de pedido, cozinha, caixa e processamento de pagamento
 
@@ -43,7 +43,7 @@ A sessão pública nesta etapa ainda não cria pedidos e não carrega o cardápi
 
 ## Critérios de aceite
 
-A Etapa 3 será aceita quando o deployment confirmar a rota `/mesa`, o endpoint público, o cookie seguro, a geração/revogação autenticada e a ausência de token/hash em respostas indevidas. A suíte contratual deve permanecer aprovada, incluindo o isolamento das rotas administrativas e o roteamento limpo.
+A Etapa 3 foi validada no deployment Development no commit `e3ccae0`. A rota `/mesa` retornou HTTP 200, o shell `etapa3-qr` foi servido, o endpoint de sessão sem cookie retornou HTTP 401, QR inválido retornou HTTP 400, mutação administrativa sem CSRF retornou HTTP 403, e a validação visual carregou o estado público sem sessão sem erros no console. A suíte contratual permaneceu em 121/121, e o scanner de segredos retornou `SEGREDOS_OK`. A geração/revogação autenticada depende de uma sessão de operador e de dados de mesa existentes para ser exercitada com dados reais; os contratos server-side e as permissões estão cobertos pelos testes.
 
 ## Arquivos principais
 
@@ -60,4 +60,4 @@ A Etapa 3 será aceita quando o deployment confirmar a rota `/mesa`, o endpoint 
 
 ## Pausa de aprovação
 
-A consolidação em `/api/v1/qrcode-mesa` mantém as ações públicas e administrativas em uma única Serverless Function para respeitar o limite de 12 funções do plano Hobby, sem reduzir as validações ou permissões. A Etapa 3 deverá ser validada no deployment Development antes de avançar. A Etapa 4 somente começará após aprovação explícita, e implementará o cardápio público e a comanda persistida do cliente.
+A consolidação em `/api/v1/qrcode-mesa` mantém as ações públicas e administrativas em uma única Serverless Function para respeitar o limite de 12 funções do plano Hobby, sem reduzir as validações ou permissões. A Etapa 3 está validada no deployment Development. A Etapa 4 somente começará após aprovação explícita, e implementará o cardápio público e a comanda persistida do cliente.
