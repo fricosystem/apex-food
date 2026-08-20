@@ -15,7 +15,7 @@ function extrairBlocoPagina(arquivo, inicio, fim) {
   return conteudo.slice(inicioIndice, fimIndice + fim.length);
 }
 
-test('Vercel habilita URLs limpas e o PWA inicia na raiz', () => {
+test('Vercel habilita URLs limpas, PWA na raiz e rewrites do shell', () => {
   const vercel = JSON.parse(ler('vercel.json'));
   const manifest = JSON.parse(ler('manifest.webmanifest'));
   assert.equal(vercel.cleanUrls, true);
@@ -24,15 +24,32 @@ test('Vercel habilita URLs limpas e o PWA inicia na raiz', () => {
   assert.equal(manifest.icons[0].src, '/assets/apex-food-logo-aprimorada.png');
   assert.equal(manifest.icons[0].type, 'image/png');
   assert.match(manifest.icons[0].purpose, /maskable/);
+  assert.ok(vercel.redirects.some(redirect => redirect.source === '/paginas/autenticacao.html' && redirect.destination === '/autenticacao'));
+  assert.ok(vercel.rewrites.some(rewrite => rewrite.source === '/autenticacao' && rewrite.destination === '/paginas/autenticacao.html'));
+  assert.ok(vercel.rewrites.some(rewrite => rewrite.source === '/mapa-mesas' && rewrite.destination === '/index.html'));
 });
 
-test('links visíveis do shell e do sidebar não expõem .html', () => {
+test('links visíveis usam somente rotas públicas sem .html, /paginas/ ou hash', () => {
   const shell = extrairBlocoPagina('scripts/shell/apex-shell.js', 'const paginas = {', '  };');
   const index = extrairBlocoPagina('index.html', 'const sidebarSections = [', '  ];');
   const mapa = extrairBlocoPagina('mapa-mesas.html', 'const sidebarSections = [', '  ];');
   for (const [arquivo, bloco] of [['scripts/shell/apex-shell.js', shell], ['index.html', index], ['mapa-mesas.html', mapa]]) {
-    assert.doesNotMatch(bloco, /href:\s*['"][^'"]+\.html['"]/, `${arquivo}: href visível ainda usa .html`);
+    const hrefs = [...bloco.matchAll(/href:\s*['"]([^'"]+)['"]/g)].map(match => match[1]);
+    for (const href of hrefs) {
+      assert.ok(href.startsWith('/'), `${arquivo}: rota pública não é absoluta: ${href}`);
+      assert.doesNotMatch(href, /^\/paginas(?:\/|$)/, `${arquivo}: rota pública expõe /paginas/: ${href}`);
+      assert.doesNotMatch(href, /^#/, `${arquivo}: rota pública usa hash: ${href}`);
+      assert.doesNotMatch(href, /\.html$/, `${arquivo}: rota pública expõe .html: ${href}`);
+    }
   }
+});
+
+test('shell usa History API e mantém compatibilidade com hash legado', () => {
+  const shell = ler('scripts/shell/apex-shell.js');
+  assert.match(shell, /history\[opcoes\.substituir \? 'replaceState' : 'pushState'\]/);
+  assert.match(shell, /addEventListener\('popstate'/);
+  assert.match(shell, /migrarHashLegado/);
+  assert.doesNotMatch(shell, /window\.location\.hash\s*=/);
 });
 
 test('fragmentos internos continuam referenciando arquivos HTML físicos', () => {

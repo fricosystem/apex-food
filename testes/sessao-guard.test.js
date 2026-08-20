@@ -35,10 +35,10 @@ async function simularGuard(pathname, status) {
 
 test('guard usa URL limpa e destinos absolutos sem duplicar o caminho', async () => {
   const raizSemSessao = await simularGuard('/', 401);
-  assert.deepEqual(raizSemSessao.location.replacements, ['/paginas/autenticacao']);
+  assert.deepEqual(raizSemSessao.location.replacements, ['/autenticacao']);
   assert.equal(raizSemSessao.visibility, 'hidden');
 
-  const autenticacaoLimpa = await simularGuard('/paginas/autenticacao', 401);
+  const autenticacaoLimpa = await simularGuard('/autenticacao', 401);
   assert.deepEqual(autenticacaoLimpa.location.replacements, []);
   assert.equal(autenticacaoLimpa.visibility, '');
 
@@ -46,8 +46,8 @@ test('guard usa URL limpa e destinos absolutos sem duplicar o caminho', async ()
   assert.deepEqual(autenticacaoLegada.location.replacements, []);
   assert.equal(autenticacaoLegada.visibility, '');
 
-  const autenticacaoComSessao = await simularGuard('/paginas/autenticacao', 200);
+  const autenticacaoComSessao = await simularGuard('/autenticacao', 200);
   assert.deepEqual(autenticacaoComSessao.location.replacements, ['/']);
 
-  assert.doesNotMatch(guard, /replace\(['"]paginas\/autenticacao/);
+  assert.doesNotMatch(guard, /replace\(['"](?:paginas\/)?autenticacao/);
 });

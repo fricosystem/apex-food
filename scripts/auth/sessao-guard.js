@@ -2,7 +2,7 @@
   'use strict';
 
   const caminhoAtual = window.location.pathname.replace(/\/+$/, '') || '/';
-  const paginaAutenticacao = caminhoAtual === '/paginas/autenticacao' || caminhoAtual === '/paginas/autenticacao.html';
+  const paginaAutenticacao = caminhoAtual === '/autenticacao' || caminhoAtual === '/paginas/autenticacao' || caminhoAtual === '/paginas/autenticacao.html';
   const apiUrl = '/api/v1/auth/session';
   const raiz = document.documentElement;
 
@@ -31,13 +31,13 @@
       }
 
       if (resposta.status === 401 || resposta.status === 403 || resposta.status === 503) {
-        window.location.replace('/paginas/autenticacao');
+        window.location.replace('/autenticacao');
         return;
       }
       revelar();
     } catch {
       if (!paginaAutenticacao) {
-        window.location.replace('/paginas/autenticacao');
+        window.location.replace('/autenticacao');
         return;
       }
       revelar();
