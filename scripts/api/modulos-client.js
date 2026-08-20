@@ -104,6 +104,18 @@
     return requisitar('/salao', { method: 'PATCH', body: payload });
   }
 
+  async function listarEquipe(recurso = '', parametros = {}) {
+    return requisitar(`/equipe${query({ recurso, ...parametros })}`);
+  }
+
+  async function criarEquipe(payload) {
+    return requisitar('/equipe', { method: 'POST', body: payload });
+  }
+
+  async function atualizarEquipe(payload) {
+    return requisitar('/equipe', { method: 'PATCH', body: payload });
+  }
+
   window.apexModulosApi = Object.freeze({
     obterCsrf,
     requisitar,
@@ -113,5 +125,8 @@
     listarSalao,
     criarReserva,
     atualizarSalao,
+    listarEquipe,
+    criarEquipe,
+    atualizarEquipe,
   });
 })();
