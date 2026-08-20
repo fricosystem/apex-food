@@ -55,10 +55,10 @@
 [class~="text-xs"] { line-height: var(--apex-entrelinha-auxiliar); }
 [class~="text-sm"] { line-height: var(--apex-entrelinha-corpo); }
 
-/* Destaque lateral uniforme dos cards: linha fina, sem faixa larga. */
+/* Bordas dos cards: linha fina e cinza clara, sem faixa lateral colorida. */
 #conteudoPagina [class~="bg-card"][class~="border"],
 #conteudoPagina [class~="bg-card2"][class~="border"],
 #conteudoPagina .pedido-card,
 #conteudoPagina .cozinha-card {
-  border-left: 1px solid var(--apex-laranja) !important;
+  border-left: 1px solid var(--apex-borda-secundaria) !important;
 }

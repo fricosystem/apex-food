@@ -15,23 +15,24 @@ test('cards da Visão Geral não exibem faixa colorida lateral', () => {
   assert.doesNotMatch(pseudoFaixa, /background:/);
 });
 
-test('cards de Pedidos e Fila da Cozinha usam borda lateral laranja fina uniforme', () => {
+test('cards de Pedidos e Fila da Cozinha usam borda lateral cinza clara fina uniforme', () => {
   const pedidos = ler('estilos/pedidos/pedidos.css');
   const fila = ler('estilos/pedidos/fila-cozinha.css');
-  assert.match(pedidos, /\.pedido-card\.prioridade-alta\s*\{\s*border-left:\s*1px solid #ea580c;/);
-  assert.match(pedidos, /\.pedido-card\.prioridade-normal\s*\{\s*border-left:\s*1px solid #ea580c;/);
-  assert.match(pedidos, /\.pedido-card\.prioridade-baixa\s*\{\s*border-left:\s*1px solid #ea580c;/);
-  assert.match(fila, /\.cozinha-card\.prioridade-alta\s*\{\s*border-left:\s*1px solid #ea580c;/);
-  assert.match(fila, /\.cozinha-card\.prioridade-normal\s*\{\s*border-left:\s*1px solid #ea580c;/);
+  assert.match(pedidos, /\.pedido-card\.prioridade-alta\s*\{\s*border-left:\s*1px solid var\(--apex-borda-secundaria\);/);
+  assert.match(pedidos, /\.pedido-card\.prioridade-normal\s*\{\s*border-left:\s*1px solid var\(--apex-borda-secundaria\);/);
+  assert.match(pedidos, /\.pedido-card\.prioridade-baixa\s*\{\s*border-left:\s*1px solid var\(--apex-borda-secundaria\);/);
+  assert.match(fila, /\.cozinha-card\.prioridade-alta\s*\{\s*border-left:\s*1px solid var\(--apex-borda-secundaria\);/);
+  assert.match(fila, /\.cozinha-card\.prioridade-normal\s*\{\s*border-left:\s*1px solid var\(--apex-borda-secundaria\);/);
   assert.doesNotMatch(pedidos, /prioridade-(alta|normal|baixa)[^}]*border-left:\s*3px/);
   assert.doesNotMatch(fila, /prioridade-(alta|normal)[^}]*border-left:\s*3px/);
 });
 
-test('regra compartilhada aplica borda laranja fina aos cards do conteúdo', () => {
+test('regra compartilhada aplica borda cinza clara fina aos cards do conteúdo', () => {
   const tokens = ler('estilos/compartilhados/tokens-apex.css');
   assert.match(tokens, /#conteudoPagina \[class~="bg-card"\]\[class~="border"\]/);
   assert.match(tokens, /#conteudoPagina \.pedido-card/);
-  assert.match(tokens, /border-left:\s*1px solid var\(--apex-laranja\)/);
+  assert.match(tokens, /border-left:\s*1px solid var\(--apex-borda-secundaria\)/);
+  assert.doesNotMatch(tokens, /border-left:\s*1px solid var\(--apex-laranja\)/);
 });
 
 test('linhas de árvore não são confundidas com faixas de cards', () => {
