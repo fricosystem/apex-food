@@ -12,6 +12,7 @@ const {
   ambiente,
   nomeCookieSessao,
   nomeCookieCsrf,
+  cookiesSeguros,
 } = require('./config');
 
 const TTL_PADRAO_SEGUNDOS = 8 * 60 * 60;
@@ -49,7 +50,7 @@ async function criarSessao(res, idToken) {
   } catch {
     throw new ApiError(401, 'TOKEN_INVALIDO', 'Sessão inválida.');
   }
-  const seguro = ambiente() !== 'development';
+  const seguro = cookiesSeguros();
   adicionarCookie(res, atributoCookie(nomeCookieSessao(), cookieSessao, {
     httpOnly: true,
     secure: seguro,
@@ -87,7 +88,7 @@ function criarTokenCsrf(res) {
   const crypto = require('node:crypto');
   const nonce = crypto.randomBytes(32).toString('base64url');
   const token = `${nonce}.${assinaturaCsrf(nonce)}`;
-  const seguro = ambiente() !== 'development';
+  const seguro = cookiesSeguros();
   adicionarCookie(res, atributoCookie(nomeCookieCsrf(), token, {
     httpOnly: false,
     secure: seguro,

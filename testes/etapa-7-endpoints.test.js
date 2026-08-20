@@ -73,3 +73,41 @@ test('mutação sem CSRF é bloqueada antes do Firebase', async () => {
   assert.equal(resposta.statusCode, 403);
   assert.match(resposta.corpo, /CSRF_INVALIDO/);
 });
+
+test('endpoint CSRF emite token e cookie sem expor segredo', async () => {
+  delete process.env.VERCEL;
+  process.env.APP_ENV = 'development';
+  process.env.CSRF_SECRET = 'c'.repeat(64);
+  const resposta = await chamar('../api/v1/auth/csrf', {
+    method: 'GET',
+    url: '/api/v1/auth/csrf',
+    headers: {},
+  });
+  assert.equal(resposta.statusCode, 200);
+  assert.match(resposta.corpo, /"csrf":"[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"/);
+  assert.match(String(resposta.cabecalhos.get('Set-Cookie')), /apex_csrf=/);
+  assert.doesNotMatch(resposta.corpo, /CSRF_SECRET|private_key/);
+});
+
+test('cookies usam prefixo seguro no runtime Vercel', () => {
+  process.env.VERCEL = '1';
+  process.env.APP_ENV = 'development';
+  delete require.cache[require.resolve('../api/_lib/config')];
+  const config = require('../api/_lib/config');
+  assert.equal(config.cookiesSeguros(), true);
+  assert.equal(config.nomeCookieSessao(), '__Host-apex_sessao');
+  assert.equal(config.nomeCookieCsrf(), '__Host-apex_csrf');
+  delete process.env.VERCEL;
+  delete require.cache[require.resolve('../api/_lib/config')];
+});
+
+test('recuperação de senha exige CSRF antes do Firebase', async () => {
+  const resposta = await chamar('../api/v1/auth/recuperar', {
+    method: 'POST',
+    url: '/api/v1/auth/recuperar',
+    headers: { origin: 'http://localhost:4173' },
+    body: { email: 'teste@apexfood.com' },
+  });
+  assert.equal(resposta.statusCode, 403);
+  assert.match(resposta.corpo, /CSRF_INVALIDO/);
+});

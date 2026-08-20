@@ -5,6 +5,7 @@
   if (!page) return;
 
   const APEX_DOMAIN = '@apexfood.com';
+  const api = window.apexAuthApi;
 
   const state = {
     mode: 'login',
@@ -153,7 +154,7 @@
   function validatePassword(input) {
     const value = input.value;
     if (!value) return 'Informe sua senha.';
-    if (value.length < 8) return 'A senha deve ter pelo menos 8 caracteres.';
+    if (value.length < 12) return 'A senha deve ter pelo menos 12 caracteres.';
     return '';
   }
 
@@ -215,8 +216,23 @@
     }
   }
 
-  function finishRedirect(accountAddress) {
-    window.sessionStorage.setItem('apexFoodAuth', JSON.stringify({ account: accountAddress, authenticatedAt: new Date().toISOString() }));
+  function mensagemErro(error, fallback) {
+    const mensagens = {
+      CREDENCIAIS_INVALIDAS: 'Email ou senha inválidos.',
+      EMAIL_INVALIDO: 'Use um email no formato nome@apexfood.com.',
+      SENHA_INVALIDA: 'A senha deve atender à política configurada.',
+      SENHA_FRACA: 'A senha não atende à política configurada.',
+      MUITAS_TENTATIVAS: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.',
+      ORIGEM_NAO_PERMITIDA: 'A origem desta página não está autorizada.',
+      CSRF_INVALIDO: 'A proteção de segurança expirou. Tente novamente.',
+      AUTH_NAO_CONFIGURADO: 'A autenticação está temporariamente indisponível.',
+      SERVICO_NAO_CONFIGURADO: 'O serviço está temporariamente indisponível.',
+      SERVICO_NAO_PRONTO: 'O serviço está temporariamente indisponível.',
+    };
+    return mensagens[error?.code] || error?.message || fallback;
+  }
+
+  function finishRedirect() {
     elements.redirectNote.hidden = false;
     window.clearTimeout(state.redirectTimer);
     state.redirectTimer = window.setTimeout(() => {
@@ -224,33 +240,52 @@
     }, 950);
   }
 
-  function handleLogin(form) {
+  async function handleLogin(form) {
     if (!validateLogin(form)) {
       setFeedback('Revise os campos destacados para continuar.');
       return;
     }
-
-    setLoading(form, true);
-    window.setTimeout(() => {
-      setLoading(form, false);
-      setFeedback('Acesso validado. Você será direcionado para a Visão Geral.', 'success');
-      finishRedirect(getAccountAddress(form.querySelector('[name="identifier"]')));
-    }, 750);
-  }
-
-  function handleRegister(form) {
-    if (!validateRegister(form)) {
-      setFeedback('Revise os campos destacados para criar sua conta.');
+    if (!api) {
+      setFeedback('A autenticação está temporariamente indisponível.');
       return;
     }
 
     setLoading(form, true);
-    window.setTimeout(() => {
+    try {
+      const email = getAccountAddress(form.querySelector('[name="identifier"]'));
+      const senha = form.querySelector('[name="password"]').value;
+      await api.requisitar('/auth/login', { method: 'POST', body: { email, senha } });
+      setFeedback('Acesso validado. Você será direcionado para a Visão Geral.', 'success');
+      finishRedirect();
+    } catch (error) {
+      setFeedback(mensagemErro(error, 'Não foi possível concluir o acesso.'));
+    } finally {
+      setLoading(form, false);
+    }
+  }
+
+  async function handleRegister(form) {
+    if (!validateRegister(form)) {
+      setFeedback('Revise os campos destacados para criar sua conta.');
+      return;
+    }
+    if (!api) {
+      setFeedback('A autenticação está temporariamente indisponível.');
+      return;
+    }
+
+    setLoading(form, true);
+    try {
       const name = form.querySelector('[name="fullName"]').value.trim();
       const identifierInput = form.querySelector('[name="identifier"]');
       const identifier = normalizeIdentifier(identifierInput.value);
-      const account = `${identifier}${APEX_DOMAIN}`;
-      window.localStorage.setItem('apexFoodUsuario', JSON.stringify({ name, identifier, account }));
+      const email = `${identifier}${APEX_DOMAIN}`;
+      const senha = form.querySelector('[name="password"]').value;
+      const resposta = await api.requisitar('/auth/register', {
+        method: 'POST',
+        body: { nomeCompleto: name, email, senha, confirmarSenha: form.querySelector('[name="confirmPassword"]').value },
+      });
+
       setLoading(form, false);
       setMode('login', false);
       const loginIdentifier = document.querySelector('#login-identifier');
@@ -259,9 +294,14 @@
         updateIdentifierSuffix(loginIdentifier);
         setFieldState(loginIdentifier);
       }
-      setFeedback(`Conta criada para ${name.split(/\s+/)[0]}. Agora entre para acessar o APEX Food.`, 'success');
+      const verificacao = resposta.verificacaoEmailEnviada ? ' Verifique também sua caixa de entrada.' : '';
+      setFeedback(`Conta criada para ${name.split(/\s+/)[0]}.${verificacao} Agora entre para acessar o APEX Food.`, 'success');
       window.setTimeout(() => document.querySelector('#login-password')?.focus(), 80);
-    }, 850);
+    } catch (error) {
+      setFeedback(mensagemErro(error, 'Não foi possível concluir o cadastro.'));
+    } finally {
+      setLoading(form, false);
+    }
   }
 
   function handleSubmit(event) {
@@ -280,6 +320,28 @@
     button.setAttribute('aria-label', isVisible ? 'Mostrar senha' : 'Ocultar senha');
     button.innerHTML = `<i data-lucide="${isVisible ? 'eye' : 'eye-off'}" aria-hidden="true"></i>`;
     renderIcons();
+  }
+
+  async function handleForgotPassword() {
+    const input = document.querySelector('#login-identifier');
+    const error = validateIdentifier(input);
+    setFieldState(input, error);
+    if (error) {
+      setFeedback('Informe seu email para receber as instruções de recuperação.');
+      return;
+    }
+    if (!api) {
+      setFeedback('A autenticação está temporariamente indisponível.');
+      return;
+    }
+
+    try {
+      const email = getAccountAddress(input);
+      const resposta = await api.requisitar('/auth/recuperar', { method: 'POST', body: { email } });
+      setFeedback(resposta.mensagem || 'Se o email estiver cadastrado, você receberá as instruções.', 'success');
+    } catch (error) {
+      setFeedback(mensagemErro(error, 'Não foi possível solicitar a recuperação agora.'));
+    }
   }
 
   function handleInput(event) {
@@ -310,10 +372,6 @@
     }
   }
 
-  function handleForgotPassword() {
-    setFeedback('A recuperação de acesso será conectada ao serviço de contas na integração com o backend.');
-  }
-
   elements.tabs.forEach((tab) => {
     tab.addEventListener('click', () => setMode(tab.dataset.authTab));
     tab.addEventListener('keydown', (event) => {
@@ -338,4 +396,8 @@
   document.querySelector('[data-action="forgot-password"]')?.addEventListener('click', handleForgotPassword);
   document.querySelectorAll('.auth-identifier-input').forEach(updateIdentifierSuffix);
   renderIcons();
+
+  if (api) {
+    api.obterCsrf().catch(() => {});
+  }
 })();

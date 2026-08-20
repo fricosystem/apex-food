@@ -2,7 +2,7 @@
 
 const crypto = require('node:crypto');
 const { ApiError, obterCookies, atributoCookie, adicionarCookie, apagarCookie } = require('./http');
-const { ambiente } = require('./config');
+const { cookiesSeguros } = require('./config');
 
 const NOME_COOKIE = 'apex_contexto';
 const TTL_SEGUNDOS = 8 * 60 * 60;
@@ -50,7 +50,7 @@ function definirContexto(res, idRestaurante) {
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(idRestaurante)) {
     throw new ApiError(400, 'RESTAURANTE_INVALIDO', 'Restaurante inválido.');
   }
-  const seguro = ambiente() !== 'development';
+  const seguro = cookiesSeguros();
   const valor = codificar({ idRestaurante, expiraEm: Date.now() + TTL_SEGUNDOS * 1000 });
   adicionarCookie(res, atributoCookie(NOME_COOKIE, valor, {
     httpOnly: true,

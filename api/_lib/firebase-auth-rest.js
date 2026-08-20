@@ -98,10 +98,19 @@ async function enviarVerificacaoEmail(idToken) {
   return Boolean(dados?.email);
 }
 
+async function solicitarRedefinicaoSenha(email) {
+  const dados = await chamar('accounts:sendOobCode', {
+    requestType: 'PASSWORD_RESET',
+    email: validarEmailApex(email),
+  }, 'recuperacao');
+  return Boolean(dados?.email);
+}
+
 module.exports = {
   validarEmailApex,
   validarSenha,
   cadastrarUsuario,
   autenticarUsuario,
   enviarVerificacaoEmail,
+  solicitarRedefinicaoSenha,
 };

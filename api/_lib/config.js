@@ -30,12 +30,16 @@ function exigirConfiguracaoAdmin() {
   }
 }
 
+function cookiesSeguros() {
+  return process.env.VERCEL === '1' || ambiente() !== 'development';
+}
+
 function nomeCookieSessao() {
-  return ambiente() === 'production' ? '__Host-apex_sessao' : 'apex_sessao';
+  return cookiesSeguros() ? '__Host-apex_sessao' : 'apex_sessao';
 }
 
 function nomeCookieCsrf() {
-  return ambiente() === 'production' ? '__Host-apex_csrf' : 'apex_csrf';
+  return cookiesSeguros() ? '__Host-apex_csrf' : 'apex_csrf';
 }
 
 function origemAplicacao() {
@@ -49,5 +53,6 @@ module.exports = {
   exigirConfiguracaoAdmin,
   nomeCookieSessao,
   nomeCookieCsrf,
+  cookiesSeguros,
   origemAplicacao,
 };
