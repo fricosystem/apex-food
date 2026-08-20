@@ -429,7 +429,7 @@ async function gerarQrMesa(identidade, { idMesa, chaveIdempotencia, req }) {
     transacao.create(idempotenciaRef, {
       idRestaurante: identidade.idRestaurante,
       idAtor: identidade.idUsuario,
-      endpoint: '/api/v1/qr-mesas',
+      endpoint: '/api/v1/qrcode-mesa',
       tipoOperacao: 'gerar',
       idMesa: mesaId,
       qrVersao: versao,
@@ -484,7 +484,7 @@ async function revogarQrMesa(identidade, { idMesa, chaveIdempotencia }) {
     transacao.create(idempotenciaRef, {
       idRestaurante: identidade.idRestaurante,
       idAtor: identidade.idUsuario,
-      endpoint: '/api/v1/qr-mesas',
+      endpoint: '/api/v1/qrcode-mesa',
       tipoOperacao: 'revogar',
       idMesa: mesaId,
       hashPayload,

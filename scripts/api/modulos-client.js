@@ -113,11 +113,11 @@
   }
 
   async function gerarQrMesa(payload) {
-    return requisitar('/qr-mesas', { method: 'POST', body: { acao: 'gerar', ...payload } });
+    return requisitar('/qrcode-mesa', { method: 'POST', body: { acao: 'gerar', ...payload } });
   }
 
   async function revogarQrMesa(payload) {
-    return requisitar('/qr-mesas', { method: 'POST', body: { acao: 'revogar', ...payload } });
+    return requisitar('/qrcode-mesa', { method: 'POST', body: { acao: 'revogar', ...payload } });
   }
 
   async function criarReserva(payload) {

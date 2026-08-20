@@ -25,15 +25,15 @@ test('endpoint público separa validação, abertura POST com CSRF e consulta da
   assert.match(endpoint, /metodos:\s*\['GET', 'POST'\]/);
   assert.match(endpoint, /acao === 'validar'/);
   assert.match(endpoint, /acao === 'sessao'/);
-  assert.match(endpoint, /corpo\.acao !== 'abrir'/);
+  assert.match(endpoint, /corpo\.acao === 'abrir'/);
   assert.match(endpoint, /abrirSessaoMesa/);
   assert.match(endpoint, /appCheck:\s*false/);
 });
 
 test('endpoint administrativo exige papéis de gestão e possui gerar/revogar', () => {
-  const endpoint = ler('api/v1/qr-mesas.js');
+  const endpoint = ler('api/v1/qrcode-mesa.js');
   assert.match(endpoint, /PAPEIS_QR_ADMIN = \['proprietario', 'administrador', 'gerente'\]/);
-  assert.match(endpoint, /appCheck:\s*true/);
+  assert.match(endpoint, /verificarAppCheck/);
   assert.match(endpoint, /acao/);
   assert.match(endpoint, /gerar/);
   assert.match(endpoint, /revogar/);
@@ -94,5 +94,5 @@ test('cliente API expõe geração e revogação pelo endpoint administrativo', 
   const cliente = ler('scripts/api/modulos-client.js');
   assert.match(cliente, /function gerarQrMesa/);
   assert.match(cliente, /function revogarQrMesa/);
-  assert.match(cliente, /requisitar\('\/qr-mesas'/);
+  assert.match(cliente, /requisitar\('\/qrcode-mesa'/);
 });

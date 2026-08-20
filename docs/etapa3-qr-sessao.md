@@ -18,7 +18,7 @@ A tela pública `/mesa` é carregada pelo shell único, mas a classe de contexto
 
 | Endpoint | Método | Função | Proteção |
 |---|---:|---|---|
-| `/api/v1/qr-mesas` | `POST` | Gerar ou revogar QR de mesa | Sessão autenticada, contexto, papel de gestão, CSRF e App Check conforme configuração |
+| `/api/v1/qrcode-mesa` | `POST` | Gerar ou revogar QR de mesa | Sessão autenticada, contexto, papel de gestão, CSRF e App Check conforme configuração |
 | `/api/v1/qrcode-mesa?acao=validar&qr=...` | `GET` | Validar QR e retornar somente restaurante/mesa públicos | Token opaco e origem permitida |
 | `/api/v1/qrcode-mesa` | `POST` | Abrir sessão com nome completo | CSRF, token QR, transação e idempotência |
 | `/api/v1/qrcode-mesa?acao=sessao` | `GET` | Restaurar a própria sessão da mesa | Cookie HttpOnly assinado e escopo do restaurante |
@@ -49,7 +49,6 @@ A Etapa 3 será aceita quando o deployment confirmar a rota `/mesa`, o endpoint 
 
 - `api/_lib/qrcode-mesas.js`
 - `api/v1/qrcode-mesa.js`
-- `api/v1/qr-mesas.js`
 - `paginas/publico/mesa.html`
 - `scripts/publico/mesa.js`
 - `estilos/publico/mesa.css`
@@ -61,4 +60,4 @@ A Etapa 3 será aceita quando o deployment confirmar a rota `/mesa`, o endpoint 
 
 ## Pausa de aprovação
 
-A Etapa 3 deverá ser validada no deployment Development antes de avançar. A Etapa 4 somente começará após aprovação explícita, e implementará o cardápio público e a comanda persistida do cliente.
+A consolidação em `/api/v1/qrcode-mesa` mantém as ações públicas e administrativas em uma única Serverless Function para respeitar o limite de 12 funções do plano Hobby, sem reduzir as validações ou permissões. A Etapa 3 deverá ser validada no deployment Development antes de avançar. A Etapa 4 somente começará após aprovação explícita, e implementará o cardápio público e a comanda persistida do cliente.
