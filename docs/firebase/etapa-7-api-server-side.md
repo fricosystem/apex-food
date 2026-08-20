@@ -150,3 +150,15 @@ O deploy remoto e a configuração de novas variáveis devem ocorrer antes da Et
 A auditoria executada com `npm audit --omit=dev --audit-level=high` não encontrou vulnerabilidades de alta ou crítica severidade. A cadeia transitiva atual reportou seis ocorrências **moderadas** relacionadas ao pacote `uuid` em dependências de transporte usadas pelo Firebase Admin SDK. A correção automática proposta pelo NPM exigiria `npm audit fix --force` e faria downgrade do `firebase-admin` para a versão `10.3.0`, uma alteração de versão major que não será aplicada sem avaliação, testes de compatibilidade e decisão explícita.
 
 A dependência direta foi ajustada para `firebase-admin@13.6.0` após o deploy `29f4e4a` apresentar `ERR_REQUIRE_ESM`: `jwks-rsa@4.1.0` carregava `jose@6.x` por `require()`, incompatível com o módulo ESM no runtime da Vercel. A série 13.6.0 usa `jwks-rsa@3.2.2` e `jose@4.15.9` CommonJS. O lockfile foi atualizado e a suíte local continuou com 8/8 testes aprovados. O risco moderado transitivo foi documentado para revisão no CI e em atualizações futuras; não será aplicado downgrade forçado sem testes.
+
+## 11. Validação remota concluída
+
+Após o push do commit `eb47570`, a Vercel criou o deploy de Production `4CacpeGnLE3ZheJmKkhhDTTkww5u`, com estado `Ready`. A variável `FIREBASE_WEB_API_KEY` foi cadastrada em Production e Preview sem expor seu valor.
+
+O endpoint público `https://apexfood.vercel.app/api/v1/health` foi testado após o redeploy e retornou exclusivamente:
+
+```json
+{"estado":"ok","ambiente":"development","servico":"apex-food-api"}
+```
+
+A resposta confirma que a função server-side está carregando as variáveis necessárias e que o Firebase Admin consegue inicializar sem revelar secrets. A Etapa 8 permanece bloqueada até aprovação explícita.
