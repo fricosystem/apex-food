@@ -48,9 +48,11 @@ test('controllers financeiros usam operações persistidas e não placeholders',
 test('Dashboard Financeiro e Fechamento não exibem períodos ou alertas fixos', () => {
   const dashboard = ler('paginas/financeiro/dashboard-financeiro.html');
   const fechamento = ler('paginas/financeiro/fechamento-caixa.html');
+  const contas = ler('paginas/financeiro/contas-pagar-receber.html');
   const controller = ler('scripts/financeiro/dashboard-financeiro.js');
   assert.doesNotMatch(dashboard, /Mar — Ago\/2026|1 conta vencida|3 contas na semana/);
   assert.doesNotMatch(fechamento, /Caixa do dia 18\/08\/2026|72 pedidos registrados/);
+  assert.doesNotMatch(contas, /1 conta vencida|3 contas na semana|Distribuidora APEX Bebidas/);
   assert.match(dashboard, /dashboardFinanceiroPeriodo/);
   assert.match(controller, /Nenhum caixa aberto/);
 });
