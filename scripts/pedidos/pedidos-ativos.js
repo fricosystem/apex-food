@@ -42,7 +42,7 @@ function renderizarPainelAtivos() {
   const visiveis = pedidosVisiveisAtivos();
   elementosAtivos.painel.innerHTML = statusAtivos.map(coluna => {
     const pedidosColuna = visiveis.filter(pedido => pedido.status === coluna.id);
-    const cards = pedidosColuna.length ? pedidosColuna.map(pedido => { const wrapper = document.createElement('div'); wrapper.appendChild(criarCardAtivo(pedido)); return wrapper.innerHTML; }).join('') : `<div class="rounded-xl bg-card border border-border2 border-dashed p-6 text-center"><i data-lucide="inbox" class="w-5 h-5 text-muted mx-auto mb-2"></i><p class="text-xs font-medium">Nenhum pedido real</p><p class="text-[10px] text-muted mt-1">A coluna está sem registros.</p></div>`;
+    const cards = pedidosColuna.length ? pedidosColuna.map(pedido => { const wrapper = document.createElement('div'); wrapper.appendChild(criarCardAtivo(pedido)); return wrapper.innerHTML; }).join('') : `<div class="rounded-xl bg-card border border-border2 border-dashed p-6 text-center"><i data-lucide="inbox" class="w-5 h-5 text-muted mx-auto mb-2"></i><p class="text-xs font-medium">Nenhum pedido encontrado</p><p class="text-[10px] text-muted mt-1">A coluna está sem registros.</p></div>`;
     return `<section class="min-w-0"><div class="flex items-center justify-between mb-3"><div><div class="flex items-center gap-2"><i data-lucide="${coluna.icone}" class="w-4 h-4 ${coluna.cor}"></i><h3 class="text-sm font-semibold">${coluna.titulo}</h3><span class="px-1.5 py-0.5 rounded-md bg-card2 border border-border2 text-[10px] text-muted">${pedidosColuna.length}</span></div><p class="text-[10px] text-muted mt-1">${coluna.descricao}</p></div><button class="p-1.5 rounded-md hover:bg-card2 text-muted" aria-label="Atualizar ${coluna.titulo}" data-atualizar-coluna="${coluna.id}"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i></button></div><div class="space-y-3">${cards}</div></section>`;
   }).join('');
   document.getElementById('resultadoAtivos').textContent = visiveis.length;
@@ -71,7 +71,7 @@ async function avancarPedidoAtivo() {
   if (!pedido) return;
   const proximo = pedido.status === 'novo' ? 'preparo' : pedido.status === 'preparo' ? 'pronto' : pedido.status === 'pronto' ? 'entregue' : '';
   if (!proximo) return;
-  if (!window.dadosPedidosRemotoAtivo || !window.apexModulosApi?.atualizarStatusPedido) { mostrarAvisoPedido('A transição real de pedidos ainda não está disponível.'); return; }
+  if (!window.dadosPedidosRemotoAtivo || !window.apexModulosApi?.atualizarStatusPedido) { mostrarAvisoPedido('Não foi possível atualizar o status deste pedido. Tente novamente.'); return; }
   try {
     await window.apexModulosApi.atualizarStatusPedido({ id: String(pedido.id), status: proximo });
     fecharModalAtivo();

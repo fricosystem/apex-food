@@ -45,13 +45,13 @@ function abrirModalHistorico(id) {
   document.getElementById('resumoModalHistorico').textContent = `${pedido.data} · ${pedido.horario} · ${pedido.cliente}`;
   document.getElementById('dadosModalHistorico').innerHTML = [['Cliente', pedido.cliente], ['Mesa / canal', `${pedido.mesa} · ${pedido.canal}`], ['Garçom', pedido.garcom], ['Pagamento', pedido.pagamento], ['Valor total', moedaHistorico(pedido.valor)], ['Status', status.label]].map(([label, valor]) => `<div class="rounded-lg bg-card2 border border-border2 p-3"><div class="text-[10px] text-muted uppercase tracking-wider mb-1">${label}</div><div class="text-sm font-medium">${escapeHistorico(valor)}</div></div>`).join('');
   document.getElementById('contagemModalHistorico').textContent = `${pedido.itensQuantidade || pedido.itens.length} item(ns)`;
-  document.getElementById('itensModalHistorico').innerHTML = pedido.itens.map(item => `<div class="flex items-center justify-between gap-3 px-3 py-2.5"><span class="text-xs sm:text-sm">${item.quantidade}x ${escapeHistorico(item.nome)}</span><span class="text-xs font-medium">${moedaHistorico(item.valor)}</span></div>`).join('') || `<div class="px-3 py-4 text-xs text-muted">Nenhum item real encontrado.</div>`;
+  document.getElementById('itensModalHistorico').innerHTML = pedido.itens.map(item => `<div class="flex items-center justify-between gap-3 px-3 py-2.5"><span class="text-xs sm:text-sm">${item.quantidade}x ${escapeHistorico(item.nome)}</span><span class="text-xs font-medium">${moedaHistorico(item.valor)}</span></div>`).join('') || `<div class="px-3 py-4 text-xs text-muted">Nenhum item encontrado.</div>`;
   const modal = document.getElementById('modalHistorico'); modal.classList.add('aberto'); modal.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; window.lucide?.createIcons(); document.getElementById('fecharModalHistorico').focus();
 }
 function fecharModalHistorico() { const modal = document.getElementById('modalHistorico'); modal.classList.remove('aberto'); modal.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
 function exportarHistorico() {
   const lista = historicoVisivel();
-  if (!lista.length) { mostrarAvisoPedido('Não há pedidos reais para exportar.'); return; }
+  if (!lista.length) { mostrarAvisoPedido('Não há pedidos para exportar.'); return; }
   const linhas = [['Pedido', 'Data', 'Cliente', 'Mesa', 'Canal', 'Garçom', 'Pagamento', 'Valor', 'Status'], ...lista.map(pedido => [pedido.id, pedido.data, pedido.cliente, pedido.mesa, pedido.canal, pedido.garcom, pedido.pagamento, Number(pedido.valor || 0).toFixed(2).replace('.', ','), pedido.status])];
   const csv = `\uFEFF${linhas.map(linha => linha.map(valor => `"${String(valor ?? '').replaceAll('"', '""')}"`).join(';')).join('\n')}`;
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

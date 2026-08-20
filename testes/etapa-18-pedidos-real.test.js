@@ -61,3 +61,19 @@ test('controllers de Pedidos usam a API e mantêm a fonte única', () => {
   assert.doesNotMatch(cozinha, /pedidosCozinha\.splice/);
   assert.match(historico, /exportarHistorico/);
 });
+
+test('estados vazios de Pedidos usam linguagem profissional', () => {
+  const controllers = [
+    ler('scripts/pedidos/novo-pedido.js'),
+    ler('scripts/pedidos/pedidos-ativos.js'),
+    ler('scripts/pedidos/fila-cozinha.js'),
+    ler('scripts/pedidos/historico-pedidos.js'),
+  ];
+  for (const controller of controllers) {
+    assert.doesNotMatch(controller, /Nenhum .*real|pedido real|produto real|pedidos reais|item real|transição real/);
+  }
+  assert.match(controllers[0], /Nenhum produto encontrado/);
+  assert.match(controllers[1], /Nenhum pedido encontrado/);
+  assert.match(controllers[2], /Nenhum pedido encontrado/);
+  assert.match(ler('paginas/pedidos/historico-pedidos.html'), /Nenhum pedido encontrado/);
+});

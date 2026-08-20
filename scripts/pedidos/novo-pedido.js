@@ -52,7 +52,7 @@ function produtosVisiveis() {
 function renderizarCatalogo() {
   const produtos = produtosVisiveis();
   if (!produtos.length) {
-    elementosNovoPedido.catalogo.innerHTML = `<div class="sm:col-span-2 lg:col-span-3 rounded-lg border border-border2 border-dashed py-10 text-center"><i data-lucide="search-x" class="w-5 h-5 text-muted mx-auto mb-2"></i><p class="text-sm font-medium">Nenhum produto real encontrado</p><p class="text-xs text-muted mt-1">Cadastre produtos no Cardápio ou ajuste a busca.</p></div>`;
+    elementosNovoPedido.catalogo.innerHTML = `<div class="sm:col-span-2 lg:col-span-3 rounded-lg border border-border2 border-dashed py-10 text-center"><i data-lucide="search-x" class="w-5 h-5 text-muted mx-auto mb-2"></i><p class="text-sm font-medium">Nenhum produto encontrado</p><p class="text-xs text-muted mt-1">Cadastre produtos no Cardápio ou ajuste a busca.</p></div>`;
     window.lucide?.createIcons();
     return;
   }
@@ -139,7 +139,7 @@ function alternarTipoAtendimento(tipo) {
 async function confirmarPedido() {
   const itens = [...estadoNovoPedido.carrinho.values()];
   if (!itens.length) { mostrarAvisoPedido('Adicione pelo menos um produto ao pedido.'); return; }
-  if (!window.dadosPedidosRemotoAtivo || !window.apexModulosApi?.criarPedido) { mostrarAvisoPedido('Não foi possível conectar aos pedidos reais. Tente novamente.'); return; }
+  if (!window.dadosPedidosRemotoAtivo || !window.apexModulosApi?.criarPedido) { mostrarAvisoPedido('Não foi possível carregar os dados do pedido. Verifique sua conexão e tente novamente.'); return; }
   const tipoAtendimento = estadoNovoPedido.tipo;
   const payload = {
     tipoAtendimento,
