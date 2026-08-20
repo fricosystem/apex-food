@@ -45,7 +45,7 @@ test('shell e index versionam as rotas da Fase 8', () => {
   assert.match(shell, /funcionarios\.html\?v=fase8/);
   assert.match(shell, /escala-trabalho\.html\?v=fase8/);
   assert.match(shell, /comissoes\.html\?v=fase11/);
-  assert.match(index, /apex-shell\.js\?v=etapa4-cardapio/);
+  assert.match(index, /apex-shell\.js\?v=etapa5-garcom-cozinha/);
 });
 
 test('contrato de equipe mantém coleções públicas e privadas separadas', () => {
