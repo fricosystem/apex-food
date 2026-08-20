@@ -64,3 +64,9 @@ nome.sobrenome@apexfood.com
 ```
 
 A parte local aceita letras, números, ponto e hífen em sequência válida; o domínio `@apexfood.com` continua fixo no frontend e também é validado novamente no backend. A causa mais provável da tentativa anterior foi a validação antiga do frontend, que aceitava somente letras, números e hífen e bloqueava um email com ponto antes de a requisição chegar ao Firebase Authentication.
+
+A Vercel identificou o novo deploy de Production do commit `fd04e22`. A primeira inspeção encontrou o deploy ainda em estado `Building`; a validação remota final da correção será feita somente após o estado `Ready`.
+
+O deploy `fd04e22` passou para `Ready` em Production na Vercel. A validação final da página publicada pode prosseguir no domínio principal.
+
+No deploy `fd04e22`, o teste visual com o identificador `nome.teste` exibiu corretamente `nome.teste@apexfood.com` no campo e não mostrou erro de validação. O formulário não foi enviado e nenhuma senha ou credencial foi digitada.
