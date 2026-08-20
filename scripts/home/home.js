@@ -115,27 +115,28 @@
     const pedidosRotulo = periodo.tipo === 'dia' ? 'Pedidos do Dia' : periodo.tipo === 'semana' ? 'Pedidos da Semana' : periodo.tipo === 'mes' ? 'Pedidos do Mês' : periodo.tipo === 'ano' ? 'Pedidos do Ano' : 'Pedidos do Período';
     definirTexto('homeFaturamentoRotulo', rotulo);
     definirTexto('homePedidosRotulo', pedidosRotulo);
-    definirTexto('homeFaturamentoDia', moeda(periodo.vendas));
-    definirTexto('homeTicketMedio', moeda(periodo.ticketMedio));
-    definirTexto('homePedidosHoje', `${periodo.pedidos.toLocaleString('pt-BR')} pedidos`);
+    definirTexto('homeFaturamentoDia', periodo.disponivel ? moeda(periodo.vendas) : '—');
+    definirTexto('homeTicketMedio', periodo.disponivel ? moeda(periodo.ticketMedio) : '—');
+    definirTexto('homePedidosHoje', periodo.disponivel ? `${periodo.pedidos.toLocaleString('pt-BR')} pedidos` : '—');
     definirTexto('homeVendasSemana', moeda(periodo.vendas));
     definirTexto('homeVendasRotulo', `Vendas ${periodo.nome}`);
     definirTexto('homeVendasPeriodoBotao', periodo.nome);
-    definirTexto('homeResumoOperacao', `${pedidos.pedidosAtivos.length}`);
-    definirTexto('homeResumoOperacaoSub', `${resumo.pedidosNovos} novos · ${resumo.pedidosPreparo} em preparo`);
+    definirTexto('homeResumoOperacao', visao.meta?.dadosDisponiveis ? `${pedidos.pedidosAtivos.length}` : '—');
+    definirTexto('homeResumoOperacaoSub', visao.meta?.dadosDisponiveis ? `${resumo.pedidosNovos} novos · ${resumo.pedidosPreparo} em preparo` : 'Sem pedidos reais');
     definirTexto('homeResumoFinanceiro', visao.meta?.dadosDisponiveis ? moeda(periodo.vendas - Number(resumo.caixa.suprimentos || 0) - Number(resumo.caixa.sangrias || 0)) : '—');
     definirTexto('homeResumoFinanceiroSub', visao.meta?.dadosDisponiveis ? `resultado no período · saldo esperado ${moeda(resumo.caixa.saldoEsperado || 0)}` : 'Sem dados financeiros reais');
-    definirTexto('homeResumoSalao', `${resumo.ocupacao}%`);
-    definirTexto('homeResumoSalaoSub', `${resumo.ocupadas} ocupadas · ${resumo.disponiveis} livres`);
-    definirTexto('homeMesasTotal', `${mesas.length} mesas`);
-    definirTexto('homeMesasOcupadas', `${resumo.ocupadas} ocupadas`);
-    definirTexto('homeOcupacaoSalao', `${resumo.ocupacao}% ocupado`);
+    definirTexto('homeResumoSalao', mesas.length ? `${resumo.ocupacao}%` : '—');
+    definirTexto('homeResumoSalaoSub', mesas.length ? `${resumo.ocupadas} ocupadas · ${resumo.disponiveis} livres` : 'Sem mesas cadastradas');
+    definirTexto('homeMesasTotal', mesas.length ? `${mesas.length} mesas` : '—');
+    definirTexto('homeMesasOcupadas', mesas.length ? `${resumo.ocupadas} ocupadas` : '—');
+    definirTexto('homeOcupacaoSalao', mesas.length ? `${resumo.ocupacao}% ocupado` : '—');
     definirTexto('homeResumoCardapio', resumo.liderProduto.nome || 'Sem dados');
-    definirTexto('homeResumoCardapioSub', `${resumo.liderProduto.quantidade || 0} unidades · ${moeda(resumo.liderProduto.receita || 0)}`);
-    definirTexto('homeResumoClientes', Number(relatorios.indicadores?.notaMedia || 0).toFixed(1).replace('.', ','));
-    definirTexto('homeResumoClientesSub', `${(relatorios.indicadores?.totalAvaliacoes || 0).toLocaleString('pt-BR')} avaliações`);
+    definirTexto('homeResumoCardapioSub', resumo.liderProduto.nome ? `${resumo.liderProduto.quantidade || 0} unidades · ${moeda(resumo.liderProduto.receita || 0)}` : 'Sem vendas reais');
+    const totalAvaliacoes = Number(relatorios.indicadores?.totalAvaliacoes || 0);
+    definirTexto('homeResumoClientes', totalAvaliacoes ? Number(relatorios.indicadores?.notaMedia || 0).toFixed(1).replace('.', ',') : '—');
+    definirTexto('homeResumoClientesSub', totalAvaliacoes ? `${totalAvaliacoes.toLocaleString('pt-BR')} avaliações` : 'Sem avaliações reais');
     definirTexto('homeResumoEquipe', resumo.liderEquipe.nome || 'Sem dados');
-    definirTexto('homeResumoEquipeSub', `${moeda(resumo.liderEquipe.vendas || 0)} em vendas`);
+    definirTexto('homeResumoEquipeSub', resumo.liderEquipe.nome ? `${moeda(resumo.liderEquipe.vendas || 0)} em vendas` : 'Sem equipe real');
     definirTexto('homeAtualizacaoDados', relatorios.atualizadoEm ? `Base atualizada em ${escapar(relatorios.atualizadoEm)} · ${periodo.status}` : `Sem atualização registrada · ${periodo.status}`);
   }
 
@@ -162,8 +163,8 @@
     const ritmo = [
       { rotulo: 'Pico almoço', valor: relatorios.indicadores?.picoAlmoco || '—', classe: 'text-accent' },
       { rotulo: 'Pico jantar', valor: relatorios.indicadores?.picoJantar || '—', classe: 'text-purple' },
-      { rotulo: 'Avaliação da equipe', valor: `${Number(notaEquipe).toFixed(1).replace('.', ',')} / 5`, classe: 'text-yellow' },
-      { rotulo: 'Mesas bloqueadas', valor: `${resumo.bloqueadas}`, classe: resumo.bloqueadas ? 'text-red' : 'text-green' }
+      { rotulo: 'Avaliação da equipe', valor: resumo.liderEquipe.nome ? `${Number(notaEquipe).toFixed(1).replace('.', ',')} / 5` : '—', classe: 'text-yellow' },
+      { rotulo: 'Mesas bloqueadas', valor: mesas.length ? `${resumo.bloqueadas}` : '—', classe: resumo.bloqueadas ? 'text-red' : 'text-green' }
     ];
     definirHTML('homeRitmoResumo', ritmo.map(item => `<div class="flex items-center justify-between gap-2"><span class="text-[10px] text-muted">${escapar(item.rotulo)}</span><span class="text-[11px] font-semibold ${item.classe}">${escapar(item.valor)}</span></div>`).join(''));
   }
@@ -174,7 +175,7 @@
     const maior = Math.max(1, ...status.map(item => ativos.filter(pedido => pedido.status === item.chave).length));
     const tempos = ativos.map(pedido => Number.parseInt(pedido.tempo, 10)).filter(Number.isFinite);
     const tempoMedio = tempos.length ? Math.round(tempos.reduce((soma, tempo) => soma + tempo, 0) / tempos.length) : 0;
-    definirTexto('homeOperacaoAtivos', `${ativos.length}`);
+    definirTexto('homeOperacaoAtivos', visao.meta?.dadosDisponiveis ? `${ativos.length}` : '—');
     definirTexto('homeOperacaoTempo', tempos.length ? `${tempoMedio} min` : '—');
     const tempoBar = document.getElementById('homeOperacaoTempoBar');
     if (tempoBar) tempoBar.style.width = percent((tempoMedio / 30) * 100);
@@ -205,7 +206,7 @@
     const financeiroPeriodo = obterSerieFinanceira(periodo);
     const maximo = Math.max(1, ...financeiroPeriodo.serie.flatMap(item => [item.vendas, item.despesas]));
     const resultado = periodo.vendas - financeiroPeriodo.despesas;
-    definirTexto('homeFinanceiroResultado', `${moeda(resultado)} resultado ${periodo.nome.toLowerCase()}`);
+    definirTexto('homeFinanceiroResultado', visao.meta?.dadosDisponiveis ? `${moeda(resultado)} resultado ${periodo.nome.toLowerCase()}` : '—');
     definirHTML('homeFinanceiroBars', financeiroPeriodo.serie.map(item => `<div class="home-chart-bar-group" title="${escapar(item.label)}: ${moeda(item.vendas)} em vendas e ${moeda(item.despesas)} em despesas${financeiroPeriodo.estimada ? ' estimadas' : ''}"><div class="home-chart-bar" style="height:${Math.max(7, (item.vendas / maximo) * 100)}%"></div><div class="home-chart-bar secondary" style="height:${Math.max(5, (item.despesas / maximo) * 100)}%"></div><span class="home-chart-label">${escapar(item.label)}</span></div>`).join(''));
     definirTexto('homeFinanceiroLegendaDespesas', 'Despesas reais');
     const canais = relatorios.canais || [];
@@ -220,7 +221,7 @@
     const donut = document.getElementById('homeSalaoDonut');
     if (donut) donut.style.background = `conic-gradient(#60a5fa 0deg ${graus}deg,#1a1a1a ${graus}deg 360deg)`;
     definirTexto('homeSalaoDonutValue', mesas.length ? `${resumo.ocupacao}%` : '—');
-    const contagens = [{ label: 'Ocupadas', valor: resumo.ocupadas, cor: 'text-blue' }, { label: 'Livres', valor: resumo.disponiveis, cor: 'text-green' }, { label: 'Bloqueadas', valor: resumo.bloqueadas, cor: 'text-red' }, { label: 'Reservadas', valor: reservas.filter(reserva => reserva.status === 'confirmada').length, cor: 'text-yellow' }];
+    const contagens = [{ label: 'Ocupadas', valor: mesas.length ? resumo.ocupadas : '—', cor: 'text-blue' }, { label: 'Livres', valor: mesas.length ? resumo.disponiveis : '—', cor: 'text-green' }, { label: 'Bloqueadas', valor: mesas.length ? resumo.bloqueadas : '—', cor: 'text-red' }, { label: 'Reservadas', valor: mesas.length ? reservas.filter(reserva => reserva.status === 'confirmada').length : '—', cor: 'text-yellow' }];
     definirHTML('homeSalaoLista', contagens.map(item => `<div class="rounded-lg bg-card2 border border-border2 p-3"><span class="text-[10px] text-muted">${item.label}</span><strong class="block text-lg ${item.cor} mt-1">${item.valor}</strong><span class="text-[10px] text-muted">mesas</span></div>`).join(''));
   }
 
@@ -240,10 +241,10 @@
     definirTexto('homeClientesNota', totalAvaliacoes ? Number(relatorios.indicadores?.notaMedia || 0).toFixed(1).replace('.', ',') : '—');
     definirTexto('homeClientesResposta', totalAvaliacoes ? `${relatorios.indicadores?.taxaResposta || 0}% respondidas` : 'Sem avaliações reais');
     const cores = { 5: 'bg-yellow', 4: 'bg-green', 3: 'bg-blue', 2: 'bg-purple', 1: 'bg-red' };
-    definirHTML('homeClientesStars', notas.map(item => `<div class="flex items-center gap-2"><span class="w-8 text-[10px] text-muted">${item.nota} estrela${item.nota > 1 ? 's' : ''}</span><div class="home-mini-bar flex-1"><span class="${cores[item.nota] || 'bg-neutral-500'}" style="width:${percent((item.quantidade / total) * 100)}"></span></div><span class="w-8 text-right text-[10px] text-muted">${item.percentual}%</span></div>`).join(''));
+    definirHTML('homeClientesStars', totalAvaliacoes ? notas.map(item => `<div class="flex items-center gap-2"><span class="w-8 text-[10px] text-muted">${item.nota} estrela${item.nota > 1 ? 's' : ''}</span><div class="home-mini-bar flex-1"><span class="${cores[item.nota] || 'bg-neutral-500'}" style="width:${percent((item.quantidade / total) * 100)}"></span></div><span class="w-8 text-right text-[10px] text-muted">${item.percentual}%</span></div>`).join('') : '<p class="text-xs text-muted">Sem avaliações reais no período.</p>');
     const avaliacoes = relatorios.avaliacoes || [];
     const categorias = [...new Set(avaliacoes.map(item => item.categoria))];
-    const insights = [{ titulo: 'Avaliações na base', valor: `${relatorios.indicadores?.totalAvaliacoes || 0}` }, { titulo: 'Feedbacks recentes', valor: `${avaliacoes.length}` }, { titulo: 'Mais citado', valor: categorias[0] || '—' }];
+    const insights = [{ titulo: 'Avaliações na base', valor: `${relatorios.indicadores?.totalAvaliacoes || 0}` }, { titulo: 'Feedbacks recentes', valor: `${avaliacoes.length || '—'}` }, { titulo: 'Mais citado', valor: categorias[0] || '—' }];
     definirHTML('homeClientesInsights', insights.map(item => `<div class="rounded-lg bg-card2 border border-border2 p-3"><span class="text-[10px] text-muted">${escapar(item.titulo)}</span><strong class="block text-sm text-yellow mt-1 truncate">${escapar(item.valor)}</strong></div>`).join(''));
   }
 
