@@ -1,0 +1,21 @@
+{
+  "name": "APEX Food",
+  "short_name": "APEX Food",
+  "description": "Sistema de gestão para restaurantes APEX Food.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "icons": [
+    {
+      "src": "/assets/apex-food-logo.jpg",
+      "sizes": "1024x1024",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

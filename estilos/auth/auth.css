@@ -625,6 +625,14 @@ button {
     display: none;
   }
 
+  .auth-page,
+  .auth-form-panel {
+    background:
+      radial-gradient(circle at 23% 35%, rgba(234, 88, 12, 0.18), transparent 21rem),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.035), transparent 45%),
+      #050505;
+  }
+
   .auth-form-panel {
     padding: max(0.9rem, env(safe-area-inset-top)) 1.15rem max(0.9rem, env(safe-area-inset-bottom));
   }

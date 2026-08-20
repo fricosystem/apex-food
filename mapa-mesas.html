@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>APEX Food — Mapa das Mesas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/fontsource-inter@5.0.0/index.css" rel="stylesheet">
+<link rel="icon" href="assets/apex-food-logo.jpg" type="image/jpeg" />
+<link rel="apple-touch-icon" href="assets/apex-food-logo.jpg" />
+<link rel="manifest" href="manifest.webmanifest" />
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+        colors: {
+          bg: '#000000',
+          panel: '#080808',
+          card: '#0a0a0a',
+          card2: '#0d0d0d',
+          border: '#161616',
+          border2: '#1a1a1a',
+          muted: '#8a8a8a',
+          accent: '#ea580c',
+          accentHover: '#f97316',
+          green: '#22c55e',
+          red: '#ef4444',
+          yellow: '#eab308',
+          purple: '#a78bfa',
+          purpleLight: '#c4b5fd',
+          purpleDark: '#7c3aed',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { font-family: 'Inter', sans-serif; background: #000000; color: #e5e5e5; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1a1a1a; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #262626; }
+  .bar { transition: height 0.6s ease; }
+  .btn-press:active { transform: scale(0.97); }
+  .fade-in { animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .glow-orange { box-shadow: 0 0 30px rgba(234, 88, 12, 0.5), 0 0 60px rgba(234, 88, 12, 0.2); }
+  .card-gradient { background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 50%, #080808 100%); }
+
+  .dot-pulse { animation: dotPulse 2s ease-in-out infinite; }
+  @keyframes dotPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+  /* Tree-style sidebar */
+  .tree-group { position: relative; padding-left: 0; }
+  .tree-item { position: relative; padding-left: 2.25rem; }
+  .tree-item::before {
+    content: '';
+    position: absolute;
+    left: 0.75rem;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #1a1a1a;
+  }
+  .tree-item:last-child::before { bottom: 50%; }
+  .tree-item::after {
+    content: '';
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    width: 0.75rem;
+    height: 1px;
+    background: #1a1a1a;
+  }
+  .tree-item.active::before { background: rgba(234, 88, 12, 0.4); }
+  .tree-item.active::after { background: rgba(234, 88, 12, 0.4); }
+  .tree-item.active .tree-link { background: rgba(234, 88, 12, 0.15); color: #ea580c; }
+  .tree-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    color: #8a8a8a;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    text-decoration: none;
+  }
+  .tree-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
+  .tree-link.active { color: #ea580c; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0.5rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+  }
+  .section-header .section-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #8a8a8a;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+  .section-header .section-title .section-icon { color: #a3a3a3; }
+
+  .sidebar-drawer { transform: translateX(-100%); transition: transform 0.3s ease; }
+  .sidebar-drawer.open { transform: translateX(0); }
+  .sidebar-overlay { opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+  .sidebar-overlay.open { opacity: 1; pointer-events: auto; }
+
+  @media (max-width: 1024px) {
+    .sidebar-desktop { display: none !important; }
+    .sidebar-mobile { display: flex !important; }
+  }
+  @media (min-width: 1025px) {
+    .sidebar-mobile { display: none !important; }
+    .sidebar-overlay { display: none !important; }
+  }
+
+  .sidebar-scroll { overflow-y: auto; flex: 1; min-height: 0; }
+  .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+  .sidebar-scroll::-webkit-scrollbar-thumb { background: #1a1a1a; border-radius: 2px; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Mobile Header -->
+<div class="lg:hidden flex items-center justify-between p-4 border-b border-border bg-panel sticky top-0 z-40">
+  <button id="menuBtn" class="p-2 rounded-lg hover:bg-card2 transition" aria-label="Abrir menu">
+    <i data-lucide="menu" class="w-5 h-5"></i>
+  </button>
+  <div class="flex items-center gap-2 font-semibold">
+    <img src="assets/apex-food-logo.jpg" alt="Logo APEX Food" class="w-7 h-7 object-contain" />
+    <span>APEX Food</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <button class="p-2 rounded-lg hover:bg-card2 text-muted" aria-label="Ajuda">
+      <i data-lucide="help-circle" class="w-4 h-4"></i>
+    </button>
+    <button class="p-2 rounded-lg hover:bg-card2 text-muted" aria-label="Notificações">
+      <i data-lucide="bell" class="w-4 h-4"></i>
+    </button>
+  </div>
+</div>
+
+<!-- Mobile Sidebar Overlay -->
+<div id="sidebarOverlay" class="sidebar-overlay fixed inset-0 bg-black/70 z-40 lg:hidden"></div>
+
+<!-- Mobile Sidebar Drawer -->
+<aside id="sidebarMobile" class="sidebar-mobile sidebar-drawer fixed top-0 left-0 h-full w-72 bg-panel border-r border-border z-50 flex flex-col">
+  <div class="flex items-center justify-between p-5 border-b border-border flex-shrink-0">
+    <div class="flex items-center gap-2">
+      <img src="assets/apex-food-logo.jpg" alt="Logo APEX Food" class="w-8 h-8 object-contain" />
+      <span class="font-semibold">APEX Food</span>
+    </div>
+    <button id="closeMenuBtn" class="p-1.5 rounded-md hover:bg-card2 text-muted transition" aria-label="Fechar menu">
+      <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+  </div>
+  <div class="sidebar-scroll" id="sidebarContentMobile"></div>
+</aside>
+
+<!-- Desktop Sidebar -->
+<aside class="sidebar-desktop hidden lg:flex flex-col w-64 bg-panel border-r border-border fixed h-screen z-30">
+  <div class="flex items-center justify-between p-5 border-b border-border flex-shrink-0">
+    <div class="flex items-center gap-2">
+      <img src="assets/apex-food-logo.jpg" alt="Logo APEX Food" class="w-8 h-8 object-contain" />
+      <span class="font-semibold">APEX Food</span>
+    </div>
+    <button class="p-1.5 rounded-md hover:bg-card2 text-muted transition" aria-label="ID">
+      <i data-lucide="id-card" class="w-4 h-4"></i>
+    </button>
+  </div>
+  <div class="sidebar-scroll" id="sidebarContentDesktop"></div>
+</aside>
+
+<!-- Main Content -->
+<main class="flex-1 lg:ml-64 min-h-screen">
+  <header class="hidden lg:flex sticky top-0 z-20 bg-bg/80 backdrop-blur-xl border-b border-border px-6 py-4 items-center justify-between">
+    <h1 class="text-lg font-semibold">Mapa das Mesas</h1>
+    <div class="flex items-center gap-2">
+      <button class="p-2 rounded-lg hover:bg-card2 text-muted transition" aria-label="Ajuda">
+        <i data-lucide="help-circle" class="w-4 h-4"></i>
+      </button>
+      <button class="p-2 rounded-lg hover:bg-card2 text-muted transition" aria-label="Notificações">
+        <i data-lucide="bell" class="w-4 h-4"></i>
+      </button>
+      <button class="p-2 rounded-lg hover:bg-card2 transition" aria-label="Perfil">
+        <div class="w-6 h-6 rounded-full bg-gradient-to-br from-accent to-orange-400 flex items-center justify-center text-xs font-bold text-white">A</div>
+      </button>
+    </div>
+  </header>
+
+  <div class="p-4 sm:p-6 space-y-4 sm:space-y-6 fade-in">
+    <!-- Page Header + Legend -->
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 class="text-xl sm:text-2xl font-bold">Mapa das Mesas</h2>
+        <p class="text-xs sm:text-sm text-muted mt-1">Visão geral do salão em tempo real</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 text-xs">
+        <span class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-card border border-border2">
+          <span class="w-2.5 h-2.5 rounded-full bg-accent"></span> Ocupada
+        </span>
+        <span class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-card border border-border2">
+          <span class="w-2.5 h-2.5 rounded-full bg-green"></span> Disponível
+        </span>
+        <span class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-card border border-border2">
+          <span class="w-2.5 h-2.5 rounded-full bg-red"></span> Indisponível
+        </span>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div class="rounded-xl bg-card border border-border p-4 sm:p-5 flex items-center justify-between">
+        <div>
+          <div class="text-xs text-muted mb-1">Mesas Ocupadas</div>
+          <div class="text-xl sm:text-2xl font-bold text-accent" id="statOcupadas">0</div>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+          <i data-lucide="armchair" class="w-5 h-5 text-accent"></i>
+        </div>
+      </div>
+      <div class="rounded-xl bg-card border border-border p-4 sm:p-5 flex items-center justify-between">
+        <div>
+          <div class="text-xs text-muted mb-1">Mesas Disponíveis</div>
+          <div class="text-xl sm:text-2xl font-bold text-green" id="statDisponiveis">0</div>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-green/10 flex items-center justify-center">
+          <i data-lucide="check" class="w-5 h-5 text-green"></i>
+        </div>
+      </div>
+      <div class="rounded-xl bg-card border border-border p-4 sm:p-5 flex items-center justify-between">
+        <div>
+          <div class="text-xs text-muted mb-1">Mesas Indisponíveis</div>
+          <div class="text-xl sm:text-2xl font-bold text-red" id="statIndisponiveis">0</div>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-red/10 flex items-center justify-center">
+          <i data-lucide="ban" class="w-5 h-5 text-red"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tables Grid -->
+    <div id="tablesGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4"></div>
+  </div>
+</main>
+
+<!-- Table Details Modal -->
+<div id="tableModal" class="fixed inset-0 z-50 items-center justify-center p-4 hidden">
+  <div class="absolute inset-0 bg-black/70" id="modalBackdrop"></div>
+  <div class="relative bg-card border border-border rounded-xl w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl fade-in">
+    <div class="p-5 sm:p-6">
+      <!-- Header -->
+      <div class="flex items-start justify-between mb-5">
+        <div class="flex items-center gap-3">
+          <div id="modalAvatar" class="w-11 h-11 rounded-xl flex items-center justify-center">
+            <i data-lucide="armchair" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="text-base font-bold" id="modalTitle"></div>
+            <span id="modalStatus" class="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-md text-xs font-medium border"></span>
+          </div>
+        </div>
+        <button id="modalClose" class="p-1.5 rounded-lg hover:bg-card2 text-muted transition" aria-label="Fechar">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Details Grid -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="rounded-lg bg-card2 border border-border2 p-3">
+          <div class="text-[10px] text-muted uppercase tracking-wider mb-1">Reservado por</div>
+          <div class="text-sm font-medium" id="modalReserva"></div>
+        </div>
+        <div class="rounded-lg bg-card2 border border-border2 p-3">
+          <div class="text-[10px] text-muted uppercase tracking-wider mb-1">Comanda</div>
+          <div class="text-sm font-medium font-mono" id="modalComanda"></div>
+        </div>
+        <div class="rounded-lg bg-card2 border border-border2 p-3">
+          <div class="text-[10px] text-muted uppercase tracking-wider mb-1">Valor Gasto</div>
+          <div class="text-sm font-bold" id="modalValor"></div>
+        </div>
+        <div class="rounded-lg bg-card2 border border-border2 p-3">
+          <div class="text-[10px] text-muted uppercase tracking-wider mb-1">Capacidade</div>
+          <div class="text-sm font-medium" id="modalCapacidade"></div>
+        </div>
+        <div class="rounded-lg bg-card2 border border-border2 p-3">
+          <div class="text-[10px] text-muted uppercase tracking-wider mb-1">Garçom</div>
+          <div class="text-sm font-medium" id="modalGarcom"></div>
+        </div>
+        <div class="rounded-lg bg-card2 border border-border2 p-3">
+          <div class="text-[10px] text-muted uppercase tracking-wider mb-1">Desde</div>
+          <div class="text-sm font-medium" id="modalInicio"></div>
+        </div>
+      </div>
+
+      <!-- Items -->
+      <div class="mt-4" id="modalItemsSection">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs font-semibold">Itens da Comanda</div>
+          <span class="text-[10px] text-muted" id="modalItemCount"></span>
+        </div>
+        <div class="rounded-lg border border-border2 divide-y divide-border2" id="modalItems"></div>
+      </div>
+
+      <!-- Footer -->
+      <div class="flex justify-end gap-2 mt-5">
+        <button id="modalCloseBtn" class="btn-press px-4 py-2 rounded-lg bg-card2 border border-border2 text-sm font-medium hover:bg-border2 transition">Fechar</button>
+        <button id="modalComandaBtn" class="btn-press flex items-center gap-2 px-4 py-2 rounded-lg bg-accent hover:bg-accentHover text-white text-sm font-medium transition shadow-lg shadow-accent/20">
+          <i data-lucide="receipt" class="w-4 h-4"></i> Ver Comanda
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const sidebarSections = [
+    { title: 'GERAL', icon: 'layout-dashboard', items: [{ label: 'Visão Geral', icon: 'home', href: 'index.html', desc: 'Dashboard principal do restaurante' }] },
+    { title: 'DASHBOARDS', icon: 'bar-chart-3', items: [{ label: 'Operacional', icon: 'activity', desc: 'Pedidos ativos, fila da cozinha, ocupação' }, { label: 'Financeiro', icon: 'dollar-sign', desc: 'Faturamento, ticket médio, metas' }, { label: 'Desempenho', icon: 'trending-up', desc: 'Tempo de preparo, avaliações' }] },
+    { title: 'PEDIDOS', icon: 'receipt', items: [{ label: 'Novo Pedido', icon: 'plus-circle', desc: 'Fluxo de abertura de comanda' }, { label: 'Pedidos Ativos', icon: 'shopping-bag', desc: 'Pedidos em andamento por mesa' }, { label: 'Histórico de Pedidos', icon: 'history', desc: 'Pedidos finalizados com detalhes' }, { label: 'Fila da Cozinha', icon: 'chef-hat', desc: 'Pedidos aguardando preparo' }] },
+    { title: 'CARDÁPIO', icon: 'book-open', items: [{ label: 'Categorias', icon: 'folder', desc: 'Entradas, principais, bebidas, etc.' }, { label: 'Produtos', icon: 'package', desc: 'Cadastro de itens com preço e foto' }, { label: 'Promoções', icon: 'tag', desc: 'Ofertas do dia, combos, descontos' }, { label: 'Cardápio Digital', icon: 'qr-code', desc: 'Preview do QR Code do cliente' }] },
+    { title: 'SALÃO', icon: 'armchair', items: [{ label: 'Mapa de Mesas', icon: 'layout-grid', href: 'mapa-mesas.html', active: true, desc: 'Status de cada mesa' }, { label: 'Reservas', icon: 'calendar', desc: 'Controle de reservas antecipadas' }, { label: 'Configuração de Mesas', icon: 'settings', desc: 'Adicionar/remover mesas e QR' }] },
+    { title: 'EQUIPE', icon: 'users', items: [{ label: 'Funcionários', icon: 'user-circle', desc: 'Garçons, cozinheiros, gerentes' }, { label: 'Escala de Trabalho', icon: 'calendar-clock', desc: 'Turnos e horários' }, { label: 'Comissões', icon: 'percent', desc: 'Comissões por garçom' }] },
+    { title: 'FINANCEIRO', icon: 'wallet', items: [{ label: 'Fechamento de Caixa', icon: 'lock', desc: 'Encerrar expediente com relatório' }, { label: 'Fluxo de Caixa', icon: 'arrow-left-right', desc: 'Entradas e saídas do dia' }, { label: 'Contas a Pagar/Receber', icon: 'file-text', desc: 'Fornecedores e contas fixas' }, { label: 'Relatórios Financeiros', icon: 'pie-chart', desc: 'Extrato diário, semanal, mensal' }] },
+    { title: 'RELATÓRIOS', icon: 'file-bar-chart', items: [{ label: 'Vendas por Período', icon: 'bar-chart-3', desc: 'Análise de vendas' }, { label: 'Produtos Mais Vendidos', icon: 'star', desc: 'Top produtos' }, { label: 'Horários de Pico', icon: 'clock', desc: 'Melhores horários' }, { label: 'Avaliações dos Clientes', icon: 'message-square', desc: 'Feedback dos clientes' }, { label: 'Performance da Equipe', icon: 'award', desc: 'Desempenho dos funcionários' }] }
+  ];
+
+  function buildSidebar(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    sidebarSections.forEach((section, sIdx) => {
+      const sectionDiv = document.createElement('div');
+      sectionDiv.className = 'p-4' + (sIdx > 0 ? ' border-t border-border' : '');
+      const header = document.createElement('div');
+      header.className = 'section-header';
+      header.innerHTML = `<div class="section-title"><i data-lucide="${section.icon}" class="section-icon w-3.5 h-3.5"></i><span>${section.title}</span></div><i data-lucide="chevron-down" class="w-3 h-3 text-muted"></i>`;
+      sectionDiv.appendChild(header);
+      const nav = document.createElement('nav');
+      nav.className = 'tree-group space-y-1';
+      section.items.forEach((item) => {
+        const treeItem = document.createElement('div');
+        treeItem.className = 'tree-item' + (item.active ? ' active' : '');
+        const link = document.createElement('a');
+        link.href = item.href || '#';
+        link.className = 'tree-link' + (item.active ? ' active' : '');
+        link.title = item.desc;
+        link.innerHTML = `<i data-lucide="${item.icon}" class="w-4 h-4 flex-shrink-0"></i><span>${item.label}</span>`;
+        link.addEventListener('click', (e) => {
+          document.querySelectorAll('.tree-link').forEach(l => l.classList.remove('active'));
+          document.querySelectorAll('.tree-item').forEach(i => i.classList.remove('active'));
+          link.classList.add('active');
+          treeItem.classList.add('active');
+          closeMenu();
+          if (item.href) return;
+          e.preventDefault();
+        });
+        treeItem.appendChild(link);
+        nav.appendChild(treeItem);
+      });
+      sectionDiv.appendChild(nav);
+      container.appendChild(sectionDiv);
+    });
+    lucide.createIcons();
+  }
+
+  buildSidebar('sidebarContentDesktop');
+  buildSidebar('sidebarContentMobile');
+
+  const menuBtn = document.getElementById('menuBtn');
+  const closeMenuBtn = document.getElementById('closeMenuBtn');
+  const sidebarMobile = document.getElementById('sidebarMobile');
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+  function openMenu() { sidebarMobile.classList.add('open'); sidebarOverlay.classList.add('open'); document.body.style.overflow = 'hidden'; }
+  function closeMenu() { sidebarMobile.classList.remove('open'); sidebarOverlay.classList.remove('open'); document.body.style.overflow = ''; }
+
+  if (menuBtn) menuBtn.addEventListener('click', openMenu);
+  if (closeMenuBtn) closeMenuBtn.addEventListener('click', closeMenu);
+  if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeMenu);
+
+  const statusConfig = {
+    ocupada: { label: 'Ocupada', dot: 'bg-accent', text: 'text-accent', badge: 'bg-accent/10 text-accent border-accent/30', avatar: 'bg-accent/15 text-accent' },
+    disponivel: { label: 'Disponível', dot: 'bg-green', text: 'text-green', badge: 'bg-green/10 text-green border-green/30', avatar: 'bg-green/15 text-green' },
+    indisponivel: { label: 'Indisponível', dot: 'bg-red', text: 'text-red', badge: 'bg-red/10 text-red border-red/30', avatar: 'bg-red/15 text-red' }
+  };
+
+  const tables = [
+    { id: 1, nome: 'Mesa 01', capacidade: 4, status: 'ocupada', reserva: 'Carlos Silva', comanda: '#CMD-4521', valorGasto: 156.80, garcom: 'João', inicio: '13:45', reservaHora: '12:30', itens: ['Pizza Margherita', 'Coca-Cola 1L', 'Água Mineral'] },
+    { id: 2, nome: 'Mesa 02', capacidade: 4, status: 'disponivel' },
+    { id: 3, nome: 'Mesa 03', capacidade: 6, status: 'ocupada', reserva: 'Ana Costa', comanda: '#CMD-4523', valorGasto: 234.70, garcom: 'Maria', inicio: '14:20', reservaHora: '14:00', itens: ['Filé Mignon', 'Salada Caesar', 'Suco de Laranja'] },
+    { id: 4, nome: 'Mesa 04', capacidade: 2, status: 'disponivel' },
+    { id: 5, nome: 'Mesa 05', capacidade: 4, status: 'indisponivel', motivo: 'Em manutenção' },
+    { id: 6, nome: 'Mesa 06', capacidade: 2, status: 'ocupada', reserva: 'Roberto Lima', comanda: '#CMD-4525', valorGasto: 89.50, garcom: 'Pedro', inicio: '12:10', reservaHora: '11:00', itens: ['Hambúrguer Artesanal', 'Batata Frita'] },
+    { id: 7, nome: 'Mesa 07', capacidade: 8, status: 'ocupada', reserva: 'Fernanda Souza', comanda: '#CMD-4528', valorGasto: 312.00, garcom: 'João', inicio: '13:00', reservaHora: '12:00', itens: ['Risoto de Camarão', 'Parmegiana', 'Vinho Tinto', 'Tiramisù'] },
+    { id: 8, nome: 'Mesa 08', capacidade: 6, status: 'disponivel' },
+    { id: 9, nome: 'Mesa 09', capacidade: 4, status: 'ocupada', reserva: 'Marcos Oliveira', comanda: '#CMD-4530', valorGasto: 198.20, garcom: 'Maria', inicio: '14:40', reservaHora: '14:00', itens: ['Moqueca', 'Arroz', 'Farofa'] },
+    { id: 10, nome: 'Mesa 10', capacidade: 2, status: 'disponivel' },
+    { id: 11, nome: 'Mesa 11', capacidade: 4, status: 'indisponivel', motivo: 'Bloqueada' },
+    { id: 12, nome: 'Mesa 12', capacidade: 2, status: 'ocupada', reserva: 'Juliana Alves', comanda: '#CMD-4532', valorGasto: 67.30, garcom: 'Pedro', inicio: '15:10', itens: ['Porção de Fritas', 'Chopp'] },
+    { id: 13, nome: 'Mesa 13', capacidade: 4, status: 'disponivel' },
+    { id: 14, nome: 'Mesa 14', capacidade: 6, status: 'ocupada', reserva: 'Paulo Mendes', comanda: '#CMD-4535', valorGasto: 275.40, garcom: 'João', inicio: '15:30', reservaHora: '15:00', itens: ['Churrasco Misto', 'Picanha', 'Maionese'] },
+    { id: 15, nome: 'Mesa 15', capacidade: 4, status: 'disponivel' },
+    { id: 16, nome: 'Mesa 16', capacidade: 4, status: 'ocupada', reserva: 'Camila Rocha', comanda: '#CMD-4537', valorGasto: 125.90, garcom: 'Maria', inicio: '16:00', itens: ['Macarrão à Bolonhesa', 'Coca-Cola 2L'] },
+    { id: 17, nome: 'Mesa 17', capacidade: 8, status: 'disponivel' },
+    { id: 18, nome: 'Mesa 18', capacidade: 4, status: 'indisponivel', motivo: 'Reservada p/ evento' }
+  ];
+
+  function formatCurrency(value) {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById('tablesGrid');
+    grid.innerHTML = '';
+    const counts = { ocupada: 0, disponivel: 0, indisponivel: 0 };
+
+    tables.forEach(t => {
+      counts[t.status]++;
+      const st = statusConfig[t.status];
+      const info = t.status === 'ocupada' ? `Desde ${t.inicio}` : (t.status === 'disponivel' ? 'Livre agora' : (t.motivo || ''));
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'table-btn btn-press relative rounded-xl bg-card border border-border p-3 sm:p-4 text-left transition hover:border-accent/50 hover:-translate-y-0.5';
+      btn.innerHTML = `
+        <div class="flex items-start justify-between mb-2">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full ${st.dot} dot-pulse"></span>
+            <span class="text-[9px] sm:text-[10px] font-medium ${st.text}">${st.label}</span>
+          </div>
+          <i data-lucide="users" class="w-3.5 h-3.5 text-muted"></i>
+        </div>
+        <div class="text-sm sm:text-base font-bold">${t.nome}</div>
+        <div class="text-[10px] sm:text-xs text-muted mt-0.5">${t.capacidade} lugares</div>
+        <div class="text-[10px] sm:text-xs ${t.status === 'ocupada' ? 'text-accent/80' : 'text-muted'} mt-2">${info}</div>
+      `;
+      btn.addEventListener('click', () => openModal(t.id));
+      grid.appendChild(btn);
+    });
+
+    document.getElementById('statOcupadas').textContent = counts.ocupada;
+    document.getElementById('statDisponiveis').textContent = counts.disponivel;
+    document.getElementById('statIndisponiveis').textContent = counts.indisponivel;
+    lucide.createIcons();
+  }
+
+  function openModal(id) {
+    const t = tables.find(x => x.id === id);
+    if (!t) return;
+    const st = statusConfig[t.status];
+
+    document.getElementById('modalTitle').textContent = t.nome;
+
+    const statusEl = document.getElementById('modalStatus');
+    statusEl.className = `inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-md text-xs font-medium border ${st.badge}`;
+    statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${st.dot}"></span>${st.label}`;
+
+    const avatar = document.getElementById('modalAvatar');
+    avatar.className = `w-11 h-11 rounded-xl flex items-center justify-center ${st.avatar}`;
+    avatar.innerHTML = `<i data-lucide="armchair" class="w-5 h-5"></i>`;
+
+    document.getElementById('modalReserva').textContent = t.reserva || '—';
+    document.getElementById('modalComanda').textContent = t.comanda || '—';
+    document.getElementById('modalValor').textContent = t.valorGasto ? formatCurrency(t.valorGasto) : '—';
+    document.getElementById('modalCapacidade').textContent = `${t.capacidade} lugares`;
+    document.getElementById('modalGarcom').textContent = t.garcom || '—';
+    document.getElementById('modalInicio').textContent = t.inicio || '—';
+
+    const itemsSection = document.getElementById('modalItemsSection');
+    const itemsBox = document.getElementById('modalItems');
+    const itemCount = document.getElementById('modalItemCount');
+    if (t.itens && t.itens.length) {
+      itemsSection.classList.remove('hidden');
+      itemCount.textContent = `${t.itens.length} itens`;
+      itemsBox.innerHTML = t.itens.map(item => `
+        <div class="flex items-center justify-between px-3 py-2">
+          <div class="flex items-center gap-2">
+            <i data-lucide="utensils-crossed" class="w-3.5 h-3.5 text-muted"></i>
+            <span class="text-xs sm:text-sm">${item}</span>
+          </div>
+          <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-muted"></i>
+        </div>
+      `).join('');
+    } else {
+      itemsSection.classList.add('hidden');
+    }
+
+    document.getElementById('modalComandaBtn').classList.toggle('hidden', t.status !== 'ocupada');
+
+    const modal = document.getElementById('tableModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    lucide.createIcons();
+  }
+
+  function closeModal() {
+    const modal = document.getElementById('tableModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+  document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+  document.getElementById('modalBackdrop').addEventListener('click', closeModal);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+  renderGrid();
+</script>
+</body>
+</html>
