@@ -100,7 +100,7 @@ test('Vercel publica headers de segurança globais sem remover os rewrites opera
     assert.ok(nomes.has(nome), `header ausente: ${nome}`);
   }
   const rewritesOperacionais = configuracao.rewrites.filter((item) => item.source.startsWith('/api/v1/'));
-  assert.equal(rewritesOperacionais.length, 4);
+  assert.equal(rewritesOperacionais.length, 5);
 });
 
 test('scanner de segredos não encontra credenciais no repositório', () => {

@@ -8,7 +8,8 @@
     { "source": "/api/v1/cardapio", "destination": "/api/v1/operacional?modulo=cardapio" },
     { "source": "/api/v1/salao", "destination": "/api/v1/operacional?modulo=salao" },
     { "source": "/api/v1/equipe", "destination": "/api/v1/operacional?modulo=equipe" },
-    { "source": "/api/v1/financeiro", "destination": "/api/v1/operacional?modulo=financeiro" }
+    { "source": "/api/v1/financeiro", "destination": "/api/v1/operacional?modulo=financeiro" },
+    { "source": "/api/v1/pedidos", "destination": "/api/v1/operacional?modulo=pedidos" }
   ],
   "routes": [
     {"src":"^/paginas/home\\.html$","missing":[{"type":"header","key":"X-Apex-Fragment"}],"status":308,"headers":{"Location":"/"}},

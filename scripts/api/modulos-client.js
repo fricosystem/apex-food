@@ -96,6 +96,18 @@
     return requisitar('/cardapio', { method: 'POST', body: { recurso: 'estoque', ...payload } });
   }
 
+  async function listarPedidos(parametros = {}) {
+    return requisitar(`/pedidos${query(parametros)}`);
+  }
+
+  async function criarPedido(payload) {
+    return requisitar('/pedidos', { method: 'POST', body: payload });
+  }
+
+  async function atualizarStatusPedido(payload) {
+    return requisitar('/pedidos', { method: 'PATCH', body: { recurso: 'pedido', ...payload } });
+  }
+
   async function listarSalao(recurso = '') {
     return requisitar(`/salao${query({ recurso })}`);
   }
@@ -160,6 +172,9 @@
     criarCardapio,
     atualizarCardapio,
     registrarMovimentacaoEstoque,
+    listarPedidos,
+    criarPedido,
+    atualizarStatusPedido,
     listarSalao,
     criarReserva,
     atualizarSalao,

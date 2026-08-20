@@ -6,6 +6,7 @@ const handlers = Object.freeze({
   equipe: require('../_lib/equipe-handler'),
   financeiro: require('../_lib/financeiro-handler'),
   'visao-geral': require('../_lib/visao-geral-handler'),
+  pedidos: require('../_lib/pedidos-handler'),
 });
 
 function moduloDaRequisicao(req) {
@@ -16,6 +17,7 @@ function moduloDaRequisicao(req) {
   if (url.includes('/salao')) return 'salao';
   if (url.includes('/equipe')) return 'equipe';
   if (url.includes('/financeiro')) return 'financeiro';
+  if (url.includes('/pedidos')) return 'pedidos';
   return '';
 }
 
