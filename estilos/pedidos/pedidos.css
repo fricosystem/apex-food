@@ -31,9 +31,9 @@ body { font-family: 'Inter', sans-serif; background: #000000; color: #e5e5e5; }
 .pedido-card { transition: border-color 180ms ease, transform 180ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 180ms ease; }
 .pedido-card:hover { border-color: rgba(234, 88, 12, 0.55); transform: translateY(-2px); box-shadow: 0 12px 24px rgba(0,0,0,0.2); }
 .pedido-card:focus-within { outline: 2px solid rgba(234, 88, 12, 0.7); outline-offset: 2px; }
-.pedido-card.prioridade-alta { border-left: 3px solid transparent; }
-.pedido-card.prioridade-normal { border-left: 3px solid transparent; }
-.pedido-card.prioridade-baixa { border-left: 3px solid transparent; }
+.pedido-card.prioridade-alta { border-left: 1px solid #1a1a1a; }
+.pedido-card.prioridade-normal { border-left: 1px solid #1a1a1a; }
+.pedido-card.prioridade-baixa { border-left: 1px solid #1a1a1a; }
 .pedido-modal { opacity: 0; pointer-events: none; transition: opacity 180ms ease; }
 .pedido-modal.aberto { opacity: 1; pointer-events: auto; }
 .pedido-modal-painel { transform: translateY(12px) scale(0.98); transition: transform 220ms cubic-bezier(0.23,1,0.32,1); }
