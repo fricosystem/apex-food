@@ -6,12 +6,7 @@
   overflow: hidden;
 }
 .home-modulo::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: var(--home-modulo-cor, #ea580c);
-  opacity: .9;
+  display: none;
 }
 .home-modulo-header {
   display: flex;
