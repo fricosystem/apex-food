@@ -167,7 +167,7 @@ button {
   gap: 0.55rem;
   margin: 0 0 1.5rem;
   color: #fdba74;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -238,7 +238,7 @@ button {
   justify-content: space-between;
   gap: 1rem;
   color: #606060;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
 }
 
 .auth-brand-footer strong {
@@ -482,7 +482,7 @@ button {
 .auth-field-message {
   min-height: 0.85rem;
   color: #f87171;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   line-height: 1.35;
 }
 
@@ -503,7 +503,7 @@ button {
   align-items: center;
   gap: 0.5rem;
   color: var(--apex-texto-suave);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   cursor: pointer;
 }
 
@@ -518,7 +518,7 @@ button {
   border: 0;
   background: transparent;
   color: #fdba74;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 600;
   text-decoration: none;
 }
@@ -610,7 +610,7 @@ button {
 .auth-legal {
   margin: 0.8rem 0 0;
   color: #626262;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   line-height: 1.55;
   text-align: center;
 }
@@ -632,7 +632,7 @@ button {
 .auth-redirect-note {
   margin: 0.8rem 0 0;
   color: #737373;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   line-height: 1.4;
   text-align: center;
 }
@@ -747,7 +747,7 @@ button {
 
   .auth-legal {
     margin-top: 0.65rem;
-    font-size: 0.64rem;
+    font-size: 0.72rem;
   }
 }
 
@@ -804,7 +804,7 @@ button {
 
   .auth-domain-suffix {
     left: 0.65rem;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
   }
 
   .auth-input.auth-identifier-input {
@@ -812,7 +812,7 @@ button {
   }
 
   .auth-field-message {
-    font-size: 0.66rem;
+    font-size: 0.75rem;
   }
 
   .auth-submit {

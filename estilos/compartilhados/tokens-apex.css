@@ -18,3 +18,39 @@
 .apex-fonte-padrao {
   font-family: var(--apex-fonte);
 }
+
+/* Escala tipográfica global APEX Food: leitura confortável sem perder hierarquia. */
+:root {
+  --apex-fonte-micro: 0.6875rem;
+  --apex-fonte-auxiliar: 0.75rem;
+  --apex-fonte-corpo: 0.875rem;
+  --apex-fonte-subtitulo: 1rem;
+  --apex-fonte-titulo-secao: 1.125rem;
+  --apex-fonte-valor: 1.5rem;
+  --apex-entrelinha-micro: 1.3;
+  --apex-entrelinha-auxiliar: 1.4;
+  --apex-entrelinha-corpo: 1.5;
+}
+
+.apex-texto-micro,
+.apex-texto-auxiliar,
+.apex-texto-corpo,
+.apex-texto-subtitulo,
+.apex-texto-titulo-secao,
+.apex-texto-valor {
+  font-family: var(--apex-fonte);
+}
+
+.apex-texto-micro { font-size: var(--apex-fonte-micro); line-height: var(--apex-entrelinha-micro); }
+.apex-texto-auxiliar { font-size: var(--apex-fonte-auxiliar); line-height: var(--apex-entrelinha-auxiliar); }
+.apex-texto-corpo { font-size: var(--apex-fonte-corpo); line-height: var(--apex-entrelinha-corpo); }
+.apex-texto-subtitulo { font-size: var(--apex-fonte-subtitulo); line-height: 1.35; }
+.apex-texto-titulo-secao { font-size: var(--apex-fonte-titulo-secao); line-height: 1.3; }
+.apex-texto-valor { font-size: var(--apex-fonte-valor); line-height: 1.1; }
+
+/* Classes arbitrárias já presentes nos fragmentos: elevação moderada e uniforme. */
+[class~="text-[9px]"] { font-size: var(--apex-fonte-micro) !important; line-height: var(--apex-entrelinha-micro); }
+[class~="text-[10px]"] { font-size: var(--apex-fonte-auxiliar) !important; line-height: var(--apex-entrelinha-auxiliar); }
+[class~="text-[11px]"] { font-size: 0.8125rem !important; line-height: var(--apex-entrelinha-auxiliar); }
+[class~="text-xs"] { line-height: var(--apex-entrelinha-auxiliar); }
+[class~="text-sm"] { line-height: var(--apex-entrelinha-corpo); }

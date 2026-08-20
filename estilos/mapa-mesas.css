@@ -62,7 +62,7 @@ body { font-family: 'Inter', sans-serif; background: #000000; color: #e5e5e5; }
   user-select: none;
 }
 .section-header .section-title {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   color: #8a8a8a;

@@ -25,7 +25,7 @@
   display: inline-flex;
   align-items: center;
   gap: .4rem;
-  font-size: .65rem;
+  font-size: .75rem;
   font-weight: 700;
   letter-spacing: .11em;
   text-transform: uppercase;
@@ -71,7 +71,7 @@
   transform: translateX(-50%);
   white-space: nowrap;
   color: #737373;
-  font-size: .58rem;
+  font-size: .6875rem;
 }
 .home-chart-grid {
   background-image: linear-gradient(to top, transparent 24%, #1a1a1a 25%, transparent 26%, transparent 49%, #1a1a1a 50%, transparent 51%, transparent 74%, #1a1a1a 75%, transparent 76%);
@@ -103,7 +103,7 @@
 }
 .home-heatmap-label {
   color: #737373;
-  font-size: .56rem;
+  font-size: .6875rem;
   white-space: nowrap;
 }
 .home-donut {
@@ -134,7 +134,7 @@
 }
 .home-donut-center span {
   color: #737373;
-  font-size: .58rem;
+  font-size: .6875rem;
 }
 .home-ranking-item + .home-ranking-item {
   margin-top: .7rem;
@@ -157,7 +157,7 @@
   gap: .7rem;
   margin: 1.5rem 0 .85rem;
   color: #737373;
-  font-size: .65rem;
+  font-size: .75rem;
   font-weight: 700;
   letter-spacing: .12em;
   text-transform: uppercase;
@@ -174,7 +174,7 @@
   gap: .3rem;
   border-radius: 999px;
   padding: .25rem .5rem;
-  font-size: .62rem;
+  font-size: .6875rem;
   border: 1px solid #262626;
   background: #0d0d0d;
 }
@@ -201,7 +201,7 @@
   background: #0d0d0d;
   color: #8a8a8a;
   padding: .5rem .75rem;
-  font-size: .7rem;
+  font-size: .75rem;
   font-weight: 600;
   transition: background .2s ease, border-color .2s ease, color .2s ease;
 }
@@ -224,6 +224,6 @@
 }
 @media (max-width: 640px) {
   .home-periodo-botoes { width: 100%; }
-  .home-periodo-btn { padding: .45rem .65rem; font-size: .65rem; }
+  .home-periodo-btn { padding: .45rem .65rem; font-size: .75rem; }
   .home-periodo-input { min-width: 0; width: 100%; }
 }
