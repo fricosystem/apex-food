@@ -1,7 +1,8 @@
 (() => {
   'use strict';
 
-  const paginaAutenticacao = /\/paginas\/autenticacao\.html(?:$|\?)/i.test(window.location.pathname);
+  const caminhoAtual = window.location.pathname.replace(/\/+$/, '') || '/';
+  const paginaAutenticacao = caminhoAtual === '/paginas/autenticacao' || caminhoAtual === '/paginas/autenticacao.html';
   const apiUrl = '/api/v1/auth/session';
   const raiz = document.documentElement;
 
@@ -22,7 +23,7 @@
 
       if (paginaAutenticacao) {
         if (resposta.ok) {
-          window.location.replace('../index.html');
+          window.location.replace('/');
           return;
         }
         revelar();
@@ -30,13 +31,13 @@
       }
 
       if (resposta.status === 401 || resposta.status === 403 || resposta.status === 503) {
-        window.location.replace('paginas/autenticacao.html');
+        window.location.replace('/paginas/autenticacao');
         return;
       }
       revelar();
     } catch {
       if (!paginaAutenticacao) {
-        window.location.replace('paginas/autenticacao.html');
+        window.location.replace('/paginas/autenticacao');
         return;
       }
       revelar();

@@ -239,7 +239,7 @@
     elements.redirectNote.hidden = false;
     window.clearTimeout(state.redirectTimer);
     state.redirectTimer = window.setTimeout(() => {
-      window.location.href = '../index.html';
+      window.location.href = '/';
     }, 950);
   }
 
