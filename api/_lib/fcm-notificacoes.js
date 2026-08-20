@@ -70,7 +70,7 @@ async function revogarTokensInvalidos(restauranteRef, documentos) {
   return quantidade;
 }
 
-async function enviarNotificacaoFcm({ idRestaurante, evento }) {
+async function enviarNotificacaoFcm({ idRestaurante, evento, idUsuario = null, idDispositivo = null, somenteSistema = false }) {
   if (!idRestaurante || !evento?.tipoNotificacao) return { tentados: 0, enviados: 0, revogados: 0, indisponivel: true };
   try {
     const restauranteRef = caminhoRestaurante(idRestaurante);
@@ -81,8 +81,10 @@ async function enviarNotificacaoFcm({ idRestaurante, evento }) {
     const candidatos = snapshot.docs.filter(documento => {
       const dados = documento.data() || {};
       return Boolean(dados.tokenFcm)
+        && (!idUsuario || dados.idUsuario === idUsuario)
+        && (!idDispositivo || documento.id === idDispositivo)
         && !expirada(dados.expiraEm)
-        && dados.preferencias?.operacionais !== false;
+        && dados.preferencias?.[somenteSistema ? 'sistema' : 'operacionais'] !== false;
     });
     if (!candidatos.length) return { tentados: 0, enviados: 0, revogados: 0, indisponivel: false };
     const app = getFirebaseAdminApp();
@@ -111,4 +113,6 @@ module.exports = Object.freeze({
   enviarNotificacaoFcm,
   mensagemFcm,
   ERROS_TOKEN_INVALIDO,
+  LIMITE_TOKENS_ENVIO,
+
 });

@@ -96,7 +96,7 @@ test('shell e autenticação carregam configuração e controller FCM versionado
 test('emissor FCM envia somente a dispositivos ativos e revoga tokens inválidos', () => {
   const emissor = ler('api/_lib/fcm-notificacoes.js');
   assert.match(emissor, /statusDispositivo', '==', 'ativo'/);
-  assert.match(emissor, /preferencias\?\.operacionais !== false/);
+  assert.match(emissor, /preferencias\?\.\[somenteSistema \? 'sistema' : 'operacionais'\] !== false/);
   assert.match(emissor, /sendEachForMulticast/);
   assert.match(emissor, /registration-token-not-registered/);
   assert.match(emissor, /invalid-registration-token/);

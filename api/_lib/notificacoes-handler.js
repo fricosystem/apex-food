@@ -25,6 +25,7 @@ const {
   listarDispositivos,
   atualizarDispositivo,
 } = require('./dispositivos-notificacao');
+const { enviarNotificacaoFcm } = require('./fcm-notificacoes');
 
 const PAPEIS_GESTAO = ['proprietario', 'administrador', 'gerente'];
 const PAPEIS_NOTIFICACOES_LEITURA = [...new Set([...PAPEIS_LEITURA, 'caixa'])];
@@ -110,6 +111,26 @@ async function listarNotificacoes(identidade, req) {
   };
 }
 
+async function testarDispositivo(identidade, corpo, idRequisicao) {
+  const idDispositivo = corpo.id ? idDocumento(corpo.id, 'idDispositivo') : null;
+  const resultado = await enviarNotificacaoFcm({
+    idRestaurante: identidade.idRestaurante,
+    idUsuario: identidade.idUsuario,
+    idDispositivo,
+    somenteSistema: true,
+    evento: {
+      tipoNotificacao: 'teste_dispositivo',
+      titulo: 'APEX Food — teste de dispositivo',
+      mensagem: 'Este dispositivo está autorizado a receber notificações do sistema.',
+      idNotificacao: `teste:${identidade.idUsuario}:${idDispositivo || 'todos'}`,
+    },
+  });
+  if (resultado.indisponivel) throw new ApiError(503, 'FCM_INDISPONIVEL', 'O serviço de notificações está temporariamente indisponível.');
+  if (!resultado.tentados) throw new ApiError(409, 'DISPOSITIVO_SEM_NOTIFICACAO', 'Nenhum dispositivo ativo está pronto para receber o teste.');
+  await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: 'dispositivo_notificacao.teste', tipoRecurso: 'dispositivoNotificacao', idRecurso: idDispositivo, resultado: resultado.enviados ? 'sucesso' : 'falha' });
+  return { corpo: { recurso: 'dispositivoNotificacao', teste: true, ...resultado } };
+}
+
 async function operarDispositivos(identidade, req, metodo, idRequisicao) {
   if (metodo !== 'GET') await consumir(req, 'notificacoes_dispositivo', 30, 60 * 1000);
   if (metodo === 'GET') {
@@ -117,6 +138,7 @@ async function operarDispositivos(identidade, req, metodo, idRequisicao) {
     return { corpo: await listarDispositivos({ identidade, limite }) };
   }
   const corpo = await lerCorpoJson(req);
+  if (metodo === 'POST' && corpo.acao === 'teste') return testarDispositivo(identidade, corpo, idRequisicao);
   if (metodo === 'POST') {
     return registrarDispositivo({
       identidade,
