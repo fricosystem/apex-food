@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const contrato = JSON.parse(fs.readFileSync(path.join(__dirname, '../docs/firebase/contrato-real-v1.json'), 'utf8'));
+const indicesFirestore = JSON.parse(fs.readFileSync(path.join(__dirname, '../firestore.indexes.json'), 'utf8'));
 
 const nomesTecnicosProibidos = new Set([
   'endpoint',
@@ -87,6 +88,13 @@ test('contratos de API operacionais mantêm métodos e recursos controlados', ()
   assert.deepEqual(salao.mutacao, ['reserva', 'mesa']);
   assert.deepEqual(equipe.mutacao, ['funcionario', 'escala']);
   assert.deepEqual(financeiro.mutacao, ['conta', 'movimentacao', 'fechamento']);
+});
+
+test('índice automático de grupo cobre a listagem de restaurantes por membro ativo', () => {
+  const isencao = indicesFirestore.fieldOverrides.find((item) => item.collectionGroup === 'membros' && item.fieldPath === 'idUsuario');
+  assert.ok(isencao);
+  assert.deepEqual(isencao.indexes, [{ order: 'ASCENDING', queryScope: 'COLLECTION_GROUP' }]);
+  assert.deepEqual(indicesFirestore.indexes, []);
 });
 
 test('regras comuns preservam segurança, centavos, DTO mínimo e auditoria', () => {

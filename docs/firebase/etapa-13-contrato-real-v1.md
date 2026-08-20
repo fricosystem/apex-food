@@ -193,7 +193,15 @@ Os seguintes invariantes são parte do contrato e serão cobertos por testes:
 | DTO | Respostas não expõem autoria interna ou escopo desnecessário |
 | Paginação | O limite máximo é imposto server-side |
 
-## 9. Critérios de aceite da Fase 2
+## 9. Índices necessários
+
+A consulta de restaurantes usa `collectionGroup('membros')` filtrada por `idUsuario`. Como se trata de uma consulta simples por igualdade em um único campo, o Firebase não exige um índice manual composto. O índice correto é uma **isenção de índice automático** em [`firestore.indexes.json`](../../firestore.indexes.json), com código de coleção `membros`, campo `idUsuario`, escopo `COLLECTION_GROUP` e somente a ordenação crescente habilitada.
+
+Essa isenção já foi salva no banco `(default)` do projeto Firebase Development. O Console pode levar alguns minutos para concluir o processamento e o backfill; manter o arquivo no GitHub não publica a configuração automaticamente. Decrescente e matrizes permanecem desativados para não aumentar armazenamento ou custo sem necessidade.
+
+A ausência do índice de grupo produz falha server-side na listagem de restaurantes e impede a resolução do contexto ativo, mesmo quando o login Firebase já foi concluído. O teste de contrato valida a estrutura `fieldOverrides` correta para evitar regressão para um índice manual incorreto.
+
+## 10. Critérios de aceite da Fase 2
 
 A Fase 2 está concluída quando o manifesto JSON e este documento estiverem versionados, os nomes de coleções e campos forem consistentes com os handlers atuais, os recursos pendentes estiverem explicitamente marcados, os endpoints possuírem métodos e recursos documentados, os invariantes estiverem testados e nenhuma Rule do Firestore tiver sido aberta prematuramente.
 
