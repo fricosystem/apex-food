@@ -136,9 +136,9 @@ async function listarFinanceiro(identidade, req) {
   return { corpo };
 }
 
-async function criarConta(identidade, corpo, idRequisicao) {
+async function criarConta(identidade, req, corpo, idRequisicao) {
   const dados = validarConta(corpo);
-  const chave = idempotenciaDaRequisicao({ headers: {} }, corpo);
+  const chave = idempotenciaDaRequisicao(req, corpo);
   const resultado = await executarIdempotente(identidade, chave, async (transacao, restaurante) => {
     const referencia = restaurante.collection(dados.tipo === 'pagar' ? 'contasPagar' : 'contasReceber').doc();
     transacao.create(referencia, {
@@ -258,7 +258,7 @@ module.exports = async function financeiro(req, res) {
     if (metodo === 'GET') return listarFinanceiro(identidade, req);
     if (!RECURSOS_MUTACAO.has(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Mutação financeira inválida ou não disponível.');
     if (metodo === 'POST') {
-      if (recurso === 'conta') return criarConta(identidade, corpo, idRequisicao);
+      if (recurso === 'conta') return criarConta(identidade, req, corpo, idRequisicao);
       if (recurso === 'movimentacao') return criarMovimentacao(identidade, req, corpo, idRequisicao);
       return fecharCaixa(identidade, corpo, idRequisicao);
     }

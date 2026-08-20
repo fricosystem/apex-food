@@ -1,4 +1,4 @@
-window.dadosFinanceirosApexFood = {
+const dadosFinanceirosPreview = {
   caixaAtual: {
     data: '18/08/2026', abertura: 1200.00, vendas: 4872.50, suprimentos: 380.00, sangrias: 250.00, retiradas: 0, saldoEsperado: 5442.50, saldoConferido: 5442.50, status: 'aberto', operador: 'Beatriz Almeida', aberturaHora: '10:02'
   },
@@ -42,7 +42,7 @@ window.dadosFinanceirosApexFood = {
     if (window.apexModulosClientPromise) return window.apexModulosClientPromise;
     window.apexModulosClientPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = '/scripts/api/modulos-client.js?v=etapa11';
+      script.src = '/scripts/api/modulos-client.js?v=fase9';
       script.dataset.apexModuloClient = 'true';
       script.onload = () => resolve(window.apexModulosApi);
       script.onerror = () => reject(new Error('Não foi possível carregar o cliente dos módulos.'));
@@ -54,6 +54,9 @@ window.dadosFinanceirosApexFood = {
   function emPreviewLocal() {
     return ['localhost', '127.0.0.1'].includes(window.location.hostname);
   }
+
+  const estadoFinanceiroVazio = { caixaAtual: {}, recebimentos: [], fluxo: [], contas: [], relatoriosMensais: [], categorias: [] };
+  window.dadosFinanceirosApexFood = emPreviewLocal() ? dadosFinanceirosPreview : estadoFinanceiroVazio;
 
   function aplicarDadosRemotos(dados) {
     Object.assign(window.dadosFinanceirosApexFood, {
