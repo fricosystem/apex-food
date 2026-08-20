@@ -13,6 +13,12 @@
     raiz.style.visibility = '';
   }
 
+  function informarSessaoAutenticada() {
+    window.dispatchEvent(new CustomEvent('apex:sessao-autenticada', {
+      detail: { origem: 'restaurada' },
+    }));
+  }
+
   async function verificarSessao() {
     try {
       const resposta = await fetch(apiUrl, {
@@ -51,6 +57,7 @@
         window.location.replace('/autenticacao');
         return;
       }
+      informarSessaoAutenticada();
       revelar();
     } catch {
       if (paginaMesaPublica) {

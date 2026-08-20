@@ -11,7 +11,7 @@ const pagina = fs.readFileSync(path.join(__dirname, '../paginas/autenticacao.htm
 test('login resolve restaurante ativo antes do redirecionamento ao shell', () => {
   assert.match(auth, /await api\.requisitar\('\/restaurantes'\)/);
   assert.match(auth, /await prepararRestauranteAtivo\(\)/);
-  assert.match(auth, /window\.location\.href = '\/'/);
+  assert.match(auth, /window\.location\.href = origem \?/);
   assert.doesNotMatch(auth, /localStorage|sessionStorage/);
 });
 

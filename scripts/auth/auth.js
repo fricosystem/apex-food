@@ -351,7 +351,8 @@
       esconderEscolhaRestaurante();
       resolver?.(restaurante);
       setFeedback('Restaurante criado. Você será direcionado.', 'success');
-      finishRedirect();
+      solicitarNotificacaoDeLogin();
+      finishRedirect('login');
     } catch (error) {
       setFeedback(mensagemErro(error, 'Não foi possível criar o restaurante.'));
     } finally {
@@ -414,11 +415,18 @@
     return mensagens[error?.code] || error?.message || fallback;
   }
 
-  function finishRedirect() {
+  function solicitarNotificacaoDeLogin() {
+    try {
+      const resultado = window.apexNotificacoesSistema?.solicitarPermissao?.();
+      if (resultado && typeof resultado.catch === 'function') resultado.catch(() => {});
+    } catch {}
+  }
+
+  function finishRedirect(origem = '') {
     elements.redirectNote.hidden = false;
     window.clearTimeout(state.redirectTimer);
     state.redirectTimer = window.setTimeout(() => {
-      window.location.href = '/';
+      window.location.href = origem ? `/?apex-notificacao=${encodeURIComponent(origem)}` : '/';
     }, 950);
   }
 
@@ -432,6 +440,7 @@
       return;
     }
 
+    solicitarNotificacaoDeLogin();
     setLoading(form, true);
     try {
       const email = getAccountAddress(form.querySelector('[name="identifier"]'));
@@ -439,7 +448,7 @@
       await api.requisitar('/auth/login', { method: 'POST', body: { email, senha } });
       await prepararRestauranteAtivo();
       setFeedback('Acesso validado. Você será direcionado para a Visão Geral.', 'success');
-      finishRedirect();
+      finishRedirect('login');
     } catch (error) {
       setFeedback(mensagemErro(error, 'Não foi possível concluir o acesso.'));
     } finally {
