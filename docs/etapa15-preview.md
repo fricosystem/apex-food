@@ -13,3 +13,5 @@ Com uma resposta temporária controlada somente no navegador, o preview completo
 O menu do perfil foi validado aberto dentro da página e passou a exibir **Configurações do perfil**, **Notificações** e **Sair**. A navegação interna e os controles da página permaneceram visíveis, sem criação de sidebar ou header adicional.
 
 Após a primeira publicação, a verificação de produção identificou que a rota limpa ainda não estava incluída no grupo de rewrites da Vercel. O `vercel.json` foi corrigido para encaminhar `/configuracoes-perfil` ao shell principal, e o contrato `urls-limpas.test.js` passou a cobrir explicitamente essa rota. A correção aguarda uma nova publicação para a verificação final em produção.
+
+A verificação final em produção após o commit corretivo confirmou que `/configuracoes-perfil` responde HTTP 200 sem 404 e que, sem sessão autenticada, o guard redireciona de forma segura para `/autenticacao`. A página de autenticação foi visualizada com a identidade APEX Food preservada.
