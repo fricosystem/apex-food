@@ -428,7 +428,8 @@ module.exports = async function financeiro(req, res) {
   const mutacao = ['POST', 'PATCH'].includes(metodo);
   return executar(req, res, { metodos: ['GET', 'POST', 'PATCH'], mutacao, appCheck: true }, async ({ idRequisicao }) => {
     const corpo = mutacao ? await lerCorpoJson(req) : null;
-    const recurso = normalizarRecurso(corpo?.recurso || queryString(req, 'recurso'));
+    const recursoBruto = corpo?.recurso || queryString(req, 'recurso');
+    const recurso = mutacao && recursoBruto === 'movimentacao' ? 'movimentacao' : normalizarRecurso(recursoBruto);
     let papeis = PAPEIS_LEITURA_FINANCEIRO;
     if (recurso === 'fechamento' || recurso === 'fechamentos') papeis = PAPEIS_FECHAMENTO;
     else if (recurso === 'encaminhamentos' || recurso === 'encaminhamentosCaixa') papeis = PAPEIS_LEITURA_CAIXA;
