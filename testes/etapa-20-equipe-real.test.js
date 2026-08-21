@@ -8,11 +8,13 @@ const path = require('node:path');
 const raiz = path.resolve(__dirname, '..');
 const ler = relativo => fs.readFileSync(path.join(raiz, relativo), 'utf8');
 
-test('bridge da Equipe restringe dados de preview ao ambiente local', () => {
+test('bridge da Equipe inicia vazio e carrega somente dados reais', () => {
   const bridge = ler('scripts/equipe/dados-equipe.js');
-  assert.match(bridge, /const ambienteEquipeLocal = \['localhost', '127\.0\.0\.1'\]/);
-  assert.match(bridge, /window\.dadosEquipeApexFood = ambienteEquipeLocal \? previewEquipe : estadoEquipeVazio/);
+  assert.doesNotMatch(bridge, /preview|localhost|FUN-00[1-9]|João Mendes/);
+  assert.match(bridge, /window\.dadosEquipeApexFood = estadoVazio\(\)/);
   assert.match(bridge, /window\.recarregarEquipeReal/);
+  assert.match(bridge, /listarEquipe\(\)/);
+  assert.match(bridge, /setTimeout/);
 });
 
 test('cliente da Equipe permanece same-origin e versionado', () => {
@@ -42,10 +44,10 @@ test('controllers da Equipe usam persistência e não exibem placeholders', () =
 test('shell e index versionam as rotas da Fase 8', () => {
   const shell = ler('scripts/shell/apex-shell.js');
   const index = ler('index.html');
-  assert.match(shell, /funcionarios\.html\?v=fase8/);
-  assert.match(shell, /escala-trabalho\.html\?v=fase8/);
-  assert.match(shell, /comissoes\.html\?v=fase11/);
-  assert.match(index, /apex-shell\.js\?v=etapa21-salao-tempo-real/);
+  assert.match(shell, /funcionarios\.html\?v=etapa22-dados-reais-global/);
+  assert.match(shell, /escala-trabalho\.html\?v=etapa22-dados-reais-global/);
+  assert.match(shell, /comissoes\.html\?v=etapa22-dados-reais-global/);
+  assert.match(index, /apex-shell\.js\?v=etapa22-dados-reais-global/);
 });
 
 test('contrato de equipe mantém coleções públicas e privadas separadas', () => {

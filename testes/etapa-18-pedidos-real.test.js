@@ -43,11 +43,13 @@ test('Fase 6 mantém histórico e marcos de fechamento no backend', () => {
   assert.match(handler, /historicoStatus/);
 });
 
-test('Pedidos não carregam fixtures no ambiente Development', () => {
+test('Pedidos iniciam vazios e carregam somente dados reais', () => {
   const dados = ler('scripts/pedidos/dados-pedidos.js');
-  assert.match(dados, /const ambientePedidosLocal = \['localhost', '127\.0\.0\.1'\]/);
-  assert.match(dados, /window\.dadosPedidosApexFood = ambientePedidosLocal \? dadosPedidosPreview : estadoPedidosVazio/);
-  assert.match(dados, /apexModulosApi\.listarPedidos/);
+  assert.doesNotMatch(dados, /dadosPedidosPreview|ambientePedidosLocal|localhost/);
+  assert.match(dados, /window\.dadosPedidosApexFood = estadoPedidosVazio/);
+  assert.match(dados, /listarPedidos\(\{ limite: 300 \}\)/);
+  assert.match(dados, /listarCardapio\(\)/);
+  assert.match(dados, /listarSalao\('mesas'\)/);
 });
 
 test('controllers de Pedidos usam a API e mantêm a fonte única', () => {

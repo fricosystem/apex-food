@@ -60,9 +60,9 @@ test('Dashboard de Desempenho usa período dinâmico e recarrega módulos', () =
 test('shell e index versionam os módulos revisados na Fase 11', () => {
   const shell = ler('scripts/shell/apex-shell.js');
   const index = ler('index.html');
-  assert.match(shell, /['"]?comissoes['"]?:[^\n]*fase11/);
+  assert.match(shell, /['"]?comissoes['"]?:[^\n]*etapa22-dados-reais-global/);
   assert.match(shell, /vendas-por-periodo[^\n]*fase11/);
-  assert.match(index, /apex-shell\.js\?v=etapa21-salao-tempo-real/);
+  assert.match(index, /apex-shell\.js\?v=etapa22-dados-reais-global/);
 });
 
 test('relatórios e comissões não exibem valores ou períodos fixos', () => {

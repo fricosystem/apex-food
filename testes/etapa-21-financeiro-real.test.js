@@ -8,12 +8,13 @@ const path = require('node:path');
 const raiz = path.resolve(__dirname, '..');
 const ler = relativo => fs.readFileSync(path.join(raiz, relativo), 'utf8');
 
-test('bridge financeiro restringe dados de preview ao ambiente local', () => {
+test('bridge financeiro inicia vazio e carrega somente dados reais', () => {
   const bridge = ler('scripts/financeiro/dados-financeiros.js');
-  assert.match(bridge, /const dadosFinanceirosPreview/);
-  assert.match(bridge, /const estadoFinanceiroVazio/);
-  assert.match(bridge, /emPreviewLocal\(\) \? dadosFinanceirosPreview : estadoFinanceiroVazio/);
+  assert.doesNotMatch(bridge, /dadosFinanceirosPreview|emPreviewLocal|localhost|MOV-08|Hortifruti Verde Vida/);
+  assert.match(bridge, /window\.dadosFinanceirosApexFood = \{/);
   assert.match(bridge, /window\.apexFinanceiroRecarregar/);
+  assert.match(bridge, /listarFinanceiro\('', parametros\)/);
+  assert.match(bridge, /meta\?\.idRestaurante/);
 });
 
 test('handler financeiro preserva centavos, idempotência e auditoria', () => {
@@ -60,12 +61,12 @@ test('Dashboard Financeiro e Fechamento não exibem períodos ou alertas fixos',
 test('shell e index versionam as rotas financeiras da Fase 9', () => {
   const shell = ler('scripts/shell/apex-shell.js');
   const index = ler('index.html');
-  assert.match(shell, /dashboard-financeiro[^\n]*etapa7-historico/);
+  assert.match(shell, /dashboard-financeiro[^\n]*etapa22-dados-reais-global/);
   for (const rota of ['fluxo-caixa', 'contas-pagar-receber', 'relatorios-financeiros']) {
-    assert.match(shell, new RegExp(`${rota}[^\\n]*(?:fase9|fase10)`));
+    assert.match(shell, new RegExp(`${rota}[^\\n]*etapa22-dados-reais-global`));
   }
-  assert.match(shell, /fechamento-caixa[^\n]*etapa19-fluxo-operacional/);
-  assert.match(index, /apex-shell\.js\?v=etapa21-salao-tempo-real/);
+  assert.match(shell, /fechamento-caixa[^\n]*dados-financeiros\.js\?v=etapa22-dados-reais-global/);
+  assert.match(index, /apex-shell\.js\?v=etapa22-dados-reais-global/);
 });
 
 test('contrato financeiro documenta coleções, estados e permissões', () => {
