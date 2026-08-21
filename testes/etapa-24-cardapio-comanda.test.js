@@ -86,9 +86,19 @@ test('Fluxo público mantém os assets da mesa e avança para a central da etapa
   const shell = ler('scripts/shell/apex-shell.js');
   const index = ler('index.html');
   assert.match(shell, /mesaPublico|paginas\/publico\/mesa\.html\?v=etapa20-cardapio-estoque/);
-  assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa20-cardapio-estoque/);
+  assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa22-responsivo-comanda/);
   assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa20-cardapio-estoque/);
   assert.match(index, /apex-shell\.js\?v=etapa22-dados-reais-global/);
+});
+
+test('comanda pública mantém largura fluida e adapta o cardápio para telas móveis', () => {
+  const estilos = ler('estilos/publico/mesa.css');
+  assert.match(estilos, /body\.apex-publico-mesa\s*\{\s*overflow-x: hidden;/);
+  assert.match(estilos, /\.mesa-publica-shell\s*\{[\s\S]*width: 100%;[\s\S]*min-width: 0;/);
+  assert.match(estilos, /\.mesa-publica-card\s*\{[\s\S]*width: 100%;[\s\S]*max-width: 64rem;[\s\S]*min-width: 0;/);
+  assert.match(estilos, /overflow-wrap: anywhere;/);
+  assert.match(estilos, /@media \(max-width: 639px\)/);
+  assert.match(estilos, /#mesaPublicaCardapioProdutos\s*\{\s*grid-template-columns: minmax\(0, 1fr\);/);
 });
 
 test('cookie da sessão é assinado com restaurante e sessão na ordem correta', () => {

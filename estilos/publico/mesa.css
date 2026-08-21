@@ -1,4 +1,7 @@
-body.apex-publico-mesa > div:first-child,
+body.apex-publico-mesa {
+  overflow-x: hidden;
+}
+
 body.apex-publico-mesa > .sidebar-overlay,
 body.apex-publico-mesa > #sidebarMobile,
 body.apex-publico-mesa > .sidebar-desktop,
@@ -6,7 +9,10 @@ body.apex-publico-mesa > main > header {
   display: none !important;
 }
 
-body.apex-publico-mesa > main {
+body.apex-publico-mesa > main,
+body.apex-publico-mesa > main #conteudoPagina {
+  width: 100%;
+  min-width: 0;
   margin-left: 0 !important;
 }
 
@@ -16,14 +22,80 @@ body.apex-publico-mesa #conteudoPagina {
 }
 
 .mesa-publica-shell {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   background:
     radial-gradient(circle at 50% -15%, rgba(255, 122, 24, 0.14), transparent 38%),
     #0b0b0b;
 }
 
 .mesa-publica-card {
+  width: 100%;
+  max-width: 64rem;
+  min-width: 0;
+  box-sizing: border-box;
   border-color: rgba(255, 255, 255, 0.12);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+}
+
+.mesa-publica-card > *,
+#mesaPublicaCarregando,
+#mesaPublicaErro,
+#mesaPublicaFormulario,
+#mesaPublicaAtendimento,
+#mesaPublicaConteudo,
+#mesaPublicaConteudo > *,
+#mesaPublicaCardapioSecao,
+#mesaPublicaCarrinhoSecao,
+#mesaPublicaComandaSecao {
+  min-width: 0;
+  max-width: 100%;
+}
+
+#mesaPublicaConteudo {
+  width: 100%;
+}
+
+#mesaPublicaCardapioCategorias {
+  min-width: 0;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+#mesaPublicaCardapioCategorias > button {
+  flex: 0 0 auto;
+  max-width: 70vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#mesaPublicaCardapioProdutos,
+#mesaPublicaCarrinhoLista,
+#mesaPublicaPedidos {
+  min-width: 0;
+  max-width: 100%;
+}
+
+#mesaPublicaCardapioProdutos > article,
+#mesaPublicaCarrinhoLista > div,
+#mesaPublicaPedidos > article {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+#mesaPublicaCardapioProdutos h3,
+#mesaPublicaCardapioProdutos p,
+#mesaPublicaCarrinhoLista p,
+#mesaPublicaPedidos p,
+#mesaPublicaAtendimentoTexto,
+#mesaPublicaMesa,
+#mesaPublicaCardapioDescricao,
+#mesaPublicaCardapioAtualizado {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .mesa-publica-logo {
@@ -45,6 +117,52 @@ body.apex-publico-mesa #conteudoPagina {
 
 @keyframes mesa-publica-giro {
   to { transform: rotate(360deg); }
+}
+
+@media (max-width: 639px) {
+  .mesa-publica-shell {
+    align-items: flex-start;
+    padding: 0.75rem;
+  }
+
+  .mesa-publica-card {
+    padding: 0.875rem;
+    border-radius: 1rem;
+  }
+
+  #mesaPublicaConteudo {
+    gap: 1rem;
+  }
+
+  #mesaPublicaCardapioSecao,
+  #mesaPublicaCarrinhoSecao,
+  #mesaPublicaComandaSecao {
+    padding: 0.875rem;
+  }
+
+  #mesaPublicaCardapioProdutos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #mesaPublicaCarrinhoSecao > div:first-child,
+  #mesaPublicaComandaSecao > div:first-child {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  #mesaPublicaCarrinhoQuantidade {
+    flex-shrink: 0;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1024px) {
+  .mesa-publica-shell {
+    padding: 1rem;
+  }
+
+  .mesa-publica-card {
+    padding: 1.25rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
