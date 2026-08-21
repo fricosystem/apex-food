@@ -20,4 +20,21 @@ async function atualizarStatusReserva(reserva, acao) { if (!window.dadosReservas
 async function salvarReserva(event) { event.preventDefault(); if (!window.dadosReservasRemotoAtivo || !window.apexModulosApi?.criarReserva) { mostrarAvisoPedido('Não foi possível salvar a reserva. Tente novamente.'); return; } const data = document.getElementById('dataReserva').value; const horario = document.getElementById('horarioReserva').value; const inicio = new Date(`${data}T${horario}:00`); const fim = new Date(inicio.getTime() + 2 * 60 * 60 * 1000); const payload = { nomeCliente: document.getElementById('nomeReserva').value.trim(), contatoCliente: document.getElementById('telefoneReserva').value.trim(), quantidadePessoas: Number(document.getElementById('pessoasReserva').value), inicioEm: inicio.toISOString(), fimEm: fim.toISOString(), idMesa: document.getElementById('mesaReserva').value || null, canal: document.getElementById('canalReserva').value, observacoes: document.getElementById('observacoesReserva').value.trim() }; try { await window.apexModulosApi.criarReserva(payload); fecharModalReserva(); await window.recarregarReservasReais?.(); mostrarAvisoPedido('Reserva salva.'); } catch (erro) { mostrarAvisoPedido(erro.message || 'Não foi possível salvar a reserva.'); } }
 document.getElementById('novaReserva').addEventListener('click', abrirModalReserva); document.getElementById('fecharModalReserva').addEventListener('click', fecharModalReserva); document.getElementById('cancelarReserva').addEventListener('click', fecharModalReserva); document.getElementById('backdropReserva').addEventListener('click', fecharModalReserva); document.getElementById('formReserva').addEventListener('submit', salvarReserva); ['filtroBuscaReserva', 'filtroStatusReserva', 'filtroCanalReserva'].forEach(id => document.getElementById(id).addEventListener(id === 'filtroBuscaReserva' ? 'input' : 'change', renderizarReservas)); document.getElementById('hojeReservas').addEventListener('click', () => { dataAgendaSelecionada = new Date(); construirCalendario(); atualizarIndicadores(); renderizarReservas(); }); document.addEventListener('keydown', event => { if (event.key === 'Escape') fecharModalReserva(); });
 function atualizarReservasRemotas() { hidratarMesasReserva(); construirCalendario(); atualizarIndicadores(); renderizarReservas(); }
-hidratarMesasReserva(); construirCalendario(); atualizarIndicadores(); renderizarReservas(); window.lucide?.createIcons(); document.addEventListener('apex:reservas-atualizado', atualizarReservasRemotas); document.addEventListener('apex:mesas-atualizado', hidratarMesasReserva);
+let reservasFalhasAtualizacao = 0;
+let reservasTimerAtualizacao = null;
+function agendarAtualizacaoReservas() {
+  window.clearTimeout(reservasTimerAtualizacao);
+  const base = Math.min(30000, 10000 * (2 ** Math.min(reservasFalhasAtualizacao, 2)));
+  const jitter = Math.floor(Math.random() * 1500);
+  reservasTimerAtualizacao = window.setTimeout(async () => {
+    const resultados = await Promise.all([
+      window.recarregarReservasReais?.(),
+      window.recarregarMesasReais?.(),
+    ]);
+    const ok = resultados.some(Boolean);
+    reservasFalhasAtualizacao = ok ? 0 : Math.min(reservasFalhasAtualizacao + 1, 2);
+    atualizarReservasRemotas();
+    agendarAtualizacaoReservas();
+  }, base + jitter);
+}
+hidratarMesasReserva(); construirCalendario(); atualizarIndicadores(); renderizarReservas(); window.lucide?.createIcons(); document.addEventListener('apex:reservas-atualizado', () => { reservasFalhasAtualizacao = 0; atualizarReservasRemotas(); agendarAtualizacaoReservas(); }); document.addEventListener('apex:mesas-atualizado', atualizarReservasRemotas); document.addEventListener('apex:reservas-indisponiveis', () => { atualizarReservasRemotas(); reservasFalhasAtualizacao = Math.min(reservasFalhasAtualizacao + 1, 2); agendarAtualizacaoReservas(); }); agendarAtualizacaoReservas(); window.addEventListener('beforeunload', () => window.clearTimeout(reservasTimerAtualizacao));

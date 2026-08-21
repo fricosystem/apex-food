@@ -126,6 +126,21 @@ function sobrepoe(inicio, fim, outraInicio, outraFim) {
   return inicio < outraFim && fim > outraInicio;
 }
 
+async function validarConflitoReserva(transacao, restaurante, idMesa, inicio, fim, ignorarId = null) {
+  if (!idMesa) return;
+  const existentes = await transacao.get(restaurante.collection('reservas').where('idMesa', '==', idMesa));
+  for (const documento of existentes.docs) {
+    if (documento.id === ignorarId) continue;
+    const reserva = documento.data() || {};
+    if (reserva.estado === 'cancelada' || reserva.estado === 'concluida') continue;
+    const inicioExistente = reserva.inicioEm?.toDate ? reserva.inicioEm.toDate() : new Date(reserva.inicioEm);
+    const fimExistente = reserva.fimEm?.toDate ? reserva.fimEm.toDate() : new Date(reserva.fimEm);
+    if (!Number.isNaN(inicioExistente.getTime()) && !Number.isNaN(fimExistente.getTime()) && sobrepoe(inicio, fim, inicioExistente, fimExistente)) {
+      throw new ApiError(409, 'RESERVA_EM_CONFLITO', 'Já existe uma reserva no horário informado.');
+    }
+  }
+}
+
 async function criarReserva(identidade, corpo, idRequisicao) {
   const idMesa = await validarMesa(identidade, corpo);
   const dados = validarReserva(corpo);
@@ -141,18 +156,7 @@ async function criarReserva(identidade, corpo, idRequisicao) {
       if (!Number.isInteger(capacidade) || capacidade < dados.quantidadePessoas) throw new ApiError(409, 'CAPACIDADE_INSUFICIENTE', 'A capacidade da mesa é insuficiente.');
       if (mesaDocumento.data()?.estado === 'indisponivel') throw new ApiError(409, 'MESA_INDISPONIVEL', 'A mesa está indisponível.');
     }
-    let consulta = restaurante.collection('reservas');
-    if (idMesa) consulta = consulta.where('idMesa', '==', idMesa);
-    const existentes = await transacao.get(consulta);
-    for (const documento of existentes.docs) {
-      const reserva = documento.data() || {};
-      if (reserva.estado === 'cancelada' || reserva.estado === 'concluida') continue;
-      const inicioExistente = reserva.inicioEm?.toDate ? reserva.inicioEm.toDate() : new Date(reserva.inicioEm);
-      const fimExistente = reserva.fimEm?.toDate ? reserva.fimEm.toDate() : new Date(reserva.fimEm);
-      if (!Number.isNaN(inicioExistente.getTime()) && !Number.isNaN(fimExistente.getTime()) && sobrepoe(dados.inicio, dados.fim, inicioExistente, fimExistente)) {
-        throw new ApiError(409, 'RESERVA_EM_CONFLITO', 'Já existe uma reserva no horário informado.');
-      }
-    }
+    await validarConflitoReserva(transacao, restaurante, idMesa, dados.inicio, dados.fim);
     transacao.set(referencia, {
       idRestaurante: identidade.idRestaurante,
       idMesa,
@@ -208,17 +212,67 @@ async function atualizarReserva(identidade, corpo, idRequisicao) {
   const estado = corpo.estado;
   if (typeof estado !== 'string' || !ESTADOS_RESERVA.has(estado)) throw new ApiError(400, 'ESTADO_INVALIDO', 'Estado da reserva inválido.');
   const referencia = caminhoRestaurante(identidade.idRestaurante).collection('reservas').doc(id);
+  const restaurante = referencia.parent.parent;
+  let mesaEvento = null;
   await referencia.firestore.runTransaction(async (transacao) => {
     const documento = await transacao.get(referencia);
     if (!documento.exists || documento.data()?.estado === 'excluido') throw new ApiError(404, 'RESERVA_NAO_ENCONTRADA', 'Reserva não encontrada.');
-    const estadoAtual = documento.data()?.estado || 'aguardando';
+    const reserva = documento.data() || {};
+    const estadoAtual = reserva.estado || 'aguardando';
     if (!TRANSICOES_RESERVA[estadoAtual]?.has(estado)) throw new ApiError(409, 'TRANSICAO_INVALIDA', 'A mudança de estado da reserva não é permitida.');
+    const mesaRef = reserva.idMesa ? restaurante.collection('mesas').doc(String(reserva.idMesa)) : null;
+    const mesaDocumento = mesaRef && ['confirmada', 'chegou', 'cancelada'].includes(estado) ? await transacao.get(mesaRef) : null;
+    const mesa = mesaDocumento?.data?.() || {};
+    if (mesaRef && ['confirmada', 'chegou'].includes(estado)) {
+      if (!mesaDocumento?.exists || mesa.estado === 'excluido') throw new ApiError(409, 'MESA_NAO_ENCONTRADA', 'A mesa vinculada à reserva não foi encontrada.');
+      if (mesa.estado === 'indisponivel') throw new ApiError(409, 'MESA_INDISPONIVEL', 'A mesa está indisponível para esta reserva.');
+    }
+    if (estado === 'confirmada' && reserva.idMesa) {
+      const inicio = reserva.inicioEm?.toDate ? reserva.inicioEm.toDate() : new Date(reserva.inicioEm);
+      const fim = reserva.fimEm?.toDate ? reserva.fimEm.toDate() : new Date(reserva.fimEm);
+      if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime()) || fim <= inicio) throw new ApiError(409, 'HORARIO_INVALIDO', 'O horário da reserva não é válido.');
+      await validarConflitoReserva(transacao, restaurante, String(reserva.idMesa), inicio, fim, id);
+    }
     transacao.update(referencia, {
       estado,
       atualizadoPor: identidade.idUsuario,
       atualizadoEm: FieldValue.serverTimestamp(),
-      versao: Number(documento.data()?.versao || 1) + 1,
+      versao: Number(reserva.versao || 1) + 1,
+      ...(estado === 'chegou' ? { chegouEm: FieldValue.serverTimestamp() } : {}),
+      ...(estado === 'cancelada' ? { canceladaEm: FieldValue.serverTimestamp() } : {}),
     });
+    if (mesaRef && estado === 'chegou') {
+      transacao.update(mesaRef, {
+        estado: 'ocupada',
+        estadoAtendimento: 'aguardando_confirmacao',
+        atualizadoPor: identidade.idUsuario,
+        atualizadoEm: FieldValue.serverTimestamp(),
+        versao: Number(mesa.versao || 1) + 1,
+      });
+      mesaEvento = { estadoAnterior: mesa.estado || 'disponivel', estadoNovo: 'ocupada', acao: 'reserva_cliente_chegou' };
+    } else if (mesaRef && estado === 'cancelada' && !mesa.idComandaAberta && mesa.estado !== 'indisponivel') {
+      transacao.update(mesaRef, {
+        estado: 'disponivel',
+        estadoAtendimento: null,
+        atualizadoPor: identidade.idUsuario,
+        atualizadoEm: FieldValue.serverTimestamp(),
+        versao: Number(mesa.versao || 1) + 1,
+      });
+      mesaEvento = { estadoAnterior: mesa.estado || 'disponivel', estadoNovo: 'disponivel', acao: 'reserva_cancelada' };
+    }
+    if (mesaRef && mesaEvento) {
+      transacao.set(restaurante.collection('eventosMesas').doc(), {
+        idRestaurante: identidade.idRestaurante,
+        idMesa: mesaRef.id,
+        idReserva: id,
+        acao: mesaEvento.acao,
+        estadoAnterior: mesaEvento.estadoAnterior,
+        estadoNovo: mesaEvento.estadoNovo,
+        idAtor: identidade.idUsuario,
+        idRequisicao,
+        criadoEm: FieldValue.serverTimestamp(),
+      });
+    }
   });
   await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: 'salao.reserva.estadoAlterado', tipoRecurso: 'reserva', idRecurso: id });
   return { corpo: { recurso: 'reserva', id, atualizado: true } };
@@ -234,6 +288,9 @@ async function atualizarMesa(identidade, corpo, idRequisicao) {
     const documento = await transacao.get(referencia);
     if (!documento.exists || documento.data()?.estado === 'excluido') throw new ApiError(404, 'MESA_NAO_ENCONTRADA', 'Mesa não encontrada.');
     const atual = documento.data() || {};
+    if (dados.estado === 'indisponivel' && (atual.estado === 'ocupada' || atual.idComandaAberta)) {
+      throw new ApiError(409, 'MESA_EM_ATENDIMENTO', 'A mesa está em atendimento e não pode ser bloqueada agora.');
+    }
     if (dados.nome && dados.nome !== atual.nome) {
       const existentes = await transacao.get(referencia.parent.where('nomeNormalizado', '==', nomeMesaNormalizado(dados.nome)));
       if (existentes.docs.some((item) => item.id !== id && item.data()?.estado !== 'excluido')) throw new ApiError(409, 'MESA_DUPLICADA', 'Já existe uma mesa com esse nome.');

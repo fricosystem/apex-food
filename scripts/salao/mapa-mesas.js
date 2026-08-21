@@ -266,7 +266,7 @@ async function executarAcaoMesa(id) {
   const mesa = window.dadosMesas.find(item => String(item.id) === String(id));
   if (!mesa) return;
   if (mesa.status === 'ocupada') { fecharModal(); window.apexShell?.navegar('pedidos-ativos'); return; }
-  if (mesa.reservaStatus === 'confirmada') { fecharModal(); window.apexShell?.navegar('reservas'); return; }
+  if (['confirmada', 'aguardando'].includes(mesa.reservaStatus)) { fecharModal(); window.apexShell?.navegar('reservas'); return; }
   if (mesa.status === 'indisponivel') { mostrarNotificacao('A mesa está bloqueada para uso.'); return; }
   if (!window.dadosMesasRemotoAtivo || !window.apexModulosApi?.atualizarSalao) { mostrarNotificacao('Não foi possível abrir a mesa. Tente novamente.'); return; }
   try { await window.apexModulosApi.atualizarSalao({ recurso: 'mesa', id: String(mesa.id), estado: 'ocupada' }); fecharModal(); await window.recarregarMesasReais?.(); mostrarNotificacao(`${mesa.nome} aberta para atendimento.`); } catch (erro) { mostrarNotificacao(erro.message || 'Não foi possível abrir a mesa.'); }
@@ -277,6 +277,21 @@ document.addEventListener('keydown', event => {
 });
 
 function atualizarMapaRemoto() { atualizarEstatisticas(); renderizarGrid(); }
+let mapaFalhasAtualizacao = 0;
+let mapaTimerAtualizacao = null;
+function agendarAtualizacaoMapa() {
+  window.clearTimeout(mapaTimerAtualizacao);
+  const base = Math.min(30000, 10000 * (2 ** Math.min(mapaFalhasAtualizacao, 2)));
+  const jitter = Math.floor(Math.random() * 1500);
+  mapaTimerAtualizacao = window.setTimeout(async () => {
+    const ok = await window.recarregarMesasReais?.();
+    mapaFalhasAtualizacao = ok ? 0 : Math.min(mapaFalhasAtualizacao + 1, 2);
+    agendarAtualizacaoMapa();
+  }, base + jitter);
+}
 atualizarEstatisticas();
 renderizarGrid();
-document.addEventListener('apex:mesas-atualizado', atualizarMapaRemoto);
+document.addEventListener('apex:mesas-atualizado', () => { atualizarMapaRemoto(); mapaFalhasAtualizacao = 0; agendarAtualizacaoMapa(); });
+document.addEventListener('apex:mesas-indisponiveis', () => { atualizarMapaRemoto(); mapaFalhasAtualizacao = Math.min(mapaFalhasAtualizacao + 1, 2); agendarAtualizacaoMapa(); });
+agendarAtualizacaoMapa();
+window.addEventListener('beforeunload', () => window.clearTimeout(mapaTimerAtualizacao));

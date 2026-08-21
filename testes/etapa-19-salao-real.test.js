@@ -24,13 +24,15 @@ test('cliente same-origin possui operações explícitas de Mesas e Reservas', (
   assert.doesNotMatch(cliente, /initializeApp|firebase-admin|FIREBASE_PRIVATE_KEY|localStorage/);
 });
 
-test('bridges de Salão só usam preview no ambiente local', () => {
+test('bridges de Salão iniciam vazios e carregam somente dados reais', () => {
   const mesas = ler('scripts/salao/dados-mesas.js');
   const reservas = ler('scripts/salao/dados-reservas.js');
-  assert.match(mesas, /const ambienteMesasLocal = \['localhost', '127\.0\.0\.1'\]/);
-  assert.match(mesas, /window\.dadosMesas = ambienteMesasLocal \? dadosMesasPreview : estadoMesasVazio/);
-  assert.match(reservas, /const ambienteReservasLocal = \['localhost', '127\.0\.0\.1'\]/);
-  assert.match(reservas, /window\.dadosReservasApexFood = ambienteReservasLocal \? dadosReservasPreview : estadoReservasVazio/);
+  assert.match(mesas, /window\.dadosMesas = \[\]/);
+  assert.match(reservas, /window\.dadosReservasApexFood = \[\]/);
+  assert.doesNotMatch(mesas, /dadosMesasPreview|ambienteMesasLocal|localhost/);
+  assert.doesNotMatch(reservas, /dadosReservasPreview|ambienteReservasLocal|localhost/);
+  assert.match(mesas, /modulos-client\.js\?v=etapa21-salao-tempo-real/);
+  assert.match(reservas, /modulos-client\.js\?v=etapa21-salao-tempo-real/);
 });
 
 test('controllers de Salão usam operações persistidas e não mantêm placeholders', () => {
@@ -49,9 +51,9 @@ test('controllers de Salão usam operações persistidas e não mantêm placehol
 
 test('shell preserva Salão e versiona Mapa de Mesas na Etapa 6', () => {
   const shell = ler('scripts/shell/apex-shell.js');
-  assert.match(shell, /mapa-mesas\.html\?v=etapa6-caixa/);
-  assert.match(shell, /reservas\.html\?v=fase7/);
-  assert.match(shell, /configuracao-mesas\.html\?v=etapa18-qr-mesas/);
-  assert.match(shell, /scripts\/salao\/dados-mesas\.js\?v=etapa18-qr-mesas/);
-  assert.match(shell, /scripts\/salao\/dados-reservas\.js\?v=fase7/);
+  assert.match(shell, /mapa-mesas\.html\?v=etapa21-salao-tempo-real/);
+  assert.match(shell, /reservas\.html\?v=etapa21-salao-tempo-real/);
+  assert.match(shell, /configuracao-mesas\.html\?v=etapa21-salao-tempo-real/);
+  assert.match(shell, /scripts\/salao\/dados-mesas\.js\?v=etapa21-salao-tempo-real/);
+  assert.match(shell, /scripts\/salao\/dados-reservas\.js\?v=etapa21-salao-tempo-real/);
 });

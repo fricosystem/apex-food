@@ -202,6 +202,24 @@ async function buscarMesaPorToken(token) {
   return { restauranteRef, mesaRef: mesaDocumento.ref, mesaDocumento };
 }
 
+function dataReservaEmMs(valor) {
+  if (!valor) return 0;
+  if (typeof valor.toDate === 'function') return valor.toDate().getTime();
+  if (valor instanceof Date) return valor.getTime();
+  const numero = Number(valor);
+  if (Number.isFinite(numero) && numero > 0) return numero;
+  const data = new Date(valor);
+  return Number.isNaN(data.getTime()) ? 0 : data.getTime();
+}
+
+function reservaBloqueiaQr(dados, agoraMs = Date.now()) {
+  if (!dados || ['cancelada', 'concluida'].includes(String(dados.estado || ''))) return false;
+  if (!['aguardando', 'confirmada'].includes(String(dados.estado || ''))) return false;
+  const inicioMs = dataReservaEmMs(dados.inicioEm);
+  const fimMs = dataReservaEmMs(dados.fimEm);
+  return inicioMs > 0 && fimMs > inicioMs && inicioMs <= agoraMs && fimMs > agoraMs;
+}
+
 async function consultarQrPublico(token) {
   const valido = validarTokenQr(token);
   const encontrado = await buscarMesaPorToken(valido);
@@ -242,6 +260,9 @@ async function abrirSessaoMesa({ token, nomeCompleto, chaveIdempotencia, req, re
     const mesa = mesaDocumento.data() || {};
     if (mesa.qrAtivo !== true || mesa.qrHash !== hashToken) throw new ApiError(404, 'QR_NAO_ENCONTRADO', 'Este QR Code não está ativo.');
     if (ESTADOS_MESA_BLOQUEADOS.has(mesa.estado) || mesa.estadoAtendimento === 'encaminhada_caixa') throw new ApiError(409, 'MESA_INDISPONIVEL', 'Esta mesa não está disponível para novos pedidos.');
+    const reservasMesa = await transacao.get(restauranteRef.collection('reservas').where('idMesa', '==', mesaRef.id).limit(100));
+    const reservaAtiva = reservasMesa.docs.find(documento => reservaBloqueiaQr(documento.data()));
+    if (reservaAtiva) throw new ApiError(409, 'MESA_RESERVADA', 'Esta mesa está reservada neste horário. Aguarde o atendimento da equipe.');
 
     let comandaRef = mesa.idComandaAberta ? restauranteRef.collection('comandas').doc(String(mesa.idComandaAberta)) : null;
     let comandaDocumento = comandaRef ? await transacao.get(comandaRef) : null;

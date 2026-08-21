@@ -74,9 +74,9 @@ test('impressão do QR usa data URL recebido da API e não serviço externo', ()
   assert.doesNotMatch(controller, /quickchart|api\.qrserver|goqr/i);
 });
 
-test('asset do cliente de módulos usa o versionamento da Etapa 18', () => {
+test('asset do cliente de módulos usa o versionamento da Etapa 21', () => {
   const dados = ler('scripts/salao/dados-mesas.js');
-  assert.match(dados, /modulos-client\.js\?v=etapa18-qr-mesas/);
+  assert.match(dados, /modulos-client\.js\?v=etapa21-salao-tempo-real/);
 });
 
 test('consulta administrativa recupera o link ativo sem regenerar o QR', () => {

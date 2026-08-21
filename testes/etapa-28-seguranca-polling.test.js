@@ -71,5 +71,5 @@ test('versionamento da Etapa 9 preserva os contratos anteriores das telas admini
   assert.match(shell, /mesa[^\n]*etapa20-cardapio-estoque/);
   assert.match(shell, /historico-pedidos[^\n]*etapa7-historico/);
   assert.match(shell, /fechamento-caixa[^\n]*etapa19-fluxo-operacional/);
-  assert.match(index, /apex-shell\.js\?v=etapa20-cardapio-estoque/);
+  assert.match(index, /apex-shell\.js\?v=etapa21-salao-tempo-real/);
 });
