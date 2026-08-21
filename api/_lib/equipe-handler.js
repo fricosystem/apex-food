@@ -25,6 +25,7 @@ const {
   dadosEscala,
   idDocumento,
   validarConflitoEscala,
+  periodoComissao,
   registrarAuditoriaOperacional,
   STATUS_FUNCIONARIO,
   STATUS_ESCALA,
@@ -33,7 +34,7 @@ const {
 } = require('./equipe');
 
 const RECURSOS_LEITURA = new Set(['funcionarios', 'escalas', 'comissoes']);
-const RECURSOS_MUTACAO = new Set(['funcionario', 'escala']);
+const RECURSOS_MUTACAO = new Set(['funcionarios', 'escalas']);
 
 function normalizarRecurso(valor) {
   if (valor === 'funcionario') return 'funcionarios';
@@ -67,7 +68,7 @@ async function listarEquipe(identidade, req) {
   const recurso = normalizarRecurso(queryString(req, 'recurso'));
   if (recurso && !RECURSOS_LEITURA.has(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso de equipe inválido.');
   const limite = limitarInteiro(req.query?.limite, 200, 300);
-  const periodo = queryString(req, 'periodo');
+  const periodo = periodoComissao(queryString(req, 'periodo'));
   const colecoes = recurso ? [recurso] : ['funcionarios', 'escalas', 'comissoes'];
   const documentos = await Promise.all(colecoes.map((item) => listarColecao(identidade.idRestaurante, nomeColecao(item), limite)));
   const resposta = { funcionarios: [], escalas: [], comissoes: [] };

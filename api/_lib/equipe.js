@@ -79,10 +79,27 @@ function validarJornada(entrada, saida, intervalo) {
   if (fim <= inicio) fim += 24 * 60;
   if (fim - inicio < 30 || fim - inicio > 16 * 60) throw new ApiError(400, 'JORNADA_INVALIDA', 'A jornada deve ter entre 30 minutos e 16 horas.');
   if (intervalo) {
-    const pausa = minutosHora(intervalo);
+    let pausa = minutosHora(intervalo);
+    if (pausa < inicio) pausa += 24 * 60;
     if (pausa < inicio || pausa > fim) throw new ApiError(400, 'INTERVALO_INVALIDO', 'O intervalo deve estar dentro da jornada.');
   }
   return { inicio, fim };
+}
+
+function jornadasSobrepostas(primeira, segunda) {
+  const intervalosPrimeira = [primeira, [primeira[0] - 24 * 60, primeira[1] - 24 * 60], [primeira[0] + 24 * 60, primeira[1] + 24 * 60]];
+  const intervalosSegunda = [segunda, [segunda[0] - 24 * 60, segunda[1] - 24 * 60], [segunda[0] + 24 * 60, segunda[1] + 24 * 60]];
+  return intervalosPrimeira.some(([inicioA, fimA]) => intervalosSegunda.some(([inicioB, fimB]) => inicioA < fimB && fimA > inicioB));
+}
+
+function periodoComissao(valor) {
+  if (valor === undefined || valor === null || valor === '') return '';
+  if (typeof valor !== 'string') throw new ApiError(400, 'PERIODO_INVALIDO', 'Período de comissão inválido.');
+  const periodo = valor.trim();
+  if (!periodo || periodo.length > 40 || !/^[\p{L}\p{N}][\p{L}\p{N} .\/_-]*$/u.test(periodo)) {
+    throw new ApiError(400, 'PERIODO_INVALIDO', 'Período de comissão inválido.');
+  }
+  return periodo;
 }
 
 function dtoFuncionario(documento) {
@@ -182,13 +199,9 @@ async function validarConflitoEscala(transacao, restaurante, dados, idIgnorar = 
     const escala = documento.data() || {};
     if (escala.data !== dados.data || ['cancelado', 'folga'].includes(escala.status)) continue;
     const jornadaExistente = validarJornada(escala.entrada, escala.saida, escala.intervalo);
-    const inicio = jornadaExistente.inicio;
-    let fim = jornadaExistente.fim;
-    const inicioNova = jornadaNova.inicio;
-    let fimNova = jornadaNova.fim;
-    if (fim < inicio) fim += 24 * 60;
-    if (fimNova < inicioNova) fimNova += 24 * 60;
-    if (inicioNova < fim && fimNova > inicio) throw new ApiError(409, 'ESCALA_EM_CONFLITO', 'Já existe uma escala sobreposta para este funcionário e data.');
+    if (jornadasSobrepostas([jornadaExistente.inicio, jornadaExistente.fim], [jornadaNova.inicio, jornadaNova.fim])) {
+      throw new ApiError(409, 'ESCALA_EM_CONFLITO', 'Já existe uma escala sobreposta para este funcionário e data.');
+    }
   }
 }
 
@@ -215,6 +228,8 @@ module.exports = {
   dadosEscala,
   garantirFuncionario,
   validarConflitoEscala,
+  jornadasSobrepostas,
+  periodoComissao,
   caminhoRestaurante,
   obterIdentidadeOperacional,
   limitarInteiro,
