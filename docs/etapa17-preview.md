@@ -14,3 +14,9 @@ A rota permaneceu dentro do shell único, os filtros de período e canal ficaram
 No ambiente autenticado, o filtro Mês foi aplicado corretamente e exibiu `01/08/2026 a 21/08/2026`. A consulta de leitura à API retornou HTTP 200, `fonte: firestore`, `temRestaurante: true`, período anterior calculado no backend e os indicadores reais `pedidos: 0` e `vendasCentavos: 0`. A ausência de comparação foi correta porque não existe base anterior não nula. Nenhum registro individual foi exposto no diagnóstico e nenhuma mutação foi executada.
 
 O filtro Delivery foi aplicado em produção e confirmado no DOM com `aria-pressed=true`, mantendo a rota limpa `/` e o período Mês ativo. O status de atualização permaneceu visível e a Visão Geral não executou mutações. Como a conta atualmente não possui registros no intervalo consultado, os cards permaneceram em estado vazio real, sem percentuais inventados.
+
+## Confirmação pós-deployment
+
+Após o deployment `7c09bce`, a Visão Geral foi recarregada em produção com a sessão autenticada preservada. O nome e o email do operador continuaram visíveis, os assets da Etapa 17 foram executados e o bloco de atualização passou a exibir `Base atualizada em 21/08/2026, 06:23 · Atualização automática ativa`. O estado vazio permaneceu coerente com a base real sem pedidos, vendas, mesas, reservas ou avaliações no período consultado.
+
+A confirmação HTTP adicional registrou raiz e rotas principais em HTTP 200, API sem sessão em HTTP 401 e deployment Vercel `success`. O clone de publicação permaneceu limpo após o commit.
