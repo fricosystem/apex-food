@@ -43,3 +43,9 @@ Após recarregar a página com o controller atualizado e aplicar a resposta temp
 ## Controles visuais adicionais
 
 O botão de gráfico alternou corretamente para uma lista resumida, preservando o valor de vendas e a quantidade de pedidos do canal selecionado. Em seguida, o botão do card de mesas alternou o título para **Mesas Ocupadas**, alterou o rótulo para **Livres** e exibiu os indicadores visuais das mesas ocupadas.
+
+## Verificação pós-deployment
+
+O commit `58252b4` foi publicado com status `success` pela Vercel. Em produção, a raiz respondeu HTTP 200, a rota `/configuracoes-perfil` respondeu HTTP 200 e o acesso sem cookie de sessão redirecionou corretamente para `/autenticacao`. A API `/api/v1/operacional?modulo=visao-geral&periodo=dia` respondeu HTTP 401 com `NAO_AUTENTICADO`, sem revelar dados do restaurante.
+
+A verificação autenticada dos agregados depende de uma sessão válida no navegador de produção. Não foi executada nenhuma mutação em produção durante a validação.
