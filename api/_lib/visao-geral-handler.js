@@ -369,7 +369,7 @@ function normalizarAvaliacao(item) {
 function calcularPicos(registros, periodo) {
   const grupos = { almoco: new Map(), jantar: new Map() };
   for (const registro of registros) {
-    if (!dentroPeriodo(registro.data, periodo) || ESTADOS_CANCELADOS.has(registro.estado) || !registro.horario || !/^\d{2}:\d{2}/.test(registro.horario)) continue;
+    if (!dentroPeriodo(registro.data, periodo) || ESTADOS_CANCELADOS.has(registro.estado) || registro.origemMovimentacao === true || !registro.horario || !/^\d{2}:\d{2}/.test(registro.horario)) continue;
     const hora = Number(registro.horario.slice(0, 2));
     const faixa = FAIXAS.find((item) => hora >= Number(item.slice(0, 2)) && hora < Number(item.slice(0, 2)) + 1);
     if (!faixa) continue;
@@ -406,23 +406,23 @@ function construirSeries(registros, periodo, movimentacoes = [], relatoriosFinan
     if (!dentroPeriodo(registro.data, periodo) || ESTADOS_CANCELADOS.has(registro.estado)) continue;
     const chaveDia = registro.data;
     const dia = diarios.get(chaveDia) || { data: chaveDia, label: chaveDia.slice(8, 10) + '/' + chaveDia.slice(5, 7), pedidos: 0, vendasCentavos: 0, despesasCentavos: despesasPorData.get(chaveDia) || 0 };
-    dia.pedidos += 1;
+    dia.pedidos += registro.origemMovimentacao === true ? 0 : 1;
     dia.vendasCentavos += registro.totalCentavos;
     diarios.set(chaveDia, dia);
     const chaveMes = registro.data.slice(0, 7);
     const mes = mensais.get(chaveMes) || { chave: chaveMes, periodo: `${MESES[Number(chaveMes.slice(5, 7)) - 1]}/${chaveMes.slice(0, 4)}`, pedidos: 0, vendasCentavos: 0, despesasCentavos: despesasPorMes.get(chaveMes) || 0 };
-    mes.pedidos += 1;
+    mes.pedidos += registro.origemMovimentacao === true ? 0 : 1;
     mes.vendasCentavos += registro.totalCentavos;
     mensais.set(chaveMes, mes);
     const canal = normalizarCanal(registro.canal);
     const canalAtual = canais.get(canal) || { id: canal, nome: nomeCanal(canal), vendasCentavos: 0, pedidos: 0 };
     canalAtual.vendasCentavos += registro.totalCentavos;
-    canalAtual.pedidos += 1;
+    canalAtual.pedidos += registro.origemMovimentacao === true ? 0 : 1;
     canais.set(canal, canalAtual);
     const chaveCanalDia = `${canal}|${chaveDia}`;
     const canalDia = vendasPorCanalDia.get(chaveCanalDia) || { canal, data: chaveDia, label: chaveDia.slice(8, 10) + '/' + chaveDia.slice(5, 7), pedidos: 0, vendasCentavos: 0 };
     canalDia.vendasCentavos += registro.totalCentavos;
-    canalDia.pedidos += 1;
+    canalDia.pedidos += registro.origemMovimentacao === true ? 0 : 1;
     vendasPorCanalDia.set(chaveCanalDia, canalDia);
     if (registro.horario && /^\d{2}:\d{2}/.test(registro.horario)) {
       const hora = Number(registro.horario.slice(0, 2));
@@ -441,7 +441,7 @@ function construirSeries(registros, periodo, movimentacoes = [], relatoriosFinan
   const vendasDiarias = [...diarios.values()].sort((a, b) => a.data.localeCompare(b.data)).map((item) => ({ ...item, vendas: reais(item.vendasCentavos), despesas: reais(item.despesasCentavos), resultado: reais(item.vendasCentavos - item.despesasCentavos), ticketMedio: reais(item.pedidos ? item.vendasCentavos / item.pedidos : 0) }));
   const vendasMensais = [...mensais.values()].sort((a, b) => a.chave.localeCompare(b.chave)).map((item) => ({ ...item, vendas: reais(item.vendasCentavos), despesas: reais(item.despesasCentavos), resultado: reais(item.vendasCentavos - item.despesasCentavos), ticketMedio: reais(item.pedidos ? item.vendasCentavos / item.pedidos : 0) }));
   const totalVendasCentavos = registros.reduce((total, registro) => total + (dentroPeriodo(registro.data, periodo) && !ESTADOS_CANCELADOS.has(registro.estado) ? registro.totalCentavos : 0), 0);
-  const totalPedidos = registros.filter((registro) => dentroPeriodo(registro.data, periodo) && !ESTADOS_CANCELADOS.has(registro.estado)).length;
+  const totalPedidos = registros.filter((registro) => registro.origemMovimentacao !== true && dentroPeriodo(registro.data, periodo) && !ESTADOS_CANCELADOS.has(registro.estado)).length;
   const despesasMovimentacoesCentavos = [...despesasPorData.values()].reduce((total, valor) => total + valor, 0);
   const despesasRelatoriosCentavos = vendasMensais.reduce((total, item) => total + Number(item.despesasCentavos || 0), 0);
   const despesasPeriodoCentavos = despesasMovimentacoesCentavos || despesasRelatoriosCentavos;
@@ -576,7 +576,7 @@ async function listarVisaoGeral(identidade, req) {
   const pedidos = documentosDados(colecoes.pedidos).filter(naoExcluido).map(normalizarPedido);
   const movimentacoes = documentosDados(colecoes.movimentacoesCaixa).filter(naoExcluido).map(normalizarMovimentacao);
   const pedidosComVenda = pedidos.filter((pedido) => pedido.totalCentavos > 0 && ESTADOS_CONCLUIDOS.has(pedido.estado));
-  const vendasPorMovimentacao = movimentacoes.filter((movimentacao) => movimentacao.tipo === 'entrada' && movimentacao.valorCentavos > 0 && !ESTADOS_CANCELADOS.has(movimentacao.estado) && (movimentacao.pedidoId || /venda|delivery|retirada|sal[aã]o/i.test(`${movimentacao.categoria} ${movimentacao.origem}`))).map((movimentacao) => ({ ...movimentacao, totalCentavos: movimentacao.valorCentavos, canal: normalizarCanal(movimentacao.origem || movimentacao.categoria || 'outros'), estado: movimentacao.estado }));
+  const vendasPorMovimentacao = movimentacoes.filter((movimentacao) => movimentacao.tipo === 'entrada' && movimentacao.valorCentavos > 0 && !ESTADOS_CANCELADOS.has(movimentacao.estado) && (movimentacao.pedidoId || /venda|delivery|retirada|sal[aã]o/i.test(`${movimentacao.categoria} ${movimentacao.origem}`))).map((movimentacao) => ({ ...movimentacao, totalCentavos: movimentacao.valorCentavos, canal: normalizarCanal(movimentacao.origem || movimentacao.categoria || 'outros'), estado: movimentacao.estado, origemMovimentacao: true }));
   const registrosVenda = pedidosComVenda.length ? pedidosComVenda : vendasPorMovimentacao;
   const relatoriosFinanceiros = documentosDados(colecoes.relatoriosFinanceiros).filter(naoExcluido).map(normalizarRelatorioFinanceiro).filter((item) => item.mes);
   const categoriasFinanceiras = construirCategoriasFinanceiras(relatoriosFinanceiros, periodo);
