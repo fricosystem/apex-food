@@ -11,11 +11,10 @@ const ler = relativo => fs.readFileSync(path.join(raiz, relativo), 'utf8');
 test('bridge de Relatórios deriva dados das operações autorizadas e começa vazio', () => {
   const bridge = ler('scripts/relatorios/dados-relatorios.js');
   assert.match(bridge, /estadoVazio/);
-  assert.match(bridge, /listarPedidos/);
-  assert.match(bridge, /listarCardapio/);
-  assert.match(bridge, /listarEquipe/);
-  assert.match(bridge, /listarFinanceiro/);
-  assert.match(bridge, /Object\.assign\(window\.dadosRelatoriosApexFood/);
+  assert.match(bridge, /listarVisaoGeral/);
+  assert.match(bridge, /fonte !== 'firestore'/);
+  assert.match(bridge, /adaptarResposta/);
+  assert.match(bridge, /window\.dadosRelatoriosApexFood = adaptarResposta/);
   assert.doesNotMatch(bridge, /Base operacional de preview|18\/08\/2026|rankingBase|const avaliacoes = \[/);
 });
 
