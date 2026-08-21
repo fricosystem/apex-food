@@ -8,7 +8,7 @@
     operacao: { pedidosAtivos: [], pedidosHistorico: [] },
     cardapio: { produtos: [], categorias: [], produtosMaisVendidos: [] },
     equipe: { funcionarios: [], comissoes: [] },
-    relatorios: { vendasDiarias: [], vendasSemanais: [], vendasMensais: [], canais: [], produtosMaisVendidos: [], mapaCalor: [], faixasHorarias: [], diasSemana: [], avaliacoes: [], distribuicaoNotas: [], performanceEquipe: [], indicadores: {}, atualizadoEm: '', origem: '' },
+    relatorios: { vendasDiarias: [], vendasSemanais: [], vendasMensais: [], vendasPorCanal: [], canais: [], produtosMaisVendidos: [], mapaCalor: [], faixasHorarias: [], diasSemana: [], avaliacoes: [], distribuicaoNotas: [], performanceEquipe: [], indicadores: {}, atualizadoEm: '', origem: '' },
     indicadores: {},
     meta: { dadosDisponiveis: false, fonte: 'firestore' },
   };
@@ -21,7 +21,7 @@
     if (window.apexModulosClientPromise) return window.apexModulosClientPromise;
     window.apexModulosClientPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = '/scripts/api/modulos-client.js?v=etapa6-caixa';
+      script.src = '/scripts/api/modulos-client.js?v=etapa16-visao';
       script.dataset.apexModuloClient = 'true';
       script.onload = () => resolve(window.apexModulosApi);
       script.onerror = () => reject(new Error('Não foi possível carregar o cliente da Visão Geral.'));

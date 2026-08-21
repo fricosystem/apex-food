@@ -43,6 +43,20 @@ function dataIso(valor) {
   return brasileiro ? `${brasileiro[3]}-${brasileiro[2]}-${brasileiro[1]}` : '';
 }
 
+function dataExibicao(iso) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
+  const [ano, mes, dia] = iso.split('-');
+  return `${dia}/${mes}/${ano}`;
+}
+
+function horarioDeValor(valor) {
+  const iso = timestampParaIso(valor);
+  if (iso && /T\d{2}:\d{2}/.test(iso)) return iso.slice(11, 16);
+  if (typeof valor !== 'string') return '';
+  const match = valor.match(/(?:T|\s)(\d{2}:\d{2})/);
+  return match ? match[1] : (/^\d{2}:\d{2}/.test(valor) ? valor.slice(0, 5) : '');
+}
+
 function dataValida(valor, campo) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) throw new ApiError(400, 'DATA_INVALIDA', `${campo} é inválida.`);
   const data = new Date(`${valor}T00:00:00.000Z`);
@@ -124,6 +138,34 @@ function naoExcluido(item) {
   return !item.dados.excluidoEm && !['excluido', 'excluida'].includes(estado);
 }
 
+function normalizarCanal(valor) {
+  const canal = String(valor || '').trim().toLowerCase();
+  const mapa = { salão: 'salao', salao: 'salao', mesa: 'salao', restaurante: 'salao', delivery: 'delivery', entrega: 'delivery', retirada: 'retirada', takeout: 'retirada' };
+  return mapa[canal] || canal || 'outros';
+}
+
+function nomeCanal(canal) {
+  return { salao: 'Restaurante', delivery: 'Delivery', retirada: 'Retirada', outros: 'Outros' }[canal] || canal;
+}
+
+function rotuloEstadoPedido(estado) {
+  const rotulos = {
+    novo: 'Novo',
+    aguardando_confirmacao_garcom: 'Aguardando confirmação',
+    confirmado_garcom: 'Confirmado pelo garçom',
+    enviado_cozinha: 'Enviado à cozinha',
+    em_preparo: 'Em preparo',
+    preparo: 'Em preparo',
+    pronto: 'Pronto',
+    servido: 'Servido',
+    rejeitado_garcom: 'Recusado pelo garçom',
+    cancelado: 'Cancelado',
+    finalizado: 'Finalizado',
+    concluido: 'Concluído',
+  };
+  return rotulos[estado] || estado || 'Sem status';
+}
+
 function normalizarPedido(item) {
   const dados = item.dados;
   const estado = String(dados.estado || dados.status || '').toLowerCase();
@@ -134,9 +176,11 @@ function normalizarPedido(item) {
     id: item.id,
     data,
     estado,
-    canal: String(primeiroCampo(dados, ['canal', 'origem']) || 'não informado').toLowerCase(),
+    statusLabel: rotuloEstadoPedido(estado),
+    canal: normalizarCanal(primeiroCampo(dados, ['canal', 'origem'])),
     totalCentavos,
-    horario: String(primeiroCampo(dados, ['horario', 'hora']) || ''),
+    horario: String(primeiroCampo(dados, ['horario', 'hora']) || horarioDeValor(primeiroCampo(dados, ['criadoEm', 'dataPedido']))),
+    tempo: primeiroCampo(dados, ['tempoMinutos', 'tempoPreparo', 'tempo']) || '',
     mesa: String(primeiroCampo(dados, ['mesaId', 'idMesa', 'mesa']) || ''),
     itens,
     cliente: String(primeiroCampo(dados, ['clienteNome', 'nomeCliente']) || ''),
@@ -165,13 +209,144 @@ function normalizarReserva(item) {
   const inicioIso = dataIso(inicio);
   return {
     id: item.id,
-    data: inicioIso,
-    horario: typeof inicio === 'string' && /^\d{2}:\d{2}/.test(inicio) ? inicio.slice(0, 5) : '',
+    data: dataExibicao(inicioIso),
+    dataIso: inicioIso,
+    horario: horarioDeValor(inicio),
     cliente: String(dados.nomeCliente || dados.cliente || 'Cliente'),
     mesa: String(dados.idMesa || dados.mesaId || dados.mesa || ''),
     pessoas: inteiro(dados.quantidadePessoas || dados.pessoas),
     status: String(dados.estado || dados.status || '').toLowerCase(),
   };
+}
+
+function mesRelatorio(valor) {
+  const texto = String(valor || '').trim();
+  let match = texto.match(/^(\d{4})-(\d{2})$/);
+  if (match) return { chave: texto, rotulo: `${MESES[Number(match[2]) - 1] || match[2]}/${match[1]}` };
+  match = texto.match(/^(\d{2})\/(\d{4})$/);
+  if (match) return { chave: `${match[2]}-${match[1]}`, rotulo: `${MESES[Number(match[1]) - 1] || match[1]}/${match[2]}` };
+  match = texto.match(/^([A-Za-zÀ-ÿ]{3,})[\/-](\d{4})$/i);
+  if (match) {
+    const indice = MESES.findIndex((mes) => mes.toLocaleLowerCase('pt-BR') === match[1].slice(0, 3).toLocaleLowerCase('pt-BR'));
+    if (indice >= 0) return { chave: `${match[2]}-${String(indice + 1).padStart(2, '0')}`, rotulo: `${MESES[indice]}/${match[2]}` };
+  }
+  return { chave: '', rotulo: texto };
+}
+
+function normalizarRelatorioFinanceiro(item) {
+  const dados = item.dados || {};
+  const mes = mesRelatorio(dados.mes || dados.periodo);
+  const vendasCentavos = valorCentavos(dados, 'vendasCentavos', 'vendas');
+  const despesasCentavos = valorCentavos(dados, 'despesasCentavos', 'despesas');
+  const resultadoCentavos = dados.resultadoCentavos !== undefined || dados.resultado !== undefined
+    ? valorCentavos(dados, 'resultadoCentavos', 'resultado')
+    : vendasCentavos - despesasCentavos;
+  return {
+    id: item.id,
+    mes: mes.rotulo,
+    chaveMes: mes.chave,
+    vendasCentavos,
+    despesasCentavos,
+    resultadoCentavos,
+    categorias: Array.isArray(dados.categorias) ? dados.categorias.map((categoria) => ({
+      nome: String(categoria.nome || categoria.categoria || ''),
+      valorCentavos: valorCentavos(categoria, 'valorCentavos', 'valor', 'vendasCentavos', 'vendas'),
+      percentual: Number(categoria.percentual || 0),
+      cor: String(categoria.cor || 'bg-accent'),
+    })).filter((categoria) => categoria.nome) : [],
+  };
+}
+
+function construirCategoriasFinanceiras(relatorios, periodo) {
+  const categorias = new Map();
+  for (const relatorio of relatorios) {
+    if (!relatorio.chaveMes || relatorio.chaveMes < periodo.inicio.slice(0, 7) || relatorio.chaveMes > periodo.fim.slice(0, 7)) continue;
+    for (const categoria of relatorio.categorias) {
+      const atual = categorias.get(categoria.nome) || { nome: categoria.nome, valorCentavos: 0, percentual: 0, cor: categoria.cor };
+      atual.valorCentavos += categoria.valorCentavos;
+      atual.percentual = Math.max(atual.percentual, categoria.percentual);
+      categorias.set(categoria.nome, atual);
+    }
+  }
+  const total = [...categorias.values()].reduce((soma, categoria) => soma + categoria.valorCentavos, 0);
+  return [...categorias.values()]
+    .sort((a, b) => b.valorCentavos - a.valorCentavos)
+    .slice(0, 10)
+    .map((categoria) => ({
+      nome: categoria.nome,
+      valor: reais(categoria.valorCentavos),
+      percentual: total ? Math.round((categoria.valorCentavos / total) * 100) : categoria.percentual,
+      cor: categoria.cor,
+    }));
+}
+
+function dtoPedidoResumo(pedido) {
+  return {
+    id: pedido.id,
+    status: pedido.estado,
+    statusLabel: pedido.statusLabel,
+    valor: reais(pedido.totalCentavos),
+    canal: pedido.canal,
+    mesa: pedido.mesa,
+    cliente: pedido.cliente,
+    horario: pedido.horario,
+    tempo: pedido.tempo,
+    data: pedido.data,
+  };
+}
+
+function construirCategoriasDePedidos(pedidos, produtos, categorias, periodo) {
+  const produtosPorId = new Map(produtos.map((item) => [String(item.id), item.dados]));
+  const categoriasPorId = new Map(categorias.map((item) => [String(item.id), item.dados]));
+  const agrupadas = new Map();
+  for (const pedido of pedidos) {
+    if (!dentroPeriodo(pedido.data, periodo) || ESTADOS_CANCELADOS.has(pedido.estado)) continue;
+    for (const bruto of pedido.itens) {
+      const item = bruto || {};
+      const produtoId = String(item.produtoId || item.idProduto || item.id || '');
+      const produto = produtosPorId.get(produtoId) || {};
+      const categoriaId = String(item.categoriaId || produto.categoriaId || produto.categoria || '');
+      const nome = String(item.categoria || categoriasPorId.get(categoriaId)?.nome || 'Sem categoria');
+      const detalhe = totalDeItem(item);
+      const atual = agrupadas.get(nome) || { nome, valorCentavos: 0 };
+      atual.valorCentavos += detalhe.subtotal;
+      agrupadas.set(nome, atual);
+    }
+  }
+  const total = [...agrupadas.values()].reduce((soma, categoria) => soma + categoria.valorCentavos, 0);
+  return [...agrupadas.values()].sort((a, b) => b.valorCentavos - a.valorCentavos).slice(0, 10).map((categoria, indice) => ({ nome: categoria.nome, valor: reais(categoria.valorCentavos), percentual: total ? Math.round((categoria.valorCentavos / total) * 100) : 0, cor: ['bg-accent', 'bg-blue', 'bg-green', 'bg-purple', 'bg-yellow'][indice % 5] }));
+}
+
+function normalizarAvaliacao(item) {
+  const dados = item.dados || {};
+  const dataIsoValor = dataIso(primeiroCampo(dados, ['data', 'criadoEm']));
+  const cliente = String(dados.nomeCliente || dados.cliente || 'Cliente');
+  return {
+    id: item.id,
+    cliente,
+    iniciais: cliente.split(/\s+/).filter(Boolean).slice(0, 2).map((parte) => parte[0]).join('').toUpperCase(),
+    canal: String(dados.canal || dados.origem || 'não informado'),
+    data: dataExibicao(dataIsoValor),
+    dataIso: dataIsoValor,
+    nota: inteiro(dados.nota),
+    comentario: String(dados.comentario || dados.observacao || dados.mensagem || ''),
+    categoria: String(dados.categoria || 'Sem categoria'),
+    respondida: dados.respondida === true || Boolean(dados.respondidoEm),
+  };
+}
+
+function calcularPicos(registros, periodo) {
+  const grupos = { almoco: new Map(), jantar: new Map() };
+  for (const registro of registros) {
+    if (!dentroPeriodo(registro.data, periodo) || ESTADOS_CANCELADOS.has(registro.estado) || !registro.horario || !/^\d{2}:\d{2}/.test(registro.horario)) continue;
+    const hora = Number(registro.horario.slice(0, 2));
+    const faixa = FAIXAS.find((item) => hora >= Number(item.slice(0, 2)) && hora < Number(item.slice(0, 2)) + 1);
+    if (!faixa) continue;
+    if (hora >= 11 && hora < 16) grupos.almoco.set(faixa, (grupos.almoco.get(faixa) || 0) + 1);
+    if (hora >= 18 && hora < 24) grupos.jantar.set(faixa, (grupos.jantar.get(faixa) || 0) + 1);
+  }
+  const maior = (grupo) => [...grupo.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || '—';
+  return { picoAlmoco: maior(grupos.almoco), picoJantar: maior(grupos.jantar) };
 }
 
 function totalDeItem(item) {
@@ -180,28 +355,44 @@ function totalDeItem(item) {
   return { quantidade, subtotal };
 }
 
-function construirSeries(registros, periodo) {
+function construirSeries(registros, periodo, movimentacoes = [], relatoriosFinanceiros = []) {
   const diarios = new Map();
   const mensais = new Map();
   const canais = new Map();
+  const vendasPorCanalDia = new Map();
+  const despesasPorData = new Map();
+  const despesasPorMes = new Map();
   const heatmap = Array.from({ length: 7 }, () => Array(FAIXAS.length).fill(0));
+  for (const movimentacao of movimentacoes) {
+    if (!dentroPeriodo(movimentacao.data, periodo) || movimentacao.tipo !== 'saida' || ESTADOS_CANCELADOS.has(movimentacao.estado)) continue;
+    const dia = movimentacao.data;
+    const mes = dia.slice(0, 7);
+    despesasPorData.set(dia, (despesasPorData.get(dia) || 0) + movimentacao.valorCentavos);
+    despesasPorMes.set(mes, (despesasPorMes.get(mes) || 0) + movimentacao.valorCentavos);
+  }
+  const relatoriosPorMes = new Map(relatoriosFinanceiros.filter((item) => item.chaveMes).map((item) => [item.chaveMes, item]));
   for (const registro of registros) {
     if (!dentroPeriodo(registro.data, periodo) || ESTADOS_CANCELADOS.has(registro.estado)) continue;
     const chaveDia = registro.data;
-    const dia = diarios.get(chaveDia) || { data: chaveDia, label: chaveDia.slice(8, 10) + '/' + chaveDia.slice(5, 7), pedidos: 0, vendasCentavos: 0 };
+    const dia = diarios.get(chaveDia) || { data: chaveDia, label: chaveDia.slice(8, 10) + '/' + chaveDia.slice(5, 7), pedidos: 0, vendasCentavos: 0, despesasCentavos: despesasPorData.get(chaveDia) || 0 };
     dia.pedidos += 1;
     dia.vendasCentavos += registro.totalCentavos;
     diarios.set(chaveDia, dia);
     const chaveMes = registro.data.slice(0, 7);
-    const mes = mensais.get(chaveMes) || { periodo: `${MESES[Number(chaveMes.slice(5, 7)) - 1]}/${chaveMes.slice(0, 4)}`, pedidos: 0, vendasCentavos: 0 };
+    const mes = mensais.get(chaveMes) || { chave: chaveMes, periodo: `${MESES[Number(chaveMes.slice(5, 7)) - 1]}/${chaveMes.slice(0, 4)}`, pedidos: 0, vendasCentavos: 0, despesasCentavos: despesasPorMes.get(chaveMes) || 0 };
     mes.pedidos += 1;
     mes.vendasCentavos += registro.totalCentavos;
     mensais.set(chaveMes, mes);
-    const canal = registro.canal || 'não informado';
-    const canalAtual = canais.get(canal) || { id: canal, nome: canal, vendasCentavos: 0, pedidos: 0 };
+    const canal = normalizarCanal(registro.canal);
+    const canalAtual = canais.get(canal) || { id: canal, nome: nomeCanal(canal), vendasCentavos: 0, pedidos: 0 };
     canalAtual.vendasCentavos += registro.totalCentavos;
     canalAtual.pedidos += 1;
     canais.set(canal, canalAtual);
+    const chaveCanalDia = `${canal}|${chaveDia}`;
+    const canalDia = vendasPorCanalDia.get(chaveCanalDia) || { canal, data: chaveDia, label: chaveDia.slice(8, 10) + '/' + chaveDia.slice(5, 7), pedidos: 0, vendasCentavos: 0 };
+    canalDia.vendasCentavos += registro.totalCentavos;
+    canalDia.pedidos += 1;
+    vendasPorCanalDia.set(chaveCanalDia, canalDia);
     if (registro.horario && /^\d{2}:\d{2}/.test(registro.horario)) {
       const hora = Number(registro.horario.slice(0, 2));
       const faixa = FAIXAS.findIndex((item) => hora >= Number(item.slice(0, 2)) && hora < Number(item.slice(0, 2)) + 1);
@@ -209,19 +400,35 @@ function construirSeries(registros, periodo) {
       if (faixa >= 0 && Number.isInteger(diaSemana)) heatmap[diaSemana][faixa] += 1;
     }
   }
-  const vendasDiarias = [...diarios.values()].sort((a, b) => a.data.localeCompare(b.data)).map((item) => ({ ...item, vendas: reais(item.vendasCentavos), ticketMedio: reais(item.pedidos ? item.vendasCentavos / item.pedidos : 0) }));
-  const vendasMensais = [...mensais.values()].sort((a, b) => a.periodo.localeCompare(b.periodo)).map((item) => ({ ...item, vendas: reais(item.vendasCentavos), ticketMedio: reais(item.pedidos ? item.vendasCentavos / item.pedidos : 0) }));
+  for (const [data, despesasCentavos] of despesasPorData.entries()) {
+    if (!diarios.has(data)) diarios.set(data, { data, label: data.slice(8, 10) + '/' + data.slice(5, 7), pedidos: 0, vendasCentavos: 0, despesasCentavos });
+  }
+  for (const [mes, relatorio] of relatoriosPorMes.entries()) {
+    if (!mensais.has(mes) && mes >= periodo.inicio.slice(0, 7) && mes <= periodo.fim.slice(0, 7)) mensais.set(mes, { chave: mes, periodo: `${MESES[Number(mes.slice(5, 7)) - 1]}/${mes.slice(0, 4)}`, pedidos: 0, vendasCentavos: relatorio.vendasCentavos, despesasCentavos: relatorio.despesasCentavos });
+    else if (mensais.has(mes) && !despesasPorMes.has(mes) && relatorio.despesasCentavos > 0) mensais.get(mes).despesasCentavos = relatorio.despesasCentavos;
+  }
+  const vendasDiarias = [...diarios.values()].sort((a, b) => a.data.localeCompare(b.data)).map((item) => ({ ...item, vendas: reais(item.vendasCentavos), despesas: reais(item.despesasCentavos), resultado: reais(item.vendasCentavos - item.despesasCentavos), ticketMedio: reais(item.pedidos ? item.vendasCentavos / item.pedidos : 0) }));
+  const vendasMensais = [...mensais.values()].sort((a, b) => a.chave.localeCompare(b.chave)).map((item) => ({ ...item, vendas: reais(item.vendasCentavos), despesas: reais(item.despesasCentavos), resultado: reais(item.vendasCentavos - item.despesasCentavos), ticketMedio: reais(item.pedidos ? item.vendasCentavos / item.pedidos : 0) }));
   const totalVendasCentavos = registros.reduce((total, registro) => total + (dentroPeriodo(registro.data, periodo) && !ESTADOS_CANCELADOS.has(registro.estado) ? registro.totalCentavos : 0), 0);
   const totalPedidos = registros.filter((registro) => dentroPeriodo(registro.data, periodo) && !ESTADOS_CANCELADOS.has(registro.estado)).length;
-  const vendasSemanais = totalPedidos ? [{ periodo: `${periodo.inicio.slice(8, 10)}/${periodo.inicio.slice(5, 7)}–${periodo.fim.slice(8, 10)}/${periodo.fim.slice(5, 7)}`, pedidos: totalPedidos, vendas: reais(totalVendasCentavos), ticketMedio: reais(totalPedidos ? totalVendasCentavos / totalPedidos : 0) }] : [];
+  const despesasMovimentacoesCentavos = [...despesasPorData.values()].reduce((total, valor) => total + valor, 0);
+  const despesasRelatoriosCentavos = vendasMensais.reduce((total, item) => total + Number(item.despesasCentavos || 0), 0);
+  const despesasPeriodoCentavos = despesasMovimentacoesCentavos || despesasRelatoriosCentavos;
+  const vendasSemanais = totalPedidos || despesasPeriodoCentavos ? [{ periodo: `${periodo.inicio.slice(8, 10)}/${periodo.inicio.slice(5, 7)}–${periodo.fim.slice(8, 10)}/${periodo.fim.slice(5, 7)}`, pedidos: totalPedidos, vendas: reais(totalVendasCentavos), despesas: reais(despesasPeriodoCentavos), resultado: reais(totalVendasCentavos - despesasPeriodoCentavos), ticketMedio: reais(totalPedidos ? totalVendasCentavos / totalPedidos : 0) }] : [];
   const totalCanais = [...canais.values()].reduce((total, canal) => total + canal.vendasCentavos, 0);
   const canaisDto = [...canais.values()].sort((a, b) => b.vendasCentavos - a.vendasCentavos).map((canal) => ({ id: canal.id, nome: canal.nome, percentual: totalCanais ? Math.round((canal.vendasCentavos / totalCanais) * 100) : 0, vendas: reais(canal.vendasCentavos), pedidos: canal.pedidos }));
+  const vendasPorCanal = [...vendasPorCanalDia.values()].sort((a, b) => a.data.localeCompare(b.data) || a.canal.localeCompare(b.canal)).map((item) => ({ canal: item.canal, nomeCanal: nomeCanal(item.canal), data: item.data, label: item.label, pedidos: item.pedidos, vendas: reais(item.vendasCentavos) }));
   const temHeatmap = heatmap.some((linha) => linha.some((valor) => valor > 0));
+  const despesasTotalCentavos = despesasPeriodoCentavos;
+  const picos = calcularPicos(registros, periodo);
   return {
     vendasDiarias,
     vendasSemanais,
     vendasMensais,
+    despesasTotalCentavos,
+    picos,
     canais: canaisDto,
+    vendasPorCanal,
     diasSemana: temHeatmap ? DIAS.slice(1).concat(DIAS[0]) : [],
     faixasHorarias: temHeatmap ? FAIXAS : [],
     mapaCalor: temHeatmap ? heatmap.slice(1).concat([heatmap[0]]) : [],
@@ -266,19 +473,19 @@ function construirAvaliacoes(avaliacoes, periodo) {
   let soma = 0;
   let total = 0;
   let respondidas = 0;
+  const itens = [];
   for (const item of avaliacoes) {
-    const dados = item.dados;
-    const data = dataIso(primeiroCampo(dados, ['data', 'criadoEm']));
-    if (!dentroPeriodo(data, periodo)) continue;
-    const nota = inteiro(dados.nota);
-    if (nota < 1 || nota > 5) continue;
+    const avaliacao = normalizarAvaliacao(item);
+    if (!dentroPeriodo(avaliacao.dataIso, periodo)) continue;
+    if (avaliacao.nota < 1 || avaliacao.nota > 5) continue;
     total += 1;
-    soma += nota;
-    notas.set(nota, (notas.get(nota) || 0) + 1);
-    if (dados.respondida === true || dados.respondidoEm) respondidas += 1;
+    soma += avaliacao.nota;
+    notas.set(avaliacao.nota, (notas.get(avaliacao.nota) || 0) + 1);
+    if (avaliacao.respondida) respondidas += 1;
+    itens.push(avaliacao);
   }
   const distribuicaoNotas = [5, 4, 3, 2, 1].map((nota) => ({ nota, quantidade: notas.get(nota) || 0, percentual: total ? Math.round(((notas.get(nota) || 0) / total) * 100) : 0 }));
-  return { distribuicaoNotas, indicadores: { notaMedia: total ? Number((soma / total).toFixed(1)) : 0, totalAvaliacoes: total, taxaResposta: total ? Math.round((respondidas / total) * 100) : 0 }, avaliacoes: [] };
+  return { distribuicaoNotas, indicadores: { notaMedia: total ? Number((soma / total).toFixed(1)) : 0, totalAvaliacoes: total, taxaResposta: total ? Math.round((respondidas / total) * 100) : 0 }, avaliacoes: itens.sort((a, b) => b.dataIso.localeCompare(a.dataIso)).slice(0, 20) };
 }
 
 function dtoCatalogo(item) {
@@ -334,17 +541,21 @@ async function listarVisaoGeral(identidade, req) {
   const fusoHorario = String(dadosRestaurante.fusoHorario || 'America/Sao_Paulo');
   const periodo = intervalo(req, fusoHorario);
   const limite = limitarInteiro(req.query?.limite, 500, 1000);
-  const colecoes = await listarColecoes(restaurante, ['pedidos', 'movimentacoesCaixa', 'fechamentosCaixa', 'mesas', 'reservas', 'produtosCardapio', 'categoriasCardapio', 'funcionarios', 'avaliacoes'], limite);
+  const colecoes = await listarColecoes(restaurante, ['pedidos', 'movimentacoesCaixa', 'fechamentosCaixa', 'relatoriosFinanceiros', 'mesas', 'reservas', 'produtosCardapio', 'categoriasCardapio', 'funcionarios', 'avaliacoes'], limite);
   const pedidos = documentosDados(colecoes.pedidos).filter(naoExcluido).map(normalizarPedido);
   const movimentacoes = documentosDados(colecoes.movimentacoesCaixa).filter(naoExcluido).map(normalizarMovimentacao);
   const pedidosComVenda = pedidos.filter((pedido) => pedido.totalCentavos > 0 && ESTADOS_CONCLUIDOS.has(pedido.estado));
-  const vendasPorMovimentacao = movimentacoes.filter((movimentacao) => movimentacao.tipo === 'entrada' && movimentacao.valorCentavos > 0 && !ESTADOS_CANCELADOS.has(movimentacao.estado) && (movimentacao.pedidoId || /venda|delivery|retirada|sal[aã]o/i.test(`${movimentacao.categoria} ${movimentacao.origem}`))).map((movimentacao) => ({ ...movimentacao, totalCentavos: movimentacao.valorCentavos, canal: movimentacao.origem || movimentacao.categoria || 'não informado', estado: movimentacao.estado }));
+  const vendasPorMovimentacao = movimentacoes.filter((movimentacao) => movimentacao.tipo === 'entrada' && movimentacao.valorCentavos > 0 && !ESTADOS_CANCELADOS.has(movimentacao.estado) && (movimentacao.pedidoId || /venda|delivery|retirada|sal[aã]o/i.test(`${movimentacao.categoria} ${movimentacao.origem}`))).map((movimentacao) => ({ ...movimentacao, totalCentavos: movimentacao.valorCentavos, canal: normalizarCanal(movimentacao.origem || movimentacao.categoria || 'outros'), estado: movimentacao.estado }));
   const registrosVenda = pedidosComVenda.length ? pedidosComVenda : vendasPorMovimentacao;
-  const series = construirSeries(registrosVenda, periodo);
+  const relatoriosFinanceiros = documentosDados(colecoes.relatoriosFinanceiros).filter(naoExcluido).map(normalizarRelatorioFinanceiro).filter((item) => item.mes);
+  const categoriasFinanceiras = construirCategoriasFinanceiras(relatoriosFinanceiros, periodo);
+  const series = construirSeries(registrosVenda, periodo, movimentacoes, relatoriosFinanceiros);
   const mesas = documentosDados(colecoes.mesas).filter(naoExcluido).map((item) => ({ id: item.id, nome: String(item.dados.nome || item.dados.numero || `Mesa ${item.id}`), capacidade: inteiro(item.dados.capacidade), status: String(item.dados.estado || item.dados.status || 'disponivel') }));
-  const reservas = documentosDados(colecoes.reservas).filter(naoExcluido).map(normalizarReserva).filter((item) => dentroPeriodo(item.data, periodo));
+  const reservas = documentosDados(colecoes.reservas).filter(naoExcluido).map(normalizarReserva).filter((item) => dentroPeriodo(item.dataIso, periodo));
   const produtos = documentosDados(colecoes.produtosCardapio).filter(naoExcluido);
   const categorias = documentosDados(colecoes.categoriasCardapio).filter(naoExcluido);
+  const categoriasDePedidos = construirCategoriasDePedidos(pedidos, produtos, categorias, periodo);
+  const categoriasVisao = categoriasDePedidos.length ? categoriasDePedidos : categoriasFinanceiras;
   const funcionarios = documentosDados(colecoes.funcionarios).filter(naoExcluido);
   const avaliacoes = documentosDados(colecoes.avaliacoes).filter(naoExcluido);
   const ocupadas = mesas.filter((mesa) => mesa.status === 'ocupada').length;
@@ -352,14 +563,14 @@ async function listarVisaoGeral(identidade, req) {
   const fechamentos = documentosDados(colecoes.fechamentosCaixa).filter(naoExcluido).sort((a, b) => dataIso(primeiroCampo(b.dados, ['data', 'criadoEm'])).localeCompare(dataIso(primeiroCampo(a.dados, ['data', 'criadoEm']))));
   const fechamentoAtual = fechamentos[0]?.dados || null;
   const fluxo = movimentacoes.filter((item) => dentroPeriodo(item.data, periodo)).map((item) => ({ ...item, valor: reais(item.valorCentavos) }));
-  const despesasCentavos = fluxo.filter((item) => item.tipo === 'saida').reduce((total, item) => total + item.valorCentavos, 0);
+  const despesasCentavos = series.despesasTotalCentavos || fluxo.filter((item) => item.tipo === 'saida').reduce((total, item) => total + item.valorCentavos, 0);
   const financeiro = {
     caixaAtual: fechamentoAtual ? { data: dataIso(primeiroCampo(fechamentoAtual, ['data', 'criadoEm'])), vendas: reais(valorCentavos(fechamentoAtual, 'vendasCentavos', 'vendas')), abertura: reais(valorCentavos(fechamentoAtual, 'aberturaCentavos', 'abertura')), suprimentos: reais(valorCentavos(fechamentoAtual, 'suprimentosCentavos', 'suprimentos')), sangrias: reais(valorCentavos(fechamentoAtual, 'sangriasCentavos', 'sangrias')), retiradas: reais(valorCentavos(fechamentoAtual, 'retiradasCentavos', 'retiradas')), saldoEsperado: reais(valorCentavos(fechamentoAtual, 'saldoEsperadoCentavos', 'saldoEsperado')), status: String(fechamentoAtual.estado || fechamentoAtual.status || '') } : {},
     recebimentos: Array.isArray(fechamentoAtual?.recebimentos) ? fechamentoAtual.recebimentos.map((item) => ({ meio: String(item.meio || ''), valor: reais(valorCentavos(item, 'valorCentavos', 'valor')), transacoes: inteiro(item.transacoes) })) : [],
     fluxo,
     contas: [],
-    relatoriosMensais: series.vendasMensais.map((item) => ({ mes: item.periodo, vendas: item.vendas, despesas: 0, resultado: item.vendas })),
-    categorias: [],
+    relatoriosMensais: series.vendasMensais.map((item) => ({ mes: item.periodo, vendas: item.vendas, despesas: item.despesas, resultado: item.resultado })),
+    categorias: categoriasVisao,
     resumoFinanceiro: { vendasCentavos: series.totalVendasCentavos, despesasCentavos, resultadoCentavos: series.totalVendasCentavos - despesasCentavos },
   };
   const avaliacao = construirAvaliacoes(avaliacoes, periodo);
@@ -368,19 +579,33 @@ async function listarVisaoGeral(identidade, req) {
     periodo,
     financeiro,
     salao: { mesas, reservas, ocupacao: Math.round((ocupadas / diasComMesas) * 100), ocupadas, disponiveis: mesas.filter((mesa) => mesa.status === 'disponivel').length, bloqueadas },
-    operacao: { pedidosAtivos: pedidos.filter((pedido) => dentroPeriodo(pedido.data, periodo) && !ESTADOS_CANCELADOS.has(pedido.estado) && !ESTADOS_CONCLUIDOS.has(pedido.estado)).map((pedido) => ({ id: pedido.id, status: pedido.estado, valor: reais(pedido.totalCentavos), canal: pedido.canal })), pedidosHistorico: pedidos.filter((pedido) => dentroPeriodo(pedido.data, periodo)).map((pedido) => ({ id: pedido.id, status: pedido.estado, valor: reais(pedido.totalCentavos), canal: pedido.canal })) },
+    operacao: { pedidosAtivos: pedidos.filter((pedido) => dentroPeriodo(pedido.data, periodo) && !ESTADOS_CANCELADOS.has(pedido.estado) && !ESTADOS_CONCLUIDOS.has(pedido.estado)).map(dtoPedidoResumo), pedidosHistorico: pedidos.filter((pedido) => dentroPeriodo(pedido.data, periodo)).map(dtoPedidoResumo) },
     cardapio: { produtos: produtos.map(dtoCatalogo).filter((item) => item.nome), categorias: categorias.map(dtoCategoria).filter((item) => item.nome), produtosMaisVendidos: construirRankingProdutos(pedidos, produtos, categorias, periodo) },
     equipe: { funcionarios: construirFuncionarios(funcionarios), comissoes: [] },
-    relatorios: { ...series, ...avaliacao, produtosMaisVendidos: construirRankingProdutos(pedidos, produtos, categorias, periodo), performanceEquipe: construirFuncionarios(funcionarios), atualizadoEm: new Date().toISOString(), origem: 'Cloud Firestore' },
-    indicadores: { vendasCentavos: series.totalVendasCentavos, pedidos: series.totalPedidos, despesasCentavos, resultadoCentavos: series.totalVendasCentavos - despesasCentavos, notaMedia: avaliacao.indicadores.notaMedia, totalAvaliacoes: avaliacao.indicadores.totalAvaliacoes },
+    relatorios: { ...series, ...avaliacao, indicadores: { ...series.indicadores, ...series.picos, ...avaliacao.indicadores }, produtosMaisVendidos: construirRankingProdutos(pedidos, produtos, categorias, periodo), performanceEquipe: construirFuncionarios(funcionarios), atualizadoEm: new Date().toISOString(), origem: 'Cloud Firestore' },
+    indicadores: { vendasCentavos: series.totalVendasCentavos, pedidos: series.totalPedidos, despesasCentavos, resultadoCentavos: series.totalVendasCentavos - despesasCentavos, picoAlmoco: series.picos.picoAlmoco, picoJantar: series.picos.picoJantar, notaMedia: avaliacao.indicadores.notaMedia, totalAvaliacoes: avaliacao.indicadores.totalAvaliacoes },
     meta: { idRestaurante: identidade.idRestaurante, fusoHorario, inicio: periodo.inicio, fim: periodo.fim, limite, fonte: 'firestore', dadosDisponiveis: Boolean(series.totalPedidos || mesas.length || reservas.length || produtos.length || funcionarios.length || fluxo.length) },
   };
   return { corpo: resposta };
 }
 
-module.exports = async function visaoGeral(req, res) {
+async function visaoGeral(req, res) {
   return executar(req, res, { metodos: ['GET'], mutacao: false, appCheck: true }, async () => {
     const identidade = await obterIdentidadeOperacional(req, PAPEIS_LEITURA);
     return listarVisaoGeral(identidade, req);
   });
+}
+
+module.exports = visaoGeral;
+module.exports.internals = {
+  intervalo,
+  normalizarPedido,
+  normalizarMovimentacao,
+  normalizarReserva,
+  normalizarRelatorioFinanceiro,
+  construirCategoriasFinanceiras,
+  construirCategoriasDePedidos,
+  construirSeries,
+  construirAvaliacoes,
+  calcularPicos,
 };

@@ -1,6 +1,6 @@
 (() => {
   const paginas = {
-    home: { titulo: 'Visão Geral', fragmento: 'paginas/home.html', href: '/', estilos: ['estilos/home/home.css?v=cards-uniformes'], scripts: ['scripts/home/dados-visao-geral.js?v=fase4', 'scripts/home/home.js?v=31a9457'] },
+    home: { titulo: 'Visão Geral', fragmento: 'paginas/home.html?v=etapa16-visao', href: '/', estilos: ['estilos/home/home.css?v=cards-uniformes'], scripts: ['scripts/home/dados-visao-geral.js?v=etapa16-visao', 'scripts/home/home.js?v=etapa16-visao'] },
     mesa: { titulo: 'Atendimento da Mesa', fragmento: 'paginas/publico/mesa.html?v=etapa8-seguranca', href: '/mesa', estilos: ['estilos/publico/mesa.css?v=etapa8-seguranca'], scripts: ['scripts/publico/mesa.js?v=etapa8-seguranca'] },
     'novo-pedido': { titulo: 'Novo Pedido', fragmento: 'paginas/pedidos/novo-pedido.html?v=etapa5-garcom-cozinha', href: '/novo-pedido', estilos: ['estilos/pedidos/pedidos.css?v=etapa5-garcom-cozinha'], scripts: ['scripts/pedidos/dados-pedidos.js?v=etapa7-historico', 'scripts/pedidos/novo-pedido.js?v=etapa5-garcom-cozinha'] },
     'pedidos-ativos': { titulo: 'Pedidos Ativos', fragmento: 'paginas/pedidos/pedidos-ativos.html?v=etapa6-caixa', href: '/pedidos-ativos', estilos: ['estilos/pedidos/pedidos.css?v=etapa6-caixa'], scripts: ['scripts/pedidos/dados-pedidos.js?v=etapa7-historico', 'scripts/pedidos/pedidos-ativos.js?v=etapa6-caixa'] },

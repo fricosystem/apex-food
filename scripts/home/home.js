@@ -2,8 +2,8 @@
   const visao = window.dadosVisaoGeralApexFood || {};
   const pedidos = visao.operacao || { pedidosAtivos: [], pedidosHistorico: [] };
   const financeiro = visao.financeiro || { caixaAtual: {}, contas: [], relatoriosMensais: [], categorias: [] };
-  const mesas = visao.salao?.mesas || [];
-  const reservas = visao.salao?.reservas || [];
+  const mesasAtuais = () => visao.salao?.mesas || [];
+  const reservasAtuais = () => visao.salao?.reservas || [];
   const equipe = visao.equipe || { funcionarios: [] };
   const cardapio = visao.cardapio || { produtos: [], categorias: [] };
   const relatorios = visao.relatorios || { vendasDiarias: [], vendasSemanais: [], vendasMensais: [], canais: [], produtosMaisVendidos: [], mapaCalor: [], faixasHorarias: [], diasSemana: [], avaliacoes: [], distribuicaoNotas: [], indicadores: {} };
@@ -17,6 +17,47 @@
   const DATA_ATUAL = new Date().toISOString().slice(0, 10);
   const TIPOS_PERIODO = { dia: 'Dia', semana: 'Semana', mes: 'Mês', ano: 'Ano', personalizado: 'Personalizado' };
   let estadoPeriodo = { tipo: 'dia', inicio: DATA_ATUAL, fim: DATA_ATUAL };
+  let canalSelecionado = 'salao';
+  let modoGrafico = 'barras';
+  let mesasOcupadas = false;
+  let buscaPedidos = '';
+  let statusPedidos = 'todos';
+
+  function canalDoPedido(pedido) {
+    const valor = String(pedido?.canal || '').trim().toLowerCase();
+    if (['salao', 'salão', 'mesa', 'restaurante'].includes(valor)) return 'salao';
+    if (['delivery', 'entrega'].includes(valor)) return 'delivery';
+    if (['retirada', 'takeout'].includes(valor)) return 'retirada';
+    return 'outros';
+  }
+
+  function pedidoPertenceAoCanal(pedido) {
+    return canalSelecionado === 'total' || canalDoPedido(pedido) === canalSelecionado;
+  }
+
+  function agruparSeriePorCanal(periodo) {
+    if (canalSelecionado === 'total') return null;
+    const itens = (relatorios.vendasPorCanal || []).filter(item => item.canal === canalSelecionado && dataDentroDoIntervalo(item.data, periodo.inicio, periodo.fim));
+    if (!itens.length) return [];
+    const grupos = new Map();
+    const porMes = periodo.tipo === 'mes' || periodo.tipo === 'ano';
+    itens.forEach(item => {
+      const chave = porMes ? String(item.data).slice(0, 7) : item.data;
+      const atual = grupos.get(chave) || { data: chave, label: porMes ? `${String(item.data).slice(5, 7)}/${String(item.data).slice(0, 4)}` : item.label, pedidos: 0, vendas: 0, despesas: 0 };
+      atual.pedidos += Number(item.pedidos || 0);
+      atual.vendas += Number(item.vendas || 0);
+      grupos.set(chave, atual);
+    });
+    return [...grupos.values()].sort((a, b) => a.data.localeCompare(b.data));
+  }
+
+  function pedidosFiltrados() {
+    return [...(pedidos.pedidosAtivos || []), ...(pedidos.pedidosHistorico || [])]
+      .filter(pedido => pedidoPertenceAoCanal(pedido))
+      .filter(pedido => statusPedidos === 'todos' || ['em_preparo', 'preparo'].includes(statusPedidos) && ['em_preparo', 'preparo'].includes(pedido.status) || pedido.status === statusPedidos)
+      .filter(pedido => !buscaPedidos || [pedido.id, pedido.mesa, pedido.cliente, pedido.canal, pedido.statusLabel].join(' ').toLocaleLowerCase('pt-BR').includes(buscaPedidos.toLocaleLowerCase('pt-BR')))
+      .sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')));
+  }
 
   function dataBRParaISO(valor) {
     if (!valor || !/^\d{2}\/\d{2}\/\d{4}$/.test(valor)) return null;
@@ -54,11 +95,13 @@
     const fim = remoto.fim || estadoPeriodo.fim;
     let serie = [];
     if (tipo === 'dia') serie = diarios.map(item => ({ ...item, label: item.label || item.data }));
-    if (tipo === 'semana') serie = semanais.map(item => ({ ...item, label: item.periodo }));
+    if (tipo === 'semana') serie = diarios.map(item => ({ ...item, label: item.label || item.data }));
     if (tipo === 'mes' || tipo === 'ano') serie = mensais.map(item => ({ ...item, label: item.periodo || item.mes }));
     if (tipo === 'personalizado') serie = diarios.map(item => ({ ...item, label: item.label || item.data }));
-    const indicadorVendas = Number(visao.indicadores?.vendasCentavos || 0) / 100;
-    const indicadorPedidos = Number(visao.indicadores?.pedidos || 0);
+    const serieCanal = agruparSeriePorCanal({ tipo, inicio, fim });
+    if (serieCanal) serie = serieCanal;
+    const indicadorVendas = canalSelecionado === 'total' ? Number(visao.indicadores?.vendasCentavos || 0) / 100 : 0;
+    const indicadorPedidos = canalSelecionado === 'total' ? Number(visao.indicadores?.pedidos || 0) : 0;
     const vendasSerie = serie.reduce((total, item) => total + Number(item.vendas || 0), 0);
     const pedidosSerie = serie.reduce((total, item) => total + Number(item.pedidos || 0), 0);
     const vendas = indicadorVendas || vendasSerie;
@@ -66,10 +109,12 @@
     const ticketMedio = pedidosPeriodo ? vendas / pedidosPeriodo : 0;
     const status = remoto.status || `${TIPOS_PERIODO[tipo] || 'Período'} · ${dataParaBR(inicio)}${inicio !== fim ? ` a ${dataParaBR(fim)}` : ''}`;
     const disponivel = Boolean(visao.meta?.dadosDisponiveis && (vendas || pedidosPeriodo || serie.length));
-    return { tipo, nome: TIPOS_PERIODO[tipo] || 'Período', inicio, fim, serie, vendas, pedidos: pedidosPeriodo, ticketMedio, status, disponivel };
+    return { tipo, nome: TIPOS_PERIODO[tipo] || 'Período', inicio, fim, serie, vendas, pedidos: pedidosPeriodo, ticketMedio, status, disponivel, canal: canalSelecionado };
   }
 
   function obterResumo() {
+    const mesas = mesasAtuais();
+    const reservas = reservasAtuais();
     const caixa = financeiro.caixaAtual || {};
     const periodo = obterDadosPeriodo();
     const ocupadas = mesas.filter(mesa => mesa.status === 'ocupada').length;
@@ -79,10 +124,11 @@
     const liderProduto = relatorios.produtosMaisVendidos?.[0] || {};
     const liderEquipe = relatorios.performanceEquipe?.[0] || {};
     const ativosEquipe = equipe.funcionarios.filter(funcionario => funcionario.status === 'ativo').length;
-    const pedidosNovos = pedidos.pedidosAtivos.filter(pedido => pedido.status === 'novo').length;
-    const pedidosPreparo = pedidos.pedidosAtivos.filter(pedido => pedido.status === 'preparo').length;
+    const ativosCanal = pedidos.pedidosAtivos.filter(pedido => pedidoPertenceAoCanal(pedido));
+    const pedidosNovos = ativosCanal.filter(pedido => ['novo', 'aguardando_confirmacao_garcom', 'confirmado_garcom'].includes(pedido.status)).length;
+    const pedidosPreparo = ativosCanal.filter(pedido => ['enviado_cozinha', 'em_preparo', 'preparo'].includes(pedido.status)).length;
     const estoqueCritico = cardapio.produtos.filter(produto => !produto.disponibilidade || Number(produto.estoque || 0) <= 8).length;
-    const reservasPendentes = reservas.filter(reserva => ['aguardando', 'confirmada'].includes(reserva.status) && dataDentroDoIntervalo(dataBRParaISO(reserva.data), periodo.inicio, periodo.fim)).length;
+    const reservasPendentes = reservas.filter(reserva => ['aguardando', 'confirmada'].includes(reserva.status) && dataDentroDoIntervalo(reserva.dataIso || dataBRParaISO(reserva.data), periodo.inicio, periodo.fim)).length;
     return { caixa, periodo, ocupadas, disponiveis, bloqueadas, ocupacao, liderProduto, liderEquipe, ativosEquipe, pedidosNovos, pedidosPreparo, estoqueCritico, reservasPendentes };
   }
 
@@ -109,6 +155,7 @@
   }
 
   function renderizarIndicadores() {
+    const mesas = mesasAtuais();
     const resumo = obterResumo();
     const periodo = resumo.periodo;
     const rotulo = periodo.tipo === 'dia' ? 'Faturamento do Dia' : periodo.tipo === 'semana' ? 'Faturamento da Semana' : periodo.tipo === 'mes' ? 'Faturamento do Mês' : periodo.tipo === 'ano' ? 'Faturamento do Ano' : 'Faturamento do Período';
@@ -152,12 +199,14 @@
   }
 
   function renderizarReservas() {
+    const reservas = reservasAtuais();
     const periodo = obterDadosPeriodo();
-    const proximas = reservas.filter(reserva => ['confirmada', 'aguardando'].includes(reserva.status) && dataDentroDoIntervalo(dataBRParaISO(reserva.data), periodo.inicio, periodo.fim)).sort((a, b) => a.horario.localeCompare(b.horario)).slice(0, 3);
+    const proximas = reservas.filter(reserva => ['confirmada', 'aguardando'].includes(reserva.status) && dataDentroDoIntervalo(reserva.dataIso || dataBRParaISO(reserva.data), periodo.inicio, periodo.fim)).sort((a, b) => a.horario.localeCompare(b.horario)).slice(0, 3);
     definirHTML('homeReservasResumo', proximas.length ? proximas.map(reserva => `<div class="flex items-center justify-between gap-2"><div class="min-w-0"><p class="text-[11px] font-medium truncate">${escapar(reserva.cliente)}</p><p class="text-[10px] text-muted mt-0.5">${escapar(reserva.mesa)} · ${escapar(reserva.pessoas)} pessoas</p></div><span class="text-[10px] ${reserva.status === 'aguardando' ? 'text-yellow' : 'text-blue'} shrink-0">${escapar(reserva.horario)}</span></div>`).join('') : '<p class="text-[10px] text-muted">Nenhuma reserva no período selecionado.</p>');
   }
 
   function renderizarRitmo() {
+    const mesas = mesasAtuais();
     const resumo = obterResumo();
     const notaEquipe = resumo.liderEquipe.avaliacao || 0;
     const ritmo = [
@@ -170,16 +219,21 @@
   }
 
   function renderizarModuloOperacao() {
-    const ativos = pedidos.pedidosAtivos || [];
-    const status = [{ chave: 'novo', label: 'Novos', cor: 'bg-accent' }, { chave: 'preparo', label: 'Em preparo', cor: 'bg-yellow' }, { chave: 'pronto', label: 'Prontos', cor: 'bg-green' }];
-    const maior = Math.max(1, ...status.map(item => ativos.filter(pedido => pedido.status === item.chave).length));
+    const ativos = (pedidos.pedidosAtivos || []).filter(pedido => pedidoPertenceAoCanal(pedido));
+    const status = [
+      { chave: 'novos', estados: ['novo', 'aguardando_confirmacao_garcom', 'confirmado_garcom'], label: 'Novos', cor: 'bg-accent' },
+      { chave: 'preparo', estados: ['enviado_cozinha', 'em_preparo', 'preparo'], label: 'Em preparo', cor: 'bg-yellow' },
+      { chave: 'prontos', estados: ['pronto'], label: 'Prontos', cor: 'bg-green' },
+    ];
+    const totalDoStatus = item => ativos.filter(pedido => item.estados.includes(pedido.status)).length;
+    const maior = Math.max(1, ...status.map(totalDoStatus));
     const tempos = ativos.map(pedido => Number.parseInt(pedido.tempo, 10)).filter(Number.isFinite);
     const tempoMedio = tempos.length ? Math.round(tempos.reduce((soma, tempo) => soma + tempo, 0) / tempos.length) : 0;
     definirTexto('homeOperacaoAtivos', visao.meta?.dadosDisponiveis ? `${ativos.length}` : '—');
     definirTexto('homeOperacaoTempo', tempos.length ? `${tempoMedio} min` : '—');
     const tempoBar = document.getElementById('homeOperacaoTempoBar');
     if (tempoBar) tempoBar.style.width = percent((tempoMedio / 30) * 100);
-    definirHTML('homeOperacaoStatus', status.map(item => { const total = ativos.filter(pedido => pedido.status === item.chave).length; return `<div><div class="flex items-center justify-between text-[10px] mb-1"><span class="text-muted">${item.label}</span><strong>${total}</strong></div><div class="home-mini-bar"><span class="${item.cor}" style="width:${percent((total / maior) * 100)}"></span></div></div>`; }).join(''));
+    definirHTML('homeOperacaoStatus', status.map(item => { const total = totalDoStatus(item); return `<div><div class="flex items-center justify-between text-[10px] mb-1"><span class="text-muted">${item.label}</span><strong>${total}</strong></div><div class="home-mini-bar"><span class="${item.cor}" style="width:${percent((total / maior) * 100)}"></span></div></div>`; }).join(''));
     const mapa = relatorios.mapaCalor || [];
     const dias = relatorios.diasSemana || [];
     const faixas = relatorios.faixasHorarias || [];
@@ -195,9 +249,9 @@
     movimentos.forEach(item => despesasPorData.set(item.dataIso || dataBRParaISO(item.data), (despesasPorData.get(item.dataIso || dataBRParaISO(item.data)) || 0) + Number(item.valor || 0)));
     const serie = periodo.serie.map(item => {
       const data = dataBRParaISO(item.data) || item.data;
-      return { label: item.label || item.periodo, vendas: Number(item.vendas || 0), despesas: Number(despesasPorData.get(data) || 0) };
+      return { label: item.label || item.periodo, vendas: Number(item.vendas || 0), despesas: Number(item.despesas || despesasPorData.get(data) || 0) };
     });
-    const despesasSelecionadas = [...despesasPorData.values()].reduce((total, valor) => total + valor, 0);
+    const despesasSelecionadas = serie.reduce((total, item) => total + Number(item.despesas || 0), 0) || [...despesasPorData.values()].reduce((total, valor) => total + valor, 0);
     return { serie, despesas: despesasSelecionadas, estimada: false };
   }
 
@@ -216,6 +270,8 @@
   }
 
   function renderizarModuloSalao() {
+    const mesas = mesasAtuais();
+    const reservas = reservasAtuais();
     const resumo = obterResumo();
     const graus = Math.round((resumo.ocupacao / 100) * 360);
     const donut = document.getElementById('homeSalaoDonut');
@@ -269,10 +325,16 @@
       return;
     }
     const maximo = Math.max(1, ...serie.map(item => Number(item.vendas || 0)));
-    destino.innerHTML = `<div class="flex items-end gap-1 h-48" aria-label="Vendas reais por período">${serie.map(item => `<div class="flex flex-col items-center flex-1 h-full justify-end gap-1" title="${escapar(item.label)}: ${moeda(item.vendas)}"><div class="w-full max-w-12 rounded-t bg-gradient-to-t from-accent to-orange-400 transition-all" style="height:${Math.max(4, (Number(item.vendas || 0) / maximo) * 100)}%"></div><span class="text-[9px] text-muted truncate max-w-full">${escapar(item.label)}</span></div>`).join('')}</div>`;
+    if (modoGrafico === 'lista') {
+      destino.innerHTML = `<div class="space-y-2" aria-label="Vendas reais por período em lista">${serie.map(item => `<div class="flex items-center justify-between gap-3 rounded-lg bg-card2 border border-border2 px-3 py-2"><span class="text-xs text-muted">${escapar(item.label)}</span><span class="text-xs font-semibold">${moeda(item.vendas)} <span class="text-muted font-normal">· ${Number(item.pedidos || 0)} pedidos</span></span></div>`).join('')}</div>`;
+      return;
+    }
+    destino.innerHTML = `<div class="flex items-end gap-1 h-48" aria-label="Vendas reais por período em gráfico de barras">${serie.map(item => `<div class="flex flex-col items-center flex-1 h-full justify-end gap-1" title="${escapar(item.label)}: ${moeda(item.vendas)}"><div class="w-full max-w-12 rounded-t bg-gradient-to-t from-accent to-orange-400 transition-all" style="height:${Math.max(4, (Number(item.vendas || 0) / maximo) * 100)}%"></div><span class="text-[9px] text-muted truncate max-w-full">${escapar(item.label)}</span></div>`).join('')}</div>`;
   }
 
   function renderizarEvolucaoOperacional() {
+    const mesas = mesasAtuais();
+    const reservas = reservasAtuais();
     const estado = document.getElementById('homeSistemaEstado');
     const grafico = document.getElementById('homeSistemaGrafico');
     const metricas = document.getElementById('homeSistemaMetricas');
@@ -287,10 +349,15 @@
   }
 
   function renderizarMesasResumo() {
+    const mesas = mesasAtuais();
     const destino = document.getElementById('homeMesasStatus');
     if (!destino) return;
     const status = { disponivel: 'bg-green/40 border-green/60', ocupada: 'bg-red/40 border-red/60', indisponivel: 'bg-neutral-500/40 border-neutral-400/60' };
-    destino.innerHTML = mesas.slice(0, 12).map(mesa => `<span class="w-6 h-6 rounded border ${status[mesa.status] || 'bg-card2 border-border2'}" title="${escapar(mesa.nome)} · ${escapar(mesa.status)}"></span>`).join('');
+    const lista = mesas.filter(mesa => mesasOcupadas ? mesa.status === 'ocupada' : mesa.status === 'disponivel');
+    definirTexto('homeMesasTitulo', mesasOcupadas ? 'Mesas Ocupadas' : 'Mesas Livres');
+    const alternar = document.getElementById('homeAlternarMesas');
+    if (alternar) { alternar.textContent = mesasOcupadas ? 'Livres' : 'Ocupadas'; alternar.setAttribute('aria-pressed', mesasOcupadas ? 'true' : 'false'); }
+    destino.innerHTML = lista.slice(0, 12).map(mesa => `<span class="w-6 h-6 rounded border ${status[mesa.status] || 'bg-card2 border-border2'}" title="${escapar(mesa.nome)} · ${escapar(mesa.status)}"></span>`).join('') || '<span class="text-xs text-muted">Nenhuma mesa neste status.</span>';
   }
 
   function renderizarCategoriasVendas() {
@@ -305,7 +372,7 @@
   }
 
   function renderizarPedidosRecentes() {
-    const recentes = [...(pedidos.pedidosAtivos || []), ...(pedidos.pedidosHistorico || [])].slice(0, 3);
+    const recentes = pedidosFiltrados().slice(0, 3);
     const resumo = document.getElementById('homePedidosRecentesResumo');
     if (resumo) resumo.innerHTML = recentes.length ? recentes.map(pedido => `<div class="rounded-lg bg-card2 p-3 border border-border2"><div class="flex items-center justify-between gap-2"><div class="min-w-0"><p class="text-sm font-medium truncate">${escapar(pedido.id || 'Pedido')}</p><p class="text-xs text-muted truncate">${escapar(pedido.mesa || pedido.cliente || pedido.canal || 'Sem identificação')} · ${escapar(pedido.horario || '—')}</p></div><span class="text-xs text-muted">${moeda(pedido.valor || 0)}</span></div><div class="text-xs text-muted mt-2">${escapar(pedido.statusLabel || pedido.status || 'Sem status')}</div></div>`).join('') : '<p class="text-xs text-muted">Nenhum pedido real no período.</p>';
     const tabela = document.getElementById('homePedidosTabela');
@@ -358,14 +425,76 @@
     });
   }
 
+  function parametrosPeriodoAtual() {
+    return estadoPeriodo.tipo === 'personalizado'
+      ? { periodo: 'personalizado', inicio: estadoPeriodo.inicio, fim: estadoPeriodo.fim }
+      : { periodo: estadoPeriodo.tipo };
+  }
+
+  function exportarPedidos() {
+    const registros = pedidosFiltrados();
+    if (!registros.length) { aviso('Não há pedidos reais para exportar no período selecionado.'); return; }
+    const escaparCsv = valor => `"${String(valor ?? '').replace(/"/g, '""')}"`;
+    const cabecalho = ['Pedido', 'Mesa', 'Cliente', 'Canal', 'Valor', 'Horário', 'Status'];
+    const linhas = registros.map(pedido => [pedido.id, pedido.mesa, pedido.cliente, pedido.canal, Number(pedido.valor || 0).toFixed(2).replace('.', ','), pedido.horario, pedido.statusLabel || pedido.status]);
+    const csv = `\uFEFF${[cabecalho, ...linhas].map(linha => linha.map(escaparCsv).join(';')).join('\n')}`;
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `pedidos-visao-geral-${estadoPeriodo.inicio}-${estadoPeriodo.fim}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    aviso(`${registros.length} pedido(s) exportado(s).`);
+  }
+
   function conectarAcoes() {
     document.querySelectorAll('[data-home-rota]').forEach(botao => botao.addEventListener('click', () => navegar(botao.dataset.homeRota)));
-    document.querySelectorAll('#conteudoPagina button').forEach(botao => {
-      if (botao.dataset.homeRota || botao.dataset.homeAviso || botao.dataset.homePeriodo || botao.id === 'homeAplicarPeriodo') return;
-      const texto = botao.textContent.trim();
-      if (['Restaurante', 'Delivery', 'Total'].includes(texto)) botao.addEventListener('click', () => aviso('Filtro de canal da Home preparado para integração com dados em tempo real.'));
+    document.querySelectorAll('[data-home-canal]').forEach(botao => botao.addEventListener('click', () => {
+      canalSelecionado = botao.dataset.homeCanal || 'total';
+      document.querySelectorAll('[data-home-canal]').forEach(item => {
+        const ativo = item.dataset.homeCanal === canalSelecionado;
+        item.classList.toggle('bg-card2', ativo);
+        item.classList.toggle('text-muted', !ativo);
+        item.setAttribute('aria-pressed', ativo ? 'true' : 'false');
+      });
+      renderizarTudo();
+    }));
+    document.getElementById('homeAlternarGrafico')?.addEventListener('click', (event) => {
+      modoGrafico = modoGrafico === 'barras' ? 'lista' : 'barras';
+      event.currentTarget.setAttribute('aria-label', modoGrafico === 'barras' ? 'Mostrar tabela de vendas' : 'Mostrar gráfico de vendas');
+      renderizarGraficoVendas();
     });
-    document.getElementById('homeVendasPeriodoBotao')?.closest('button')?.addEventListener('click', () => document.querySelector('.home-periodo-bar')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    document.getElementById('homeAtualizarDados')?.addEventListener('click', async (event) => {
+      const botao = event.currentTarget;
+      botao.disabled = true;
+      botao.classList.add('animate-pulse');
+      try {
+        await window.apexVisaoGeralRecarregar?.(parametrosPeriodoAtual());
+      } finally {
+        botao.disabled = false;
+        botao.classList.remove('animate-pulse');
+      }
+    });
+    document.getElementById('homeAlternarMesas')?.addEventListener('click', () => {
+      mesasOcupadas = !mesasOcupadas;
+      renderizarMesasResumo();
+    });
+    document.getElementById('homeVendasPeriodoBotaoAcao')?.addEventListener('click', () => document.querySelector('.home-periodo-bar')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    document.getElementById('homeAdicionarPedido')?.addEventListener('click', () => navegar('novo-pedido'));
+    document.getElementById('homeVerTodosPedidos')?.addEventListener('click', () => navegar('historico-pedidos'));
+    document.getElementById('homeBuscaPedidos')?.addEventListener('input', event => { buscaPedidos = event.currentTarget.value.trim(); renderizarPedidosRecentes(); });
+    document.getElementById('homeAbrirFiltroPedidos')?.addEventListener('click', event => {
+      const ciclo = ['todos', 'novo', 'em_preparo', 'pronto'];
+      statusPedidos = ciclo[(ciclo.indexOf(statusPedidos) + 1) % ciclo.length];
+      const nomes = { todos: 'Todos', novo: 'Novos', em_preparo: 'Em preparo', pronto: 'Prontos' };
+      event.currentTarget.title = `Filtro atual: ${nomes[statusPedidos]}`;
+      event.currentTarget.setAttribute('aria-label', `Filtro de pedidos: ${nomes[statusPedidos]}`);
+      renderizarPedidosRecentes();
+    });
+    document.getElementById('homeExportarPedidos')?.addEventListener('click', exportarPedidos);
+    document.getElementById('homeImprimirPedidos')?.addEventListener('click', () => window.print());
   }
 
   window.apexHomeAtualizarDados = () => renderizarTudo();
