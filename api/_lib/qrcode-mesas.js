@@ -223,10 +223,16 @@ function reservaBloqueiaQr(dados, agoraMs = Date.now()) {
 async function consultarQrPublico(token) {
   const valido = validarTokenQr(token);
   const encontrado = await buscarMesaPorToken(valido);
-  const restauranteDocumento = await encontrado.restauranteRef.get();
-  const dadosRestaurante = restauranteDocumento.exists ? restauranteDocumento.data() || {} : {};
+  const dadosMesa = encontrado.mesaDocumento.data() || {};
+  let dadosRestaurante = {};
+  try {
+    const restauranteDocumento = await encontrado.restauranteRef.get();
+    dadosRestaurante = restauranteDocumento.exists ? restauranteDocumento.data() || {} : {};
+  } catch {
+    dadosRestaurante = {};
+  }
   return {
-    restaurante: { nome: String(dadosRestaurante.nomeFantasia || dadosRestaurante.nome || 'Restaurante') },
+    restaurante: { nome: String(dadosRestaurante.nomeFantasia || dadosRestaurante.nome || dadosMesa.nomeRestaurante || 'Restaurante') },
     mesa: dtoMesaPublica(encontrado.mesaDocumento),
   };
 }
