@@ -9,3 +9,7 @@ A navegação interna pelo shell para `/configuracoes-perfil` funcionou: o títu
 Na primeira abertura da página, o layout estrutural ficou correto, mas o controller exibiu duas mensagens de erro HTTP 404 porque a API operacional não existe no servidor estático local. Para revisar a composição visual completa sem alterar o código, o próximo preview usará uma resposta temporária interceptada somente no navegador de teste.
 
 Com uma resposta temporária controlada somente no navegador, o preview completo renderizou o nome, email somente leitura, estado da conta, restaurante e papéis, as duas preferências com switches, os três campos de senha e os horários da sessão. Os cartões mantiveram fundo escuro, borda cinza clara e acento laranja apenas em ícones, avatar e ações. O sidebar único e o header permaneceram intactos, e a hierarquia entre títulos, rótulos e textos auxiliares ficou preservada no viewport desktop.
+
+O menu do perfil foi validado aberto dentro da página e passou a exibir **Configurações do perfil**, **Notificações** e **Sair**. A navegação interna e os controles da página permaneceram visíveis, sem criação de sidebar ou header adicional.
+
+Após a primeira publicação, a verificação de produção identificou que a rota limpa ainda não estava incluída no grupo de rewrites da Vercel. O `vercel.json` foi corrigido para encaminhar `/configuracoes-perfil` ao shell principal, e o contrato `urls-limpas.test.js` passou a cobrir explicitamente essa rota. A correção aguarda uma nova publicação para a verificação final em produção.

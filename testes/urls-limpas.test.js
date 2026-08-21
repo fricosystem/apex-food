@@ -32,6 +32,7 @@ test('Vercel habilita URLs limpas, PWA na raiz e rewrites do shell', () => {
   assert.equal(rotaFragmentoHome.headers.Location, '/');
   assert.ok(vercel.routes.some(route => route.src === '^/autenticacao$' && route.dest === '/paginas/autenticacao'));
   assert.ok(vercel.routes.some(route => route.src.includes('mapa-mesas') && route.dest === '/index'));
+  assert.ok(vercel.routes.some(route => route.src.includes('configuracoes-perfil') && route.dest === '/index'));
 });
 
 test('links visíveis usam somente rotas públicas sem .html, /paginas/ ou hash', () => {
