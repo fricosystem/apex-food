@@ -15,6 +15,7 @@ const {
   consultarComandaPublica,
   criarPedidoPublico,
   gerarQrMesa,
+  consultarQrMesa,
   revogarQrMesa,
 } = require('../_lib/qrcode-mesas');
 
@@ -42,6 +43,15 @@ async function limitarAcaoPublica(req, acao) {
 async function executarAcaoAdministrativa(corpo, req, idRequisicao) {
   const identidade = await obterIdentidadeOperacional(req, PAPEIS_QR_ADMIN);
   await verificarAppCheck(req);
+  if (corpo.acao === 'consultar') {
+    const resultado = await consultarQrMesa(identidade, { idMesa: corpo.idMesa, req });
+    const qrDataUrl = await QRCode.toDataURL(resultado.urlPublica, {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      width: 320,
+    });
+    return { recurso: 'qrMesa', ...resultado, qrDataUrl };
+  }
   if (corpo.acao === 'gerar' || corpo.acao === 'regenerar') {
     const resultado = await gerarQrMesa(identidade, {
       idMesa: corpo.idMesa,

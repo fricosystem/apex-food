@@ -60,11 +60,11 @@ function renderizarMesasConfig() {
     const estado = statusMesaConfig(status);
     const qrAtivo = mesa.qrAtivo === true;
     const qrEstado = estadoQrMesaConfig(mesa);
-    const qrLabel = qrAtivo ? 'Regenerar QR' : 'Gerar QR Code';
+    const qrLabel = qrAtivo ? 'Ver QR e link' : 'Gerar QR Code';
     return `<article class="salao-card mesa-config-card rounded-xl bg-card2 border border-border2 p-4 ${status === 'indisponivel' ? 'indisponivel' : ''}">
       <div class="flex items-start justify-between gap-3"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-${status === 'indisponivel' ? 'red' : status === 'ocupada' ? 'accent' : 'green'}/10 flex items-center justify-center"><i data-lucide="${estado.icone}" class="w-5 h-5 ${estado.classe}"></i></div><div><h4 class="text-sm font-semibold">${escapeMesaConfig(mesa.nome)}</h4><p class="text-[10px] text-muted mt-1">${mesa.capacidade} lugares · ${escapeMesaConfig(mesa.area || mesa.observacoes || 'Área não definida')}</p></div></div><button type="button" data-editar-mesa="${escapeMesaConfig(mesa.id)}" class="p-2 rounded-lg hover:bg-card text-muted" aria-label="Editar ${escapeMesaConfig(mesa.nome)}"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button></div>
       <div class="flex items-center justify-between mt-5 pt-4 border-t border-border"><span class="flex items-center gap-1.5 text-xs ${estado.classe}"><span class="w-1.5 h-1.5 rounded-full bg-current"></span>${estado.label}</span><label class="flex items-center gap-2 text-[10px] text-muted"><span>Disponível</span><input type="checkbox" class="disponibilidade-switch" data-disponibilidade-mesa="${escapeMesaConfig(mesa.id)}" ${status !== 'indisponivel' ? 'checked' : ''}></label></div>
-      <div class="mt-3 pt-3 border-t border-border"><div class="flex items-center justify-between gap-2"><span class="text-[10px] ${qrEstado.classe} flex items-center gap-1.5"><i data-lucide="qr-code" class="w-3.5 h-3.5"></i>${qrEstado.label}</span><button type="button" data-qr-mesa="${escapeMesaConfig(mesa.id)}" class="flex items-center gap-1.5 text-[10px] text-accent hover:text-orange-300"><i data-lucide="qr-code" class="w-3.5 h-3.5"></i>${qrLabel}</button></div>${qrAtivo ? '<p class="text-[10px] text-muted mt-1">A regeneração invalida o código anterior.</p>' : qrEstado.label === 'QR Code revogado' ? '<p class="text-[10px] text-muted mt-1">O código anterior não pode mais iniciar atendimentos.</p>' : ''}</div>
+      <div class="mt-3 pt-3 border-t border-border"><div class="flex items-center justify-between gap-2"><span class="text-[10px] ${qrEstado.classe} flex items-center gap-1.5"><i data-lucide="qr-code" class="w-3.5 h-3.5"></i>${qrEstado.label}</span><button type="button" data-qr-mesa="${escapeMesaConfig(mesa.id)}" class="flex items-center gap-1.5 text-[10px] text-accent hover:text-orange-300"><i data-lucide="qr-code" class="w-3.5 h-3.5"></i>${qrLabel}</button></div>${qrAtivo ? '<p class="text-[10px] text-muted mt-1">Consulte o link atual ou regenere o código pelo modal.</p>' : qrEstado.label === 'QR Code revogado' ? '<p class="text-[10px] text-muted mt-1">O código anterior não pode mais iniciar atendimentos.</p>' : ''}</div>
     </article>`;
   }).join('') : `<div class="sm:col-span-2 xl:col-span-3 rounded-xl border border-border2 border-dashed py-12 text-center"><i data-lucide="layout-grid" class="w-6 h-6 text-muted mx-auto mb-3"></i><p class="text-sm font-medium">Nenhuma mesa cadastrada</p><p class="text-xs text-muted mt-1">Cadastre uma mesa para configurar o salão.</p></div>`;
   grid.querySelectorAll('[data-editar-mesa]').forEach(botao => botao.addEventListener('click', () => abrirEditarMesa(String(botao.dataset.editarMesa))));
@@ -133,7 +133,7 @@ function fecharModalQr() {
 async function gerarVisualizarQrMesa(id) {
   const mesa = mesasConfig().find(item => String(item.id) === String(id));
   if (mesa?.qrAtivo === true) {
-    await regenerarQrMesa(id);
+    await consultarVisualizarQrMesa(id);
     return;
   }
   if (!mesa || !window.dadosMesasRemotoAtivo || !window.apexModulosApi?.gerarQrMesa) {
@@ -147,6 +147,26 @@ async function gerarVisualizarQrMesa(id) {
     await window.recarregarMesasReais?.();
   } catch (erro) {
     avisarConfiguracao(erro.message || 'Não foi possível gerar o QR Code.');
+  }
+}
+
+async function consultarVisualizarQrMesa(id) {
+  const mesa = mesasConfig().find(item => String(item.id) === String(id));
+  if (!mesa || !window.dadosMesasRemotoAtivo || !window.apexModulosApi?.consultarQrMesa) {
+    avisarConfiguracao('Não foi possível consultar o link do QR Code. Tente novamente.');
+    return;
+  }
+  try {
+    avisarConfiguracao('Abrindo o link atual da mesa...');
+    const resposta = await window.apexModulosApi.consultarQrMesa({ idMesa: String(id) });
+    abrirModalQr(resposta, mesa);
+  } catch (erro) {
+    if (erro.code === 'QR_NAO_RECUPERAVEL') {
+      avisarConfiguracao('Este QR Code precisa ser regenerado para recuperar o link com segurança.');
+      await regenerarQrMesa(id);
+      return;
+    }
+    avisarConfiguracao(erro.message || 'Não foi possível consultar o QR Code.');
   }
 }
 

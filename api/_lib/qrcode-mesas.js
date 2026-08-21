@@ -724,6 +724,7 @@ async function gerarQrMesa(identidade, { idMesa, chaveIdempotencia, req, regener
   const token = crypto.randomBytes(32).toString('base64url');
   const versao = crypto.randomUUID();
   const hash = hashSha256(token);
+  const tokenCifrado = cifrarToken(token);
   const hashPayload = hashSha256(JSON.stringify({ idMesa: mesaId, tipoOperacao }));
   const idOperacao = hashSha256(`${identidade.idRestaurante}:qr-${tipoOperacao}:${mesaId}:${chave}`).slice(0, 40);
   const idempotenciaRef = restauranteRef.collection('chavesIdempotencia').doc(idOperacao);
@@ -747,6 +748,7 @@ async function gerarQrMesa(identidade, { idMesa, chaveIdempotencia, req, regener
       qrAtivo: true,
       qrVersao: versao,
       qrHash: hash,
+      qrTokenCifrado: tokenCifrado,
       qrGeradoEm: FieldValue.serverTimestamp(),
       qrRevogadoEm: null,
       atualizadoPor: identidade.idUsuario,
@@ -769,7 +771,7 @@ async function gerarQrMesa(identidade, { idMesa, chaveIdempotencia, req, regener
       tipoOperacao,
       idMesa: mesaId,
       qrVersao: versao,
-      tokenCifrado: cifrarToken(token),
+      tokenCifrado,
       hashPayload,
       criadaEm: FieldValue.serverTimestamp(),
       expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -795,6 +797,28 @@ async function gerarQrMesa(identidade, { idMesa, chaveIdempotencia, req, regener
   };
 }
 
+async function consultarQrMesa(identidade, { idMesa, req }) {
+  const mesaId = validarId(String(idMesa || ''), 'idMesa');
+  const mesaRef = caminhoRestaurante(identidade.idRestaurante).collection('mesas').doc(mesaId);
+  const documento = await mesaRef.get();
+  if (!documento.exists || documento.data()?.estado === 'excluido') throw new ApiError(404, 'MESA_NAO_ENCONTRADA', 'Mesa não encontrada.');
+  const mesa = documento.data() || {};
+  if (mesa.qrAtivo !== true) throw new ApiError(409, 'QR_NAO_ATIVO', 'Não há QR Code ativo para consultar.');
+  if (typeof mesa.qrTokenCifrado !== 'string' || !mesa.qrTokenCifrado) {
+    throw new ApiError(409, 'QR_NAO_RECUPERAVEL', 'Este QR Code foi gerado antes da recuperação segura do link. Regenere o código para obter um novo link.');
+  }
+  const token = decifrarToken(mesa.qrTokenCifrado);
+  if (hashSha256(token) !== mesa.qrHash) throw new ApiError(503, 'QR_NAO_RECUPERAVEL', 'Não foi possível recuperar o QR Code desta mesa.');
+  return {
+    idMesa: mesaId,
+    qrVersao: mesa.qrVersao || null,
+    qrAtivo: true,
+    tipoOperacao: 'consultar',
+    substituiuQrAnterior: false,
+    urlPublica: `${origemPublica(req)}/mesa?qr=${encodeURIComponent(token)}`,
+  };
+}
+
 async function revogarQrMesa(identidade, { idMesa, chaveIdempotencia }) {
   const mesaId = validarId(String(idMesa || ''), 'idMesa');
   const chave = validarChaveIdempotencia(chaveIdempotencia);
@@ -817,6 +841,7 @@ async function revogarQrMesa(identidade, { idMesa, chaveIdempotencia }) {
     transacao.update(mesaRef, {
       qrAtivo: false,
       qrHash: FieldValue.delete(),
+      qrTokenCifrado: FieldValue.delete(),
       qrRevogadoEm: FieldValue.serverTimestamp(),
       atualizadoPor: identidade.idUsuario,
       atualizadoEm: FieldValue.serverTimestamp(),
@@ -878,5 +903,6 @@ module.exports = {
   validarItensPedidoPublico,
   criarPedidoPublico,
   gerarQrMesa,
+  consultarQrMesa,
   revogarQrMesa,
 };

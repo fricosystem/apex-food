@@ -116,6 +116,10 @@
     return requisitar('/qrcode-mesa', { method: 'POST', body: { acao: 'gerar', ...payload } });
   }
 
+  async function consultarQrMesa(payload) {
+    return requisitar('/qrcode-mesa', { method: 'POST', body: { acao: 'consultar', ...payload } });
+  }
+
   async function regenerarQrMesa(payload) {
     return requisitar('/qrcode-mesa', { method: 'POST', body: { acao: 'regenerar', ...payload } });
   }
@@ -257,6 +261,7 @@
     atualizarStatusPedido,
     listarSalao,
     gerarQrMesa,
+    consultarQrMesa,
     regenerarQrMesa,
     revogarQrMesa,
     criarReserva,

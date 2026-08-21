@@ -54,6 +54,7 @@ function dtoSalao(documento) {
   const dto = dtoDocumento(documento);
   delete dto.nomeNormalizado;
   delete dto.qrHash;
+  delete dto.qrTokenCifrado;
   return dto;
 }
 

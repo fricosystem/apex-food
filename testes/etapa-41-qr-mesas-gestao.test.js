@@ -78,3 +78,33 @@ test('asset do cliente de módulos usa o versionamento da Etapa 18', () => {
   const dados = ler('scripts/salao/dados-mesas.js');
   assert.match(dados, /modulos-client\.js\?v=etapa18-qr-mesas/);
 });
+
+test('consulta administrativa recupera o link ativo sem regenerar o QR', () => {
+  const helper = ler('api/_lib/qrcode-mesas.js');
+  const endpoint = ler('api/v1/qrcode-mesa.js');
+  const cliente = ler('scripts/api/modulos-client.js');
+  assert.match(helper, /async function consultarQrMesa\(identidade, \{ idMesa, req \}\)/);
+  assert.match(helper, /decifrarToken\(mesa\.qrTokenCifrado\)/);
+  assert.match(helper, /tipoOperacao: 'consultar'/);
+  assert.match(endpoint, /corpo\.acao === 'consultar'/);
+  assert.match(endpoint, /consultarQrMesa\(/);
+  assert.match(cliente, /async function consultarQrMesa\(payload\)/);
+  assert.match(cliente, /body: \{ acao: 'consultar', \.\.\.payload \}/);
+});
+
+test('token cifrado do QR fica server-side e é removido na revogação', () => {
+  const helper = ler('api/_lib/qrcode-mesas.js');
+  const handler = ler('api/_lib/salao-handler.js');
+  assert.match(helper, /qrTokenCifrado: tokenCifrado/);
+  assert.match(helper, /qrTokenCifrado: FieldValue\.delete\(\)/);
+  assert.match(handler, /delete dto\.qrTokenCifrado/);
+  assert.doesNotMatch(helper, /qrTokenCifrado\s*:\s*token\b/);
+});
+
+test('interface consulta QR ativo e solicita confirmação para QR legado não recuperável', () => {
+  const controller = ler('scripts/salao/configuracao-mesas.js');
+  assert.match(controller, /apexModulosApi\.consultarQrMesa/);
+  assert.match(controller, /erro\.code === 'QR_NAO_RECUPERAVEL'/);
+  assert.match(controller, /await regenerarQrMesa\(id\)/);
+  assert.match(controller, /Ver QR e link/);
+});
