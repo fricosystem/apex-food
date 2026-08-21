@@ -103,6 +103,37 @@ function dentroPeriodo(data, periodo) {
   return Boolean(data) && data >= periodo.inicio && data <= periodo.fim;
 }
 
+function periodoAnterior(periodo) {
+  const inicio = Date.parse(`${periodo.inicio}T00:00:00.000Z`);
+  const fim = Date.parse(`${periodo.fim}T00:00:00.000Z`);
+  const dias = Math.max(1, Math.round((fim - inicio) / 86400000) + 1);
+  return { tipo: 'comparacao', inicio: deslocarData(periodo.inicio, -dias), fim: deslocarData(periodo.inicio, -1) };
+}
+
+function compararValores(atual, anterior) {
+  const valorAtual = Number(atual || 0);
+  const valorAnterior = Number(anterior || 0);
+  if (!Number.isFinite(valorAtual) || !Number.isFinite(valorAnterior) || valorAnterior === 0) {
+    return { disponivel: false, atual: valorAtual, anterior: valorAnterior, percentual: null, direcao: 'sem_base' };
+  }
+  const percentual = Number((((valorAtual - valorAnterior) / valorAnterior) * 100).toFixed(1));
+  return { disponivel: true, atual: valorAtual, anterior: valorAnterior, percentual, direcao: percentual === 0 ? 'estavel' : percentual > 0 ? 'alta' : 'baixa' };
+}
+
+function construirComparacoes(atual, anterior, avaliacoesAtuais = {}, avaliacoesAnteriores = {}) {
+  const ticketAtual = atual.totalPedidos ? Math.round(atual.totalVendasCentavos / atual.totalPedidos) : 0;
+  const ticketAnterior = anterior.totalPedidos ? Math.round(anterior.totalVendasCentavos / anterior.totalPedidos) : 0;
+  return {
+    vendas: compararValores(atual.totalVendasCentavos, anterior.totalVendasCentavos),
+    pedidos: compararValores(atual.totalPedidos, anterior.totalPedidos),
+    ticketMedio: compararValores(ticketAtual, ticketAnterior),
+    despesas: compararValores(atual.despesasTotalCentavos, anterior.despesasTotalCentavos),
+    resultado: compararValores(atual.totalVendasCentavos - atual.despesasTotalCentavos, anterior.totalVendasCentavos - anterior.despesasTotalCentavos),
+    avaliacoes: compararValores(avaliacoesAtuais.indicadores?.totalAvaliacoes, avaliacoesAnteriores.indicadores?.totalAvaliacoes),
+    notaMedia: compararValores(avaliacoesAtuais.indicadores?.notaMedia, avaliacoesAnteriores.indicadores?.notaMedia),
+  };
+}
+
 function valorCentavos(dados, ...campos) {
   for (const campo of campos) {
     if (dados[campo] === undefined || dados[campo] === null || dados[campo] === '') continue;
@@ -550,8 +581,12 @@ async function listarVisaoGeral(identidade, req) {
   const relatoriosFinanceiros = documentosDados(colecoes.relatoriosFinanceiros).filter(naoExcluido).map(normalizarRelatorioFinanceiro).filter((item) => item.mes);
   const categoriasFinanceiras = construirCategoriasFinanceiras(relatoriosFinanceiros, periodo);
   const series = construirSeries(registrosVenda, periodo, movimentacoes, relatoriosFinanceiros);
+  const periodoAnteriorAtual = periodoAnterior(periodo);
+  const seriesAnterior = construirSeries(registrosVenda, periodoAnteriorAtual, movimentacoes, relatoriosFinanceiros);
   const mesas = documentosDados(colecoes.mesas).filter(naoExcluido).map((item) => ({ id: item.id, nome: String(item.dados.nome || item.dados.numero || `Mesa ${item.id}`), capacidade: inteiro(item.dados.capacidade), status: String(item.dados.estado || item.dados.status || 'disponivel') }));
-  const reservas = documentosDados(colecoes.reservas).filter(naoExcluido).map(normalizarReserva).filter((item) => dentroPeriodo(item.dataIso, periodo));
+  const reservasTodas = documentosDados(colecoes.reservas).filter(naoExcluido).map(normalizarReserva);
+  const reservas = reservasTodas.filter((item) => dentroPeriodo(item.dataIso, periodo));
+  const reservasAnteriores = reservasTodas.filter((item) => dentroPeriodo(item.dataIso, periodoAnteriorAtual));
   const produtos = documentosDados(colecoes.produtosCardapio).filter(naoExcluido);
   const categorias = documentosDados(colecoes.categoriasCardapio).filter(naoExcluido);
   const categoriasDePedidos = construirCategoriasDePedidos(pedidos, produtos, categorias, periodo);
@@ -574,16 +609,18 @@ async function listarVisaoGeral(identidade, req) {
     resumoFinanceiro: { vendasCentavos: series.totalVendasCentavos, despesasCentavos, resultadoCentavos: series.totalVendasCentavos - despesasCentavos },
   };
   const avaliacao = construirAvaliacoes(avaliacoes, periodo);
+  const avaliacaoAnterior = construirAvaliacoes(avaliacoes, periodoAnteriorAtual);
+  const comparacoes = construirComparacoes(series, seriesAnterior, avaliacao, avaliacaoAnterior);
   const diasComMesas = Math.max(mesas.length, 1);
   const resposta = {
-    periodo,
+    periodo: { ...periodo, anterior: periodoAnteriorAtual },
     financeiro,
     salao: { mesas, reservas, ocupacao: Math.round((ocupadas / diasComMesas) * 100), ocupadas, disponiveis: mesas.filter((mesa) => mesa.status === 'disponivel').length, bloqueadas },
     operacao: { pedidosAtivos: pedidos.filter((pedido) => dentroPeriodo(pedido.data, periodo) && !ESTADOS_CANCELADOS.has(pedido.estado) && !ESTADOS_CONCLUIDOS.has(pedido.estado)).map(dtoPedidoResumo), pedidosHistorico: pedidos.filter((pedido) => dentroPeriodo(pedido.data, periodo)).map(dtoPedidoResumo) },
     cardapio: { produtos: produtos.map(dtoCatalogo).filter((item) => item.nome), categorias: categorias.map(dtoCategoria).filter((item) => item.nome), produtosMaisVendidos: construirRankingProdutos(pedidos, produtos, categorias, periodo) },
     equipe: { funcionarios: construirFuncionarios(funcionarios), comissoes: [] },
-    relatorios: { ...series, ...avaliacao, indicadores: { ...series.indicadores, ...series.picos, ...avaliacao.indicadores }, produtosMaisVendidos: construirRankingProdutos(pedidos, produtos, categorias, periodo), performanceEquipe: construirFuncionarios(funcionarios), atualizadoEm: new Date().toISOString(), origem: 'Cloud Firestore' },
-    indicadores: { vendasCentavos: series.totalVendasCentavos, pedidos: series.totalPedidos, despesasCentavos, resultadoCentavos: series.totalVendasCentavos - despesasCentavos, picoAlmoco: series.picos.picoAlmoco, picoJantar: series.picos.picoJantar, notaMedia: avaliacao.indicadores.notaMedia, totalAvaliacoes: avaliacao.indicadores.totalAvaliacoes },
+    relatorios: { ...series, vendasPorCanalAnterior: seriesAnterior.vendasPorCanal, ...avaliacao, indicadores: { ...series.indicadores, ...series.picos, ...avaliacao.indicadores }, produtosMaisVendidos: construirRankingProdutos(pedidos, produtos, categorias, periodo), performanceEquipe: construirFuncionarios(funcionarios), atualizadoEm: new Date().toISOString(), origem: 'Cloud Firestore' },
+    indicadores: { vendasCentavos: series.totalVendasCentavos, pedidos: series.totalPedidos, despesasCentavos, resultadoCentavos: series.totalVendasCentavos - despesasCentavos, picoAlmoco: series.picos.picoAlmoco, picoJantar: series.picos.picoJantar, notaMedia: avaliacao.indicadores.notaMedia, totalAvaliacoes: avaliacao.indicadores.totalAvaliacoes, reservas: reservas.length, reservasAnteriores: reservasAnteriores.length, comparacoes },
     meta: { idRestaurante: identidade.idRestaurante, fusoHorario, inicio: periodo.inicio, fim: periodo.fim, limite, fonte: 'firestore', dadosDisponiveis: Boolean(series.totalPedidos || mesas.length || reservas.length || produtos.length || funcionarios.length || fluxo.length) },
   };
   return { corpo: resposta };
@@ -606,6 +643,9 @@ module.exports.internals = {
   construirCategoriasFinanceiras,
   construirCategoriasDePedidos,
   construirSeries,
+  construirComparacoes,
+  periodoAnterior,
+  compararValores,
   construirAvaliacoes,
   calcularPicos,
 };

@@ -28,7 +28,7 @@ test('Home não carrega bridges de preview e hidrata a partir da Visão Geral', 
   const ponte = ler('scripts/home/dados-visao-geral.js');
   const fragmento = ler('paginas/home.html');
   const blocoHome = shell.slice(shell.indexOf("home: {"), shell.indexOf("'novo-pedido':"));
-  assert.match(blocoHome, /scripts\/home\/dados-visao-geral\.js\?v=etapa16-visao/);
+  assert.match(blocoHome, /scripts\/home\/dados-visao-geral\.js\?v=etapa17-visao/);
   assert.doesNotMatch(blocoHome, /dados-relatorios\.js|dados-pedidos\.js|dados-financeiros\.js|dados-cardapio\.js|dados-mesas\.js/);
   assert.match(home, /dadosVisaoGeralApexFood/);
   assert.match(ponte, /listarVisaoGeral/);

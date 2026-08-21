@@ -17,7 +17,7 @@
   const DATA_ATUAL = new Date().toISOString().slice(0, 10);
   const TIPOS_PERIODO = { dia: 'Dia', semana: 'Semana', mes: 'Mês', ano: 'Ano', personalizado: 'Personalizado' };
   let estadoPeriodo = { tipo: 'dia', inicio: DATA_ATUAL, fim: DATA_ATUAL };
-  let canalSelecionado = 'salao';
+  let canalSelecionado = 'total';
   let modoGrafico = 'barras';
   let mesasOcupadas = false;
   let buscaPedidos = '';
@@ -33,6 +33,41 @@
 
   function pedidoPertenceAoCanal(pedido) {
     return canalSelecionado === 'total' || canalDoPedido(pedido) === canalSelecionado;
+  }
+
+  function compararValoresLocal(atual, anterior) {
+    const valorAtual = Number(atual || 0);
+    const valorAnterior = Number(anterior || 0);
+    if (!Number.isFinite(valorAtual) || !Number.isFinite(valorAnterior) || valorAnterior === 0) return { disponivel: false, percentual: null, direcao: 'sem_base' };
+    const percentual = Number((((valorAtual - valorAnterior) / valorAnterior) * 100).toFixed(1));
+    return { disponivel: true, percentual, direcao: percentual === 0 ? 'estavel' : percentual > 0 ? 'alta' : 'baixa' };
+  }
+
+  function comparacoesDoCanal() {
+    if (canalSelecionado === 'total') return visao.indicadores?.comparacoes || {};
+    const intervalo = obterDadosPeriodo();
+    const atuais = (relatorios.vendasPorCanal || []).filter(item => item.canal === canalSelecionado && dataDentroDoIntervalo(item.data, intervalo.inicio, intervalo.fim));
+    const anteriores = (relatorios.vendasPorCanalAnterior || []).filter(item => item.canal === canalSelecionado);
+    const vendasAtuais = atuais.reduce((soma, item) => soma + Number(item.vendas || 0), 0);
+    const vendasAnteriores = anteriores.reduce((soma, item) => soma + Number(item.vendas || 0), 0);
+    const pedidosAtuais = atuais.reduce((soma, item) => soma + Number(item.pedidos || 0), 0);
+    const pedidosAnteriores = anteriores.reduce((soma, item) => soma + Number(item.pedidos || 0), 0);
+    return { vendas: compararValoresLocal(vendasAtuais, vendasAnteriores), pedidos: compararValoresLocal(pedidosAtuais, pedidosAnteriores), ticketMedio: compararValoresLocal(pedidosAtuais ? vendasAtuais / pedidosAtuais : 0, pedidosAnteriores ? vendasAnteriores / pedidosAnteriores : 0) };
+  }
+
+  function textoComparacao(comparacao) {
+    if (!comparacao?.disponivel) return { texto: 'Sem comparação', classe: 'text-muted' };
+    if (comparacao.direcao === 'estavel') return { texto: 'Estável vs período anterior', classe: 'text-muted' };
+    const sinal = comparacao.percentual > 0 ? '+' : '−';
+    return { texto: `${sinal}${Math.abs(comparacao.percentual).toFixed(1).replace('.', ',')}% vs período anterior`, classe: comparacao.direcao === 'alta' ? 'text-green' : 'text-red' };
+  }
+
+  function aplicarComparacao(id, comparacao) {
+    const elemento = document.getElementById(id);
+    if (!elemento) return;
+    const estado = textoComparacao(comparacao);
+    elemento.textContent = estado.texto;
+    elemento.className = `${estado.classe}`;
   }
 
   function agruparSeriePorCanal(periodo) {
@@ -76,6 +111,17 @@
     if (timestamp === null) return '—';
     const data = new Date(timestamp);
     return `${String(data.getUTCDate()).padStart(2, '0')}/${String(data.getUTCMonth() + 1).padStart(2, '0')}/${data.getUTCFullYear()}`;
+  }
+
+  function dataHoraParaBR(valor) {
+    if (!valor) return '';
+    const data = new Date(valor);
+    if (Number.isNaN(data.getTime())) return String(valor);
+    try {
+      return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: visao.meta?.fusoHorario || undefined }).format(data);
+    } catch {
+      return data.toLocaleString('pt-BR');
+    }
   }
 
   function dataDentroDoIntervalo(dataISO, inicio, fim) {
@@ -165,6 +211,10 @@
     definirTexto('homeFaturamentoDia', periodo.disponivel ? moeda(periodo.vendas) : '—');
     definirTexto('homeTicketMedio', periodo.disponivel ? moeda(periodo.ticketMedio) : '—');
     definirTexto('homePedidosHoje', periodo.disponivel ? `${periodo.pedidos.toLocaleString('pt-BR')} pedidos` : '—');
+    const comparacoes = comparacoesDoCanal();
+    aplicarComparacao('homeFaturamentoComparacao', comparacoes.vendas);
+    aplicarComparacao('homeTicketComparacao', comparacoes.ticketMedio);
+    aplicarComparacao('homePedidosComparacao', comparacoes.pedidos);
     definirTexto('homeVendasSemana', moeda(periodo.vendas));
     definirTexto('homeVendasRotulo', `Vendas ${periodo.nome}`);
     definirTexto('homeVendasPeriodoBotao', periodo.nome);
@@ -184,7 +234,14 @@
     definirTexto('homeResumoClientesSub', totalAvaliacoes ? `${totalAvaliacoes.toLocaleString('pt-BR')} avaliações` : 'Sem avaliações reais');
     definirTexto('homeResumoEquipe', resumo.liderEquipe.nome || 'Sem dados');
     definirTexto('homeResumoEquipeSub', resumo.liderEquipe.nome ? `${moeda(resumo.liderEquipe.vendas || 0)} em vendas` : 'Sem equipe real');
-    definirTexto('homeAtualizacaoDados', relatorios.atualizadoEm ? `Base atualizada em ${escapar(relatorios.atualizadoEm)} · ${periodo.status}` : `Sem atualização registrada · ${periodo.status}`);
+    const statusAtualizacao = visao.sincronizando
+      ? 'Atualizando dados reais...'
+      : visao.erro
+        ? 'Não foi possível atualizar os dados agora. Tentando novamente...'
+        : relatorios.atualizadoEm
+          ? `Base atualizada em ${dataHoraParaBR(relatorios.atualizadoEm)} · Atualização automática ativa`
+          : `Sem atualização registrada · ${periodo.status}`;
+    definirTexto('homeAtualizacaoDados', statusAtualizacao);
   }
 
   function renderizarAlertas() {
@@ -457,6 +514,7 @@
         const ativo = item.dataset.homeCanal === canalSelecionado;
         item.classList.toggle('bg-card2', ativo);
         item.classList.toggle('text-muted', !ativo);
+        item.classList.toggle('text-white', ativo);
         item.setAttribute('aria-pressed', ativo ? 'true' : 'false');
       });
       renderizarTudo();

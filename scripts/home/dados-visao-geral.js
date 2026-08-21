@@ -8,7 +8,7 @@
     operacao: { pedidosAtivos: [], pedidosHistorico: [] },
     cardapio: { produtos: [], categorias: [], produtosMaisVendidos: [] },
     equipe: { funcionarios: [], comissoes: [] },
-    relatorios: { vendasDiarias: [], vendasSemanais: [], vendasMensais: [], vendasPorCanal: [], canais: [], produtosMaisVendidos: [], mapaCalor: [], faixasHorarias: [], diasSemana: [], avaliacoes: [], distribuicaoNotas: [], performanceEquipe: [], indicadores: {}, atualizadoEm: '', origem: '' },
+    relatorios: { vendasDiarias: [], vendasSemanais: [], vendasMensais: [], vendasPorCanal: [], vendasPorCanalAnterior: [], canais: [], produtosMaisVendidos: [], mapaCalor: [], faixasHorarias: [], diasSemana: [], avaliacoes: [], distribuicaoNotas: [], performanceEquipe: [], indicadores: {}, atualizadoEm: '', origem: '' },
     indicadores: {},
     meta: { dadosDisponiveis: false, fonte: 'firestore' },
   };
@@ -44,6 +44,7 @@
       dados[chave] = destino;
     }
     dados.erro = null;
+    dados.sincronizando = false;
     document.dispatchEvent(new CustomEvent('apex:visao-geral-atualizada'));
     window.apexHomeAtualizarDados?.();
   }
@@ -57,25 +58,65 @@
       dados[chave] = destino;
     }
     dados.erro = erro;
+    dados.sincronizando = false;
     document.dispatchEvent(new CustomEvent('apex:visao-geral-indisponivel'));
     window.apexHomeAtualizarDados?.();
   }
 
-  window.apexVisaoGeralRecarregar = (parametros = {}) => carregarCliente()
-    .then((api) => api.listarVisaoGeral(parametros))
-    .then((resposta) => {
-      if (typeof resposta?.meta?.idRestaurante !== 'string') {
-        const erro = new Error('Restaurante ativo não encontrado.');
-        erro.code = 'RESTAURANTE_NAO_SELECIONADO';
-        throw erro;
-      }
-      aplicarDados(resposta);
-      return true;
-    })
-    .catch((erro) => {
-      limparDados(erro);
-      return false;
-    });
+  let atualizacaoId = null;
+  let falhasConsecutivas = 0;
+  let ultimosParametros = { periodo: 'dia' };
+
+  function paginaVisaoGeralAtiva() {
+    return Boolean(document.getElementById('homeVendasGrafico'));
+  }
+
+  function pararAtualizacao() {
+    if (atualizacaoId) window.clearTimeout(atualizacaoId);
+    atualizacaoId = null;
+  }
+
+  function agendarAtualizacao(atraso = 60000) {
+    if (document.hidden || atualizacaoId || !paginaVisaoGeralAtiva()) return;
+    const jitter = Math.floor(Math.random() * 1200);
+    atualizacaoId = window.setTimeout(async () => {
+      atualizacaoId = null;
+      await window.apexVisaoGeralRecarregar(ultimosParametros, { automatica: true });
+    }, Math.max(250, atraso + jitter));
+  }
+
+  window.apexVisaoGeralRecarregar = (parametros = {}, opcoes = {}) => {
+    pararAtualizacao();
+    ultimosParametros = { ...ultimosParametros, ...parametros };
+    dados.sincronizando = true;
+    window.apexHomeAtualizarDados?.();
+    return carregarCliente()
+      .then((api) => api.listarVisaoGeral(ultimosParametros))
+      .then((resposta) => {
+        if (typeof resposta?.meta?.idRestaurante !== 'string') {
+          const erro = new Error('Restaurante ativo não encontrado.');
+          erro.code = 'RESTAURANTE_NAO_SELECIONADO';
+          throw erro;
+        }
+        falhasConsecutivas = 0;
+        aplicarDados(resposta);
+        agendarAtualizacao(60000);
+        return true;
+      })
+      .catch((erro) => {
+        falhasConsecutivas += 1;
+        limparDados(erro);
+        const atraso = Math.min(60000, 5000 * (2 ** Math.min(falhasConsecutivas - 1, 3)));
+        agendarAtualizacao(atraso);
+        return false;
+      });
+  };
+
+  window.apexVisaoGeralPararAtualizacao = pararAtualizacao;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) pararAtualizacao();
+    else if (paginaVisaoGeralAtiva()) window.apexVisaoGeralRecarregar(ultimosParametros, { automatica: true });
+  });
 
   window.dadosVisaoGeralPronto = window.apexVisaoGeralRecarregar({ periodo: 'dia' });
 })();

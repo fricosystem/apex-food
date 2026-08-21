@@ -39,7 +39,7 @@
 <div class="flex items-end justify-between">
 <div id="homeFaturamentoDia" class="text-xl sm:text-2xl font-bold">—</div>
 <div class="flex items-center gap-1 px-2 py-1 rounded-md bg-card2 border border-border2 text-xs font-medium">
-<span class="text-green">Sem comparação</span>
+<span id="homeFaturamentoComparacao" class="text-muted">Sem comparação</span>
 </div>
 </div>
 </div>
@@ -48,7 +48,7 @@
 <div class="flex items-end justify-between">
 <div id="homeTicketMedio" class="text-xl sm:text-2xl font-bold">—</div>
 <div class="flex items-center gap-1 px-2 py-1 rounded-md bg-card2 border border-border2 text-xs font-medium">
-<span class="text-green">Sem comparação</span>
+<span id="homeTicketComparacao" class="text-muted">Sem comparação</span>
 </div>
 </div>
 </div>
@@ -57,7 +57,7 @@
 <div class="flex items-end justify-between">
 <div id="homePedidosHoje" class="text-xl sm:text-2xl font-bold">—</div>
 <div class="flex items-center gap-1 px-2 py-1 rounded-md bg-card2 border border-border2 text-xs font-medium">
-<span class="text-green">Sem comparação</span>
+<span id="homePedidosComparacao" class="text-muted">Sem comparação</span>
 </div>
 </div>
 </div>
@@ -122,9 +122,9 @@
 </button>
 </div>
 <div class="flex flex-wrap items-center gap-2 mb-6">
-<button type="button" data-home-canal="salao" aria-pressed="true" class="home-canal-btn px-3 py-1.5 rounded-md bg-card2 text-xs font-medium">Restaurante</button>
+<button type="button" data-home-canal="salao" aria-pressed="false" class="home-canal-btn px-3 py-1.5 rounded-md text-xs font-medium text-muted hover:bg-card2">Restaurante</button>
 <button type="button" data-home-canal="delivery" aria-pressed="false" class="home-canal-btn px-3 py-1.5 rounded-md text-xs font-medium text-muted hover:bg-card2">Delivery</button>
-<button type="button" data-home-canal="total" aria-pressed="false" class="home-canal-btn px-3 py-1.5 rounded-md text-xs font-medium text-muted hover:bg-card2">Total</button>
+<button type="button" data-home-canal="total" aria-pressed="true" class="home-canal-btn px-3 py-1.5 rounded-md bg-card2 text-white text-xs font-medium">Total</button>
 <div class="ml-auto flex items-center gap-2">
 <button id="homeAlternarGrafico" type="button" aria-label="Alternar visualização do gráfico" class="p-1.5 rounded-md hover:bg-card2 text-muted">
 <i class="w-4 h-4" data-lucide="bar-chart-3"></i>

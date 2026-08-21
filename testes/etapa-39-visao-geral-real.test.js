@@ -104,7 +104,7 @@ test('contrato server-side consulta relatórios e não aceita restaurante pelo f
   assert.match(handler, /obterIdentidadeOperacional\(req, PAPEIS_LEITURA\)/);
   assert.match(home, /reserva\.dataIso \|\| dataBRParaISO/);
   assert.match(home, /aguardando_confirmacao_garcom/);
-  assert.match(ponte, /listarVisaoGeral\(parametros\)/);
+  assert.match(ponte, /listarVisaoGeral\((?:parametros|ultimosParametros)\)/);
   assert.doesNotMatch(home, /firebase|FIREBASE_PRIVATE_KEY|SESSION_SECRET|localStorage|sessionStorage/i);
 });
 
@@ -122,8 +122,8 @@ test('série por canal e controles da Home permanecem disponíveis sem bridges p
   const renderer = ler('scripts/home/home.js');
   assert.match(handler, /vendasPorCanal/);
   assert.match(handler, /normalizarCanal/);
-  assert.match(shell, /dados-visao-geral\.js\?v=etapa16-visao/);
-  assert.match(shell, /home\.js\?v=etapa16-visao/);
+  assert.match(shell, /dados-visao-geral\.js\?v=etapa17-visao/);
+  assert.match(shell, /home\.js\?v=etapa17-visao/);
   for (const id of ['homeAlternarGrafico', 'homeAtualizarDados', 'homeAlternarMesas', 'homeBuscaPedidos', 'homeExportarPedidos', 'homeImprimirPedidos']) {
     assert.match(fragmento, new RegExp(`id="${id}"`));
   }
