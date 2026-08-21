@@ -88,7 +88,7 @@ test('Fluxo público mantém os assets da mesa e avança para a central da etapa
   assert.match(shell, /mesaPublico|paginas\/publico\/mesa\.html\?v=etapa20-cardapio-estoque/);
   assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa22-responsivo-comanda/);
   assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa20-cardapio-estoque/);
-  assert.match(index, /apex-shell\.js\?v=etapa22-dados-reais-global/);
+  assert.match(index, /apex-shell\.js\?v=etapa22-responsivo-comanda/);
 });
 
 test('comanda pública mantém largura fluida e adapta o cardápio para telas móveis', () => {

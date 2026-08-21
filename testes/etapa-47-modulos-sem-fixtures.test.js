@@ -49,5 +49,5 @@ test('shell versiona os módulos na integração global de dados reais', () => {
   const index = ler('index.html');
   for (const termo of ['scripts/pedidos/dados-pedidos.js?v=etapa22-dados-reais-global', 'scripts/equipe/dados-equipe.js?v=etapa22-dados-reais-global', 'scripts/financeiro/dados-financeiros.js?v=etapa22-dados-reais-global']) assert.match(shell, new RegExp(termo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.match(index, /modulos-client\.js\?v=etapa22-dados-reais-global/);
-  assert.match(index, /apex-shell\.js\?v=etapa22-dados-reais-global/);
+  assert.match(index, /apex-shell\.js\?v=etapa22-responsivo-comanda/);
 });
