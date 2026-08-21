@@ -28,3 +28,7 @@ A listagem específica de reservas também confirmou os dez documentos com IDs e
 ## Confirmação visual financeira
 
 A rota `/contas-pagar-receber` exibiu dez títulos TESTE, sendo cinco a pagar no total de R$ 1.515,00 e cinco a receber no total de R$ 4.040,00. A rota `/fluxo-caixa` exibiu dez movimentações TESTE, total de entradas de R$ 155,00, total de saídas de R$ 0,00, resultado líquido de R$ 155,00 e margem operacional de 100%.
+
+## Correção e validação do Dashboard
+
+O commit `0506222` corrigiu a agregação da Visão Geral. Após o deployment, a consulta de produção retornou R$ 155,00 em vendas e resultado, mas `pedidos: 0`, `ticketMedio: 0`, `picoAlmoco: '—'` e `picoJantar: '—'`, porque as dez movimentações financeiras manuais não são pedidos operacionais. O canal TESTE aparece com 100% das vendas e zero pedidos, que é a distinção correta para esse conjunto de teste.
