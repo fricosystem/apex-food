@@ -195,11 +195,13 @@ async function buscarMesaPorToken(token) {
   try {
     consulta = await getAdminDb().collectionGroup('mesas').where('qrHash', '==', hash).limit(1).get();
   } catch (erro) {
-    const codigoFirebase = String(erro?.code || '').toLowerCase();
-    if (codigoFirebase.includes('failed-precondition') || codigoFirebase.includes('index')) {
+    const codigoOriginal = erro?.code;
+    const codigoFirebase = String(codigoOriginal || '').toLowerCase();
+    const codigoNumerico = Number(codigoOriginal);
+    if (codigoNumerico === 9 || codigoFirebase.includes('failed-precondition') || codigoFirebase.includes('index')) {
       throw new ApiError(503, 'QR_INDICE_INDISPONIVEL', 'O acesso público da mesa está aguardando a configuração do Firestore.');
     }
-    if (codigoFirebase.includes('permission-denied') || codigoFirebase.includes('unauthenticated')) {
+    if (codigoNumerico === 7 || codigoFirebase.includes('permission-denied') || codigoFirebase.includes('unauthenticated')) {
       throw new ApiError(503, 'QR_FIRESTORE_INDISPONIVEL', 'O acesso público da mesa está temporariamente indisponível.');
     }
     throw new ApiError(503, 'QR_FIRESTORE_INDISPONIVEL', 'O acesso público da mesa está temporariamente indisponível.');
