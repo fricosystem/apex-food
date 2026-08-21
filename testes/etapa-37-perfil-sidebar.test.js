@@ -49,7 +49,7 @@ test('menu de perfil fecha por clique externo e Escape e abre a central existent
 test('assets do perfil são carregados pelo shell único com versionamento próprio', () => {
   const index = ler('index.html');
   assert.match(index, /api-client\.js\?v=etapa14-perfil/);
-  assert.match(index, /perfil-sidebar\.js\?v=etapa14-perfil/);
+  assert.match(index, /perfil-sidebar\.js\?v=etapa15-perfil/);
   assert.equal((index.match(/id="perfilSidebarDesktop"/g) || []).length, 1);
   assert.equal((index.match(/id="perfilSidebarMobile"/g) || []).length, 1);
 });

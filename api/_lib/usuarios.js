@@ -1,5 +1,6 @@
 'use strict';
 
+const { FieldValue } = require('firebase-admin/firestore');
 const { getAdminDb } = require('../../backend/firebase/admin');
 
 function referenciaUsuario(idUsuario) {
@@ -26,4 +27,41 @@ async function lerUsuario(idUsuario) {
   return documento.exists ? documento.data() : null;
 }
 
-module.exports = { salvarUsuario, lerUsuario };
+async function atualizarNomeUsuario({ idUsuario, nomeExibicao }) {
+  const referencia = referenciaUsuario(idUsuario);
+  await referencia.set({
+    idUsuario,
+    nomeExibicao,
+    atualizadoEm: FieldValue.serverTimestamp(),
+    atualizadoPor: 'sistema',
+  }, { merge: true });
+  return lerUsuario(idUsuario);
+}
+
+async function atualizarPreferenciasUsuario({ idUsuario, preferencias }) {
+  const referencia = referenciaUsuario(idUsuario);
+  await referencia.firestore.runTransaction(async transacao => {
+    const documento = await transacao.get(referencia);
+    const atuais = documento.exists ? documento.data() || {} : {};
+    const preferenciasAtuais = atuais.preferenciasNotificacao && typeof atuais.preferenciasNotificacao === 'object'
+      ? atuais.preferenciasNotificacao
+      : {};
+    transacao.set(referencia, {
+      idUsuario,
+      preferenciasNotificacao: {
+        ...preferenciasAtuais,
+        ...preferencias,
+      },
+      atualizadoEm: FieldValue.serverTimestamp(),
+      atualizadoPor: 'sistema',
+    }, { merge: true });
+  });
+  return lerUsuario(idUsuario);
+}
+
+module.exports = {
+  salvarUsuario,
+  lerUsuario,
+  atualizarNomeUsuario,
+  atualizarPreferenciasUsuario,
+};

@@ -165,6 +165,22 @@
     return requisitar(`/operacional${query({ modulo: 'notificacoes', ...parametros })}`);
   }
 
+  async function listarPerfil() {
+    return requisitar('/operacional?modulo=perfil');
+  }
+
+  async function atualizarPerfil(payload) {
+    return requisitar('/operacional?modulo=perfil', { method: 'PATCH', body: { acao: 'atualizar_perfil', ...payload } });
+  }
+
+  async function atualizarPreferenciasPerfil(preferencias) {
+    return requisitar('/operacional?modulo=perfil&recurso=preferencias', { method: 'PATCH', body: { acao: 'atualizar_preferencias', preferencias } });
+  }
+
+  async function alterarSenhaPerfil(payload) {
+    return requisitar('/operacional?modulo=perfil', { method: 'POST', body: { acao: 'alterar_senha', ...payload } });
+  }
+
   async function atualizarNotificacao(payload) {
     return requisitar('/operacional?modulo=notificacoes', { method: 'PATCH', body: payload });
   }
@@ -248,6 +264,10 @@
     listarFinanceiro,
     listarVisaoGeral,
     listarNotificacoes,
+    listarPerfil,
+    atualizarPerfil,
+    atualizarPreferenciasPerfil,
+    alterarSenhaPerfil,
     atualizarNotificacao,
     listarDispositivosNotificacao,
     registrarDispositivoNotificacao,

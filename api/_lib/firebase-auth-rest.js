@@ -132,6 +132,21 @@ async function solicitarRedefinicaoSenha(email) {
   return Boolean(dados?.email);
 }
 
+async function atualizarSenha(idToken, novaSenha) {
+  if (typeof idToken !== 'string' || idToken.length < 100) {
+    throw new ApiError(401, 'TOKEN_INVALIDO', 'Sessão inválida.');
+  }
+  const dados = await chamar('accounts:update', {
+    idToken,
+    password: validarSenha(novaSenha),
+    returnSecureToken: true,
+  }, 'alteracao_senha');
+  if (!dados?.idToken || !dados?.localId) {
+    throw new ApiError(502, 'RESPOSTA_AUTH_INVALIDA', 'Resposta de autenticação inválida.');
+  }
+  return dados;
+}
+
 module.exports = {
   validarEmailApex,
   validarSenha,
@@ -140,4 +155,5 @@ module.exports = {
   autenticarUsuario,
   enviarVerificacaoEmail,
   solicitarRedefinicaoSenha,
+  atualizarSenha,
 };
