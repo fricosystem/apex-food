@@ -402,7 +402,7 @@ window.dadosMesas = ambienteMesasLocal ? dadosMesasPreview : estadoMesasVazio;
     if (window.apexModulosClientPromise) return window.apexModulosClientPromise;
     window.apexModulosClientPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = '/scripts/api/modulos-client.js?v=etapa6-caixa';
+      script.src = '/scripts/api/modulos-client.js?v=etapa18-qr-mesas';
       script.dataset.apexModuloClient = 'true';
       script.onload = () => resolve(window.apexModulosApi);
       script.onerror = () => reject(new Error('Não foi possível carregar o cliente dos módulos.'));
@@ -418,6 +418,10 @@ window.dadosMesas = ambienteMesasLocal ? dadosMesasPreview : estadoMesasVazio;
       capacidade: Number(mesa.capacidade || 0),
       status: mesa.estado || mesa.status || 'disponivel',
       estadoAtendimento: mesa.estadoAtendimento || null,
+      qrAtivo: mesa.qrAtivo === true,
+      qrVersao: mesa.qrVersao || null,
+      qrGeradoEm: mesa.qrGeradoEm || null,
+      qrRevogadoEm: mesa.qrRevogadoEm || null,
       reservaStatus: mesa.reservaStatus || (mesa.reservadoPor ? 'confirmada' : 'sem-reserva'),
       reservadoPor: mesa.reservadoPor || mesa.nomeCliente || '',
       telefone: mesa.telefone || mesa.contatoClienteMascarado || '',

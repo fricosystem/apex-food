@@ -17,6 +17,12 @@ function gerarChaveQr() {
   return `qr-mesa:${id}`;
 }
 
+function estadoQrMesaConfig(mesa) {
+  if (mesa?.qrAtivo === true) return { label: 'QR Code ativo', classe: 'text-green', ativo: true };
+  if (mesa?.qrRevogadoEm) return { label: 'QR Code revogado', classe: 'text-red-200', ativo: false };
+  return { label: 'QR Code não gerado', classe: 'text-muted', ativo: false };
+}
+
 function statusMesaConfig(status) {
   return status === 'disponivel'
     ? { label: 'Ativa', classe: 'text-green', icone: 'check-circle-2' }
@@ -53,11 +59,12 @@ function renderizarMesasConfig() {
     const status = mesa.status || mesa.estado || 'disponivel';
     const estado = statusMesaConfig(status);
     const qrAtivo = mesa.qrAtivo === true;
-    const qrLabel = qrAtivo ? 'Gerar novo QR' : 'Gerar QR Code';
+    const qrEstado = estadoQrMesaConfig(mesa);
+    const qrLabel = qrAtivo ? 'Regenerar QR' : 'Gerar QR Code';
     return `<article class="salao-card mesa-config-card rounded-xl bg-card2 border border-border2 p-4 ${status === 'indisponivel' ? 'indisponivel' : ''}">
       <div class="flex items-start justify-between gap-3"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-${status === 'indisponivel' ? 'red' : status === 'ocupada' ? 'accent' : 'green'}/10 flex items-center justify-center"><i data-lucide="${estado.icone}" class="w-5 h-5 ${estado.classe}"></i></div><div><h4 class="text-sm font-semibold">${escapeMesaConfig(mesa.nome)}</h4><p class="text-[10px] text-muted mt-1">${mesa.capacidade} lugares · ${escapeMesaConfig(mesa.area || mesa.observacoes || 'Área não definida')}</p></div></div><button type="button" data-editar-mesa="${escapeMesaConfig(mesa.id)}" class="p-2 rounded-lg hover:bg-card text-muted" aria-label="Editar ${escapeMesaConfig(mesa.nome)}"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button></div>
       <div class="flex items-center justify-between mt-5 pt-4 border-t border-border"><span class="flex items-center gap-1.5 text-xs ${estado.classe}"><span class="w-1.5 h-1.5 rounded-full bg-current"></span>${estado.label}</span><label class="flex items-center gap-2 text-[10px] text-muted"><span>Disponível</span><input type="checkbox" class="disponibilidade-switch" data-disponibilidade-mesa="${escapeMesaConfig(mesa.id)}" ${status !== 'indisponivel' ? 'checked' : ''}></label></div>
-      <div class="mt-3 pt-3 border-t border-border"><div class="flex items-center justify-between gap-2"><span class="text-[10px] text-muted flex items-center gap-1.5"><i data-lucide="qr-code" class="w-3.5 h-3.5 ${qrAtivo ? 'text-green' : 'text-muted'}"></i>${qrAtivo ? 'QR Code ativo' : 'QR Code não gerado'}</span><button type="button" data-qr-mesa="${escapeMesaConfig(mesa.id)}" class="flex items-center gap-1.5 text-[10px] text-accent hover:text-orange-300"><i data-lucide="qr-code" class="w-3.5 h-3.5"></i>${qrLabel}</button></div>${qrAtivo ? '<p class="text-[10px] text-muted mt-1">Gere novamente para obter uma nova versão imprimível.</p>' : ''}</div>
+      <div class="mt-3 pt-3 border-t border-border"><div class="flex items-center justify-between gap-2"><span class="text-[10px] ${qrEstado.classe} flex items-center gap-1.5"><i data-lucide="qr-code" class="w-3.5 h-3.5"></i>${qrEstado.label}</span><button type="button" data-qr-mesa="${escapeMesaConfig(mesa.id)}" class="flex items-center gap-1.5 text-[10px] text-accent hover:text-orange-300"><i data-lucide="qr-code" class="w-3.5 h-3.5"></i>${qrLabel}</button></div>${qrAtivo ? '<p class="text-[10px] text-muted mt-1">A regeneração invalida o código anterior.</p>' : qrEstado.label === 'QR Code revogado' ? '<p class="text-[10px] text-muted mt-1">O código anterior não pode mais iniciar atendimentos.</p>' : ''}</div>
     </article>`;
   }).join('') : `<div class="sm:col-span-2 xl:col-span-3 rounded-xl border border-border2 border-dashed py-12 text-center"><i data-lucide="layout-grid" class="w-6 h-6 text-muted mx-auto mb-3"></i><p class="text-sm font-medium">Nenhuma mesa cadastrada</p><p class="text-xs text-muted mt-1">Cadastre uma mesa para configurar o salão.</p></div>`;
   grid.querySelectorAll('[data-editar-mesa]').forEach(botao => botao.addEventListener('click', () => abrirEditarMesa(String(botao.dataset.editarMesa))));
@@ -98,7 +105,14 @@ function abrirModalQr(dados, mesa) {
   document.getElementById('qrMesaConfigImagem').src = dados.qrDataUrl;
   document.getElementById('qrMesaConfigImagem').alt = `QR Code de ${mesa.nome}`;
   document.getElementById('qrMesaConfigLink').value = dados.urlPublica;
-  document.getElementById('qrMesaConfigStatus').textContent = 'QR Code gerado e pronto para copiar ou imprimir.';
+  document.getElementById('qrMesaConfigStatus').textContent = dados.tipoOperacao === 'regenerar'
+    ? 'QR Code regenerado. O código anterior foi invalidado.'
+    : 'QR Code ativo e pronto para copiar ou imprimir.';
+  const botaoRegenerar = document.getElementById('qrMesaConfigRegenerar');
+  botaoRegenerar.hidden = dados.qrAtivo !== true;
+  botaoRegenerar.disabled = false;
+  const botaoRevogar = document.getElementById('qrMesaConfigRevogar');
+  botaoRevogar.disabled = dados.qrAtivo !== true;
   modal.classList.add('aberto');
   modal.setAttribute('aria-hidden', 'false');
   document.body.style.overflow = 'hidden';
@@ -111,11 +125,17 @@ function fecharModalQr() {
   modal.setAttribute('aria-hidden', 'true');
   document.body.style.overflow = '';
   document.getElementById('qrMesaConfigImagem').removeAttribute('src');
+  const botaoRegenerar = document.getElementById('qrMesaConfigRegenerar');
+  if (botaoRegenerar) { botaoRegenerar.hidden = true; botaoRegenerar.disabled = false; }
   qrMesaAtual = null;
 }
 
 async function gerarVisualizarQrMesa(id) {
   const mesa = mesasConfig().find(item => String(item.id) === String(id));
+  if (mesa?.qrAtivo === true) {
+    await regenerarQrMesa(id);
+    return;
+  }
   if (!mesa || !window.dadosMesasRemotoAtivo || !window.apexModulosApi?.gerarQrMesa) {
     avisarConfiguracao('Não foi possível gerar o QR Code. Tente novamente.');
     return;
@@ -130,8 +150,38 @@ async function gerarVisualizarQrMesa(id) {
   }
 }
 
+async function regenerarQrMesa(id) {
+  const mesa = mesasConfig().find(item => String(item.id) === String(id));
+  if (!mesa || mesa.qrAtivo !== true || !window.dadosMesasRemotoAtivo || !window.apexModulosApi?.regenerarQrMesa) {
+    avisarConfiguracao('Não foi possível regenerar o QR Code. A mesa precisa ter um código ativo.');
+    return;
+  }
+  const confirmar = window.confirm(`Regenerar o QR Code da ${mesa.nome}? O código anterior será invalidado imediatamente.`);
+  if (!confirmar) return;
+  const botao = document.getElementById('qrMesaConfigRegenerar');
+  if (botao) botao.disabled = true;
+  try {
+    avisarConfiguracao('Regenerando QR Code da mesa...');
+    const resposta = await window.apexModulosApi.regenerarQrMesa({ idMesa: String(id), chaveIdempotencia: gerarChaveQr() });
+    abrirModalQr(resposta, mesa);
+    await window.recarregarMesasReais?.();
+    avisarConfiguracao('QR Code regenerado. O anterior foi invalidado.');
+  } catch (erro) {
+    avisarConfiguracao(erro.message || 'Não foi possível regenerar o QR Code.');
+  } finally {
+    if (botao) botao.disabled = false;
+  }
+}
+
+async function regenerarQrAtual() {
+  if (!qrMesaAtual?.mesa?.id) return;
+  await regenerarQrMesa(String(qrMesaAtual.mesa.id));
+}
+
 async function revogarQrAtual() {
   if (!qrMesaAtual?.mesa?.id || !window.apexModulosApi?.revogarQrMesa) return;
+  const confirmar = window.confirm(`Revogar o QR Code da ${qrMesaAtual.mesa.nome}? O código deixará de iniciar novos atendimentos.`);
+  if (!confirmar) return;
   const botao = document.getElementById('qrMesaConfigRevogar');
   botao.disabled = true;
   try {
@@ -221,6 +271,7 @@ document.getElementById('cancelarQrMesaConfig').addEventListener('click', fechar
 document.getElementById('backdropQrMesaConfig').addEventListener('click', fecharModalQr);
 document.getElementById('qrMesaConfigCopiar').addEventListener('click', copiarQrLink);
 document.getElementById('qrMesaConfigImprimir').addEventListener('click', imprimirQr);
+document.getElementById('qrMesaConfigRegenerar').addEventListener('click', regenerarQrAtual);
 document.getElementById('qrMesaConfigRevogar').addEventListener('click', revogarQrAtual);
 document.addEventListener('keydown', event => { if (event.key === 'Escape') { fecharModalMesaConfig(); fecharModalQr(); } });
 atualizarIndicadoresConfig();

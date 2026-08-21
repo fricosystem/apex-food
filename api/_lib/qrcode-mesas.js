@@ -11,7 +11,7 @@ const {
   apagarCookie,
 } = require('./http');
 const { cookiesSeguros, origemAplicacao } = require('./config');
-const { caminhoRestaurante, textoOpcional, inteiroPositivo } = require('./modulos-operacionais');
+const { caminhoRestaurante, textoOpcional, inteiroPositivo, registrarAuditoriaOperacional } = require('./modulos-operacionais');
 const { registrarAuditoria } = require('./auditoria');
 const { criarNotificacoesNaTransacao, TIPOS_NOTIFICACAO } = require('./notificacoes');
 const { enviarNotificacaoFcm } = require('./fcm-notificacoes');
@@ -715,19 +715,21 @@ async function criarPedidoPublico(req, res, corpo) {
   };
 }
 
-async function gerarQrMesa(identidade, { idMesa, chaveIdempotencia, req }) {
+async function gerarQrMesa(identidade, { idMesa, chaveIdempotencia, req, regenerar = false }) {
   const mesaId = validarId(String(idMesa || ''), 'idMesa');
   const chave = validarChaveIdempotencia(chaveIdempotencia);
+  const tipoOperacao = regenerar ? 'regenerar' : 'gerar';
   const restauranteRef = caminhoRestaurante(identidade.idRestaurante);
   const mesaRef = restauranteRef.collection('mesas').doc(mesaId);
   const token = crypto.randomBytes(32).toString('base64url');
   const versao = crypto.randomUUID();
   const hash = hashSha256(token);
-  const hashPayload = hashSha256(JSON.stringify({ idMesa: mesaId }));
-  const idOperacao = hashSha256(`${identidade.idRestaurante}:qr-gerar:${mesaId}:${chave}`).slice(0, 40);
+  const hashPayload = hashSha256(JSON.stringify({ idMesa: mesaId, tipoOperacao }));
+  const idOperacao = hashSha256(`${identidade.idRestaurante}:qr-${tipoOperacao}:${mesaId}:${chave}`).slice(0, 40);
   const idempotenciaRef = restauranteRef.collection('chavesIdempotencia').doc(idOperacao);
   let tokenFinal = token;
   let versaoFinal = versao;
+  let repeticaoIdempotente = false;
   await mesaRef.firestore.runTransaction(async (transacao) => {
     const idempotenciaDocumento = await transacao.get(idempotenciaRef);
     if (idempotenciaDocumento.exists) {
@@ -735,10 +737,12 @@ async function gerarQrMesa(identidade, { idMesa, chaveIdempotencia, req }) {
       if (anterior.hashPayload !== hashPayload) throw new ApiError(409, 'IDEMPOTENCIA_REUTILIZADA', 'A chave da operação já foi utilizada com outros dados.');
       tokenFinal = decifrarToken(anterior.tokenCifrado);
       versaoFinal = anterior.qrVersao;
+      repeticaoIdempotente = true;
       return;
     }
     const documento = await transacao.get(mesaRef);
     if (!documento.exists || documento.data()?.estado === 'excluido') throw new ApiError(404, 'MESA_NAO_ENCONTRADA', 'Mesa não encontrada.');
+    if (regenerar && documento.data()?.qrAtivo !== true) throw new ApiError(409, 'QR_NAO_ATIVO', 'Não há QR Code ativo para regenerar.');
     transacao.update(mesaRef, {
       qrAtivo: true,
       qrVersao: versao,
@@ -752,7 +756,7 @@ async function gerarQrMesa(identidade, { idMesa, chaveIdempotencia, req }) {
     transacao.set(restauranteRef.collection('eventosMesas').doc(), {
       idRestaurante: identidade.idRestaurante,
       idMesa: mesaId,
-      acao: 'qr_gerado',
+      acao: regenerar ? 'qr_regenerado' : 'qr_gerado',
       qrVersao: versao,
       idAtor: identidade.idUsuario,
       idRequisicao: chave,
@@ -762,7 +766,7 @@ async function gerarQrMesa(identidade, { idMesa, chaveIdempotencia, req }) {
       idRestaurante: identidade.idRestaurante,
       idAtor: identidade.idUsuario,
       endpoint: '/api/v1/qrcode-mesa',
-      tipoOperacao: 'gerar',
+      tipoOperacao,
       idMesa: mesaId,
       qrVersao: versao,
       tokenCifrado: cifrarToken(token),
@@ -772,10 +776,21 @@ async function gerarQrMesa(identidade, { idMesa, chaveIdempotencia, req }) {
       versao: 1,
     });
   });
+  if (!repeticaoIdempotente) {
+    await registrarAuditoriaOperacional({
+      identidade,
+      idRequisicao: chave,
+      acao: regenerar ? 'salao.mesa.qrRegenerado' : 'salao.mesa.qrGerado',
+      tipoRecurso: 'mesa',
+      idRecurso: mesaId,
+    });
+  }
   return {
     idMesa: mesaId,
     qrVersao: versaoFinal,
     qrAtivo: true,
+    tipoOperacao,
+    substituiuQrAnterior: regenerar,
     urlPublica: `${origemPublica(req)}/mesa?qr=${encodeURIComponent(tokenFinal)}`,
   };
 }
@@ -788,11 +803,13 @@ async function revogarQrMesa(identidade, { idMesa, chaveIdempotencia }) {
   const hashPayload = hashSha256(JSON.stringify({ idMesa: mesaId }));
   const idOperacao = hashSha256(`${identidade.idRestaurante}:qr-revogar:${mesaId}:${chave}`).slice(0, 40);
   const idempotenciaRef = restauranteRef.collection('chavesIdempotencia').doc(idOperacao);
+  let repeticaoIdempotente = false;
   await mesaRef.firestore.runTransaction(async (transacao) => {
     const idempotenciaDocumento = await transacao.get(idempotenciaRef);
     if (idempotenciaDocumento.exists) {
       const anterior = idempotenciaDocumento.data() || {};
       if (anterior.hashPayload !== hashPayload) throw new ApiError(409, 'IDEMPOTENCIA_REUTILIZADA', 'A chave da operação já foi utilizada com outros dados.');
+      repeticaoIdempotente = true;
       return;
     }
     const documento = await transacao.get(mesaRef);
@@ -826,6 +843,15 @@ async function revogarQrMesa(identidade, { idMesa, chaveIdempotencia }) {
       versao: 1,
     });
   });
+  if (!repeticaoIdempotente) {
+    await registrarAuditoriaOperacional({
+      identidade,
+      idRequisicao: chave,
+      acao: 'salao.mesa.qrRevogado',
+      tipoRecurso: 'mesa',
+      idRecurso: mesaId,
+    });
+  }
   return { idMesa: mesaId, qrAtivo: false, revogado: true };
 }
 

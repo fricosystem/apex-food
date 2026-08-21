@@ -88,7 +88,7 @@ test('Fluxo público mantém os assets da mesa e avança para a central da etapa
   assert.match(shell, /mesaPublico|paginas\/publico\/mesa\.html\?v=etapa8-seguranca/);
   assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa8-seguranca/);
   assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa8-seguranca/);
-  assert.match(index, /apex-shell\.js\?v=etapa17-visao/);
+  assert.match(index, /apex-shell\.js\?v=etapa18-qr-mesas/);
 });
 
 test('cookie da sessão é assinado com restaurante e sessão na ordem correta', () => {

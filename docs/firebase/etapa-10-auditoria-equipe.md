@@ -133,3 +133,7 @@ Na terceira checagem, o deployment `e15722d` ainda estava em `Building` aos apro
 ## 11. Smoke test remoto após consolidação
 
 O deployment `e15722d` ficou `Ready` em Production. No domínio `https://apexfood.vercel.app`, `/api/v1/health` retornou `200` com `estado: ok` e ambiente `development`. Os caminhos públicos `/api/v1/cardapio`, `/api/v1/salao` e `/api/v1/equipe` foram resolvidos pelo agregador e retornaram `401 NAO_AUTENTICADO` sem sessão, sem `404` ou erro de função. A tentativa de abrir `index.html#/funcionarios` sem sessão redirecionou para `paginas/autenticacao.html`.
+
+O commit de documentação `03408df` gerou um novo deployment Production; na primeira checagem ele estava em `Building` aos 17 segundos. O código funcional consolidado permanece publicado e `Ready` no deployment `e15722d`; o novo deployment contém apenas a documentação adicional.
+
+Na última checagem disponível, o deployment de documentação `03408df` ainda estava em `Building` aos aproximadamente 31–32 segundos, enquanto o deployment funcional `e15722d` permanecia `Ready`. Como o commit `03408df` altera apenas documentação, a integridade funcional já foi confirmada no smoke test contra o deployment consolidado.

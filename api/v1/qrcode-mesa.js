@@ -42,11 +42,12 @@ async function limitarAcaoPublica(req, acao) {
 async function executarAcaoAdministrativa(corpo, req, idRequisicao) {
   const identidade = await obterIdentidadeOperacional(req, PAPEIS_QR_ADMIN);
   await verificarAppCheck(req);
-  if (corpo.acao === 'gerar') {
+  if (corpo.acao === 'gerar' || corpo.acao === 'regenerar') {
     const resultado = await gerarQrMesa(identidade, {
       idMesa: corpo.idMesa,
       chaveIdempotencia: corpo.chaveIdempotencia || idRequisicao,
       req,
+      regenerar: corpo.acao === 'regenerar',
     });
     const qrDataUrl = await QRCode.toDataURL(resultado.urlPublica, {
       errorCorrectionLevel: 'M',
