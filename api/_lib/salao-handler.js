@@ -100,7 +100,7 @@ function validarMesaDados(corpo, parcial = false) {
 }
 
 function nomeMesaNormalizado(nome) {
-  return nome.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim().toLocaleLowerCase('pt-BR');
+  return nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR');
 }
 
 function validarReserva(corpo) {

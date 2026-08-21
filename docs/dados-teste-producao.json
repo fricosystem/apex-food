@@ -1,0 +1,75 @@
+{
+  "identificador": "TESTE-PERSISTENCIA-20260821",
+  "categorias": [
+    {"nome": "TESTE Entradas 01", "descricao": "Registro de teste de persistência 01"},
+    {"nome": "TESTE Principais 02", "descricao": "Registro de teste de persistência 02"},
+    {"nome": "TESTE Bebidas 03", "descricao": "Registro de teste de persistência 03"},
+    {"nome": "TESTE Sobremesas 04", "descricao": "Registro de teste de persistência 04"},
+    {"nome": "TESTE Massas 05", "descricao": "Registro de teste de persistência 05"},
+    {"nome": "TESTE Saladas 06", "descricao": "Registro de teste de persistência 06"},
+    {"nome": "TESTE Cafés 07", "descricao": "Registro de teste de persistência 07"},
+    {"nome": "TESTE Combos 08", "descricao": "Registro de teste de persistência 08"},
+    {"nome": "TESTE Infantis 09", "descricao": "Registro de teste de persistência 09"},
+    {"nome": "TESTE Especiais 10", "descricao": "Registro de teste de persistência 10"}
+  ],
+  "produtos": [
+    {"nome": "TESTE Produto 01", "descricao": "Item de teste de persistência 01", "precoCentavos": 1990, "custoCentavos": 700, "estoque": 20, "unidade": "unidade", "tempoPreparo": 10},
+    {"nome": "TESTE Produto 02", "descricao": "Item de teste de persistência 02", "precoCentavos": 2490, "custoCentavos": 900, "estoque": 20, "unidade": "unidade", "tempoPreparo": 12},
+    {"nome": "TESTE Produto 03", "descricao": "Item de teste de persistência 03", "precoCentavos": 990, "custoCentavos": 300, "estoque": 30, "unidade": "unidade", "tempoPreparo": 5},
+    {"nome": "TESTE Produto 04", "descricao": "Item de teste de persistência 04", "precoCentavos": 1590, "custoCentavos": 500, "estoque": 15, "unidade": "unidade", "tempoPreparo": 8},
+    {"nome": "TESTE Produto 05", "descricao": "Item de teste de persistência 05", "precoCentavos": 3290, "custoCentavos": 1200, "estoque": 12, "unidade": "unidade", "tempoPreparo": 18},
+    {"nome": "TESTE Produto 06", "descricao": "Item de teste de persistência 06", "precoCentavos": 1290, "custoCentavos": 400, "estoque": 25, "unidade": "unidade", "tempoPreparo": 6},
+    {"nome": "TESTE Produto 07", "descricao": "Item de teste de persistência 07", "precoCentavos": 890, "custoCentavos": 250, "estoque": 25, "unidade": "unidade", "tempoPreparo": 4},
+    {"nome": "TESTE Produto 08", "descricao": "Item de teste de persistência 08", "precoCentavos": 4590, "custoCentavos": 1800, "estoque": 10, "unidade": "unidade", "tempoPreparo": 20},
+    {"nome": "TESTE Produto 09", "descricao": "Item de teste de persistência 09", "precoCentavos": 1790, "custoCentavos": 600, "estoque": 18, "unidade": "unidade", "tempoPreparo": 9},
+    {"nome": "TESTE Produto 10", "descricao": "Item de teste de persistência 10", "precoCentavos": 2790, "custoCentavos": 1000, "estoque": 14, "unidade": "unidade", "tempoPreparo": 14}
+  ],
+  "funcionarios": [
+    {"nome": "TESTE Ana Lima 01", "cargo": "Garçom", "setor": "Salão", "telefone": "11990000001", "turno": "Almoço"},
+    {"nome": "TESTE Bruno Alves 02", "cargo": "Garçom", "setor": "Salão", "telefone": "11990000002", "turno": "Jantar"},
+    {"nome": "TESTE Carla Souza 03", "cargo": "Cozinheiro", "setor": "Cozinha", "telefone": "11990000003", "turno": "Integral"},
+    {"nome": "TESTE Diego Costa 04", "cargo": "Auxiliar de Cozinha", "setor": "Cozinha", "telefone": "11990000004", "turno": "Almoço"},
+    {"nome": "TESTE Elisa Reis 05", "cargo": "Bartender", "setor": "Bar", "telefone": "11990000005", "turno": "Jantar"},
+    {"nome": "TESTE Fabio Dias 06", "cargo": "Gerente", "setor": "Gestão", "telefone": "11990000006", "turno": "Integral"},
+    {"nome": "TESTE Giovana Luz 07", "cargo": "Garçonete", "setor": "Salão", "telefone": "11990000007", "turno": "Almoço"},
+    {"nome": "TESTE Hugo Melo 08", "cargo": "Cozinheiro", "setor": "Cozinha", "telefone": "11990000008", "turno": "Jantar"},
+    {"nome": "TESTE Iara Nunes 09", "cargo": "Bartender", "setor": "Bar", "telefone": "11990000009", "turno": "Integral"},
+    {"nome": "TESTE Jonas Moraes 10", "cargo": "Garçom", "setor": "Salão", "telefone": "11990000010", "turno": "Jantar"}
+  ],
+  "mesas": [
+    {"nome": "TESTE Mesa 01", "capacidade": 2, "area": "Salão", "estado": "disponivel", "observacoes": "Registro de teste 01"},
+    {"nome": "TESTE Mesa 02", "capacidade": 2, "area": "Salão", "estado": "disponivel", "observacoes": "Registro de teste 02"},
+    {"nome": "TESTE Mesa 03", "capacidade": 4, "area": "Salão", "estado": "disponivel", "observacoes": "Registro de teste 03"},
+    {"nome": "TESTE Mesa 04", "capacidade": 4, "area": "Salão", "estado": "disponivel", "observacoes": "Registro de teste 04"},
+    {"nome": "TESTE Mesa 05", "capacidade": 4, "area": "Varanda", "estado": "disponivel", "observacoes": "Registro de teste 05"},
+    {"nome": "TESTE Mesa 06", "capacidade": 6, "area": "Varanda", "estado": "disponivel", "observacoes": "Registro de teste 06"},
+    {"nome": "TESTE Mesa 07", "capacidade": 6, "area": "Salão", "estado": "disponivel", "observacoes": "Registro de teste 07"},
+    {"nome": "TESTE Mesa 08", "capacidade": 8, "area": "Salão", "estado": "disponivel", "observacoes": "Registro de teste 08"},
+    {"nome": "TESTE Mesa 09", "capacidade": 8, "area": "Varanda", "estado": "disponivel", "observacoes": "Registro de teste 09"},
+    {"nome": "TESTE Mesa 10", "capacidade": 10, "area": "Salão", "estado": "disponivel", "observacoes": "Registro de teste 10"}
+  ],
+  "reservas": [
+    {"nomeCliente": "TESTE Cliente 01", "contatoCliente": "11991000001", "quantidadePessoas": 2, "data": "2026-09-01", "hora": "18:00", "duracaoHoras": 2, "canal": "interno", "observacoes": "Reserva de teste 01"},
+    {"nomeCliente": "TESTE Cliente 02", "contatoCliente": "11991000002", "quantidadePessoas": 2, "data": "2026-09-02", "hora": "18:00", "duracaoHoras": 2, "canal": "interno", "observacoes": "Reserva de teste 02"},
+    {"nomeCliente": "TESTE Cliente 03", "contatoCliente": "11991000003", "quantidadePessoas": 4, "data": "2026-09-03", "hora": "18:00", "duracaoHoras": 2, "canal": "interno", "observacoes": "Reserva de teste 03"},
+    {"nomeCliente": "TESTE Cliente 04", "contatoCliente": "11991000004", "quantidadePessoas": 4, "data": "2026-09-04", "hora": "18:00", "duracaoHoras": 2, "canal": "interno", "observacoes": "Reserva de teste 04"},
+    {"nomeCliente": "TESTE Cliente 05", "contatoCliente": "11991000005", "quantidadePessoas": 4, "data": "2026-09-05", "hora": "18:00", "duracaoHoras": 2, "canal": "interno", "observacoes": "Reserva de teste 05"},
+    {"nomeCliente": "TESTE Cliente 06", "contatoCliente": "11991000006", "quantidadePessoas": 6, "data": "2026-09-06", "hora": "18:00", "duracaoHoras": 2, "canal": "interno", "observacoes": "Reserva de teste 06"},
+    {"nomeCliente": "TESTE Cliente 07", "contatoCliente": "11991000007", "quantidadePessoas": 6, "data": "2026-09-07", "hora": "18:00", "duracaoHoras": 2, "canal": "interno", "observacoes": "Reserva de teste 07"},
+    {"nomeCliente": "TESTE Cliente 08", "contatoCliente": "11991000008", "quantidadePessoas": 8, "data": "2026-09-08", "hora": "18:00", "duracaoHoras": 2, "canal": "interno", "observacoes": "Reserva de teste 08"},
+    {"nomeCliente": "TESTE Cliente 09", "contatoCliente": "11991000009", "quantidadePessoas": 8, "data": "2026-09-09", "hora": "18:00", "duracaoHoras": 2, "canal": "interno", "observacoes": "Reserva de teste 09"},
+    {"nomeCliente": "TESTE Cliente 10", "contatoCliente": "11991000010", "quantidadePessoas": 10, "data": "2026-09-10", "hora": "18:00", "duracaoHoras": 2, "canal": "interno", "observacoes": "Reserva de teste 10"}
+  ],
+  "contas": [
+    {"tipo": "pagar", "descricao": "TESTE Conta a pagar 01", "categoria": "TESTE Insumos", "vencimento": "2026-09-01", "valor": "101,00", "recorrente": false},
+    {"tipo": "pagar", "descricao": "TESTE Conta a pagar 02", "categoria": "TESTE Estrutura", "vencimento": "2026-09-02", "valor": "202,00", "recorrente": false},
+    {"tipo": "pagar", "descricao": "TESTE Conta a pagar 03", "categoria": "TESTE Utilidades", "vencimento": "2026-09-03", "valor": "303,00", "recorrente": false},
+    {"tipo": "pagar", "descricao": "TESTE Conta a pagar 04", "categoria": "TESTE Serviços", "vencimento": "2026-09-04", "valor": "404,00", "recorrente": false},
+    {"tipo": "pagar", "descricao": "TESTE Conta a pagar 05", "categoria": "TESTE Operação", "vencimento": "2026-09-05", "valor": "505,00", "recorrente": false},
+    {"tipo": "receber", "descricao": "TESTE Conta a receber 06", "categoria": "TESTE Eventos", "vencimento": "2026-09-06", "valor": "606,00", "recorrente": false},
+    {"tipo": "receber", "descricao": "TESTE Conta a receber 07", "categoria": "TESTE Delivery", "vencimento": "2026-09-07", "valor": "707,00", "recorrente": false},
+    {"tipo": "receber", "descricao": "TESTE Conta a receber 08", "categoria": "TESTE Corporativo", "vencimento": "2026-09-08", "valor": "808,00", "recorrente": false},
+    {"tipo": "receber", "descricao": "TESTE Conta a receber 09", "categoria": "TESTE Reservas", "vencimento": "2026-09-09", "valor": "909,00", "recorrente": false},
+    {"tipo": "receber", "descricao": "TESTE Conta a receber 10", "categoria": "TESTE Outros", "vencimento": "2026-09-10", "valor": "1010,00", "recorrente": false}
+  ]
+}
