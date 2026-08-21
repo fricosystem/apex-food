@@ -95,6 +95,6 @@ test('assets da Etapa 17 usam versão própria sem alterar a estrutura do shell'
   assert.match(shell, /home\.html\?v=etapa17-visao/);
   assert.match(shell, /dados-visao-geral\.js\?v=etapa17-visao/);
   assert.match(shell, /home\.js\?v=etapa17-visao/);
-  assert.match(index, /apex-shell\.js\?v=etapa18-qr-mesas/);
+  assert.match(index, /apex-shell\.js\?v=etapa19-fluxo-operacional/);
   assert.ok(fs.readdirSync(path.join(raiz, 'api', 'v1')).length <= 12);
 });

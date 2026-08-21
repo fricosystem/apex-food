@@ -62,7 +62,7 @@ test('shell e index versionam os módulos revisados na Fase 11', () => {
   const index = ler('index.html');
   assert.match(shell, /['"]?comissoes['"]?:[^\n]*fase11/);
   assert.match(shell, /vendas-por-periodo[^\n]*fase11/);
-  assert.match(index, /apex-shell\.js\?v=etapa18-qr-mesas/);
+  assert.match(index, /apex-shell\.js\?v=etapa19-fluxo-operacional/);
 });
 
 test('relatórios e comissões não exibem valores ou períodos fixos', () => {

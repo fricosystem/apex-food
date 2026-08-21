@@ -103,8 +103,8 @@ test('Etapa 7 versiona assets de histórico e mantém mesa pública na Etapa 4',
   const documento = ler('docs/etapa6-encerramento-caixa.md');
   assert.match(shell, /historico-pedidos[^\n]*etapa7-historico/);
   assert.match(shell, /dashboard-financeiro[^\n]*etapa7-historico/);
-  assert.match(shell, /fechamento-caixa[^\n]*etapa7-historico/);
+  assert.match(shell, /fechamento-caixa[^\n]*etapa19-fluxo-operacional/);
   assert.match(shell, /mesa[^\\n]*etapa8-seguranca/);
-  assert.match(index, /apex-shell\.js\?v=etapa18-qr-mesas/);
+  assert.match(index, /apex-shell\.js\?v=etapa19-fluxo-operacional/);
   assert.match(documento, /sem processar pagamentos|não processa pagamentos/i);
 });

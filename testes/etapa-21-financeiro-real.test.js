@@ -64,8 +64,8 @@ test('shell e index versionam as rotas financeiras da Fase 9', () => {
   for (const rota of ['fluxo-caixa', 'contas-pagar-receber', 'relatorios-financeiros']) {
     assert.match(shell, new RegExp(`${rota}[^\\n]*(?:fase9|fase10)`));
   }
-  assert.match(shell, /fechamento-caixa[^\n]*etapa7-historico/);
-  assert.match(index, /apex-shell\.js\?v=etapa18-qr-mesas/);
+  assert.match(shell, /fechamento-caixa[^\n]*etapa19-fluxo-operacional/);
+  assert.match(index, /apex-shell\.js\?v=etapa19-fluxo-operacional/);
 });
 
 test('contrato financeiro documenta coleções, estados e permissões', () => {

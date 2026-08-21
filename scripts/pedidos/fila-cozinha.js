@@ -1,6 +1,6 @@
 'use strict';
 
-const pedidosCozinha = () => window.dadosPedidosApexFood?.pedidosAtivos || [];
+const pedidosCozinha = () => (window.dadosPedidosApexFood?.pedidosAtivos || []).filter(pedido => ['enviado_cozinha', 'em_preparo', 'pronto', 'novo', 'preparo'].includes(pedido.status));
 const colunasCozinha = [
   { id: 'enviado_cozinha', estados: ['enviado_cozinha', 'novo'], titulo: 'Aguardando preparo', descricao: 'Pedidos confirmados pelo garçom', icone: 'inbox', cor: 'text-blue', acao: 'Iniciar preparo' },
   { id: 'em_preparo', estados: ['em_preparo', 'preparo'], titulo: 'Em preparo', descricao: 'Pedidos na bancada', icone: 'flame', cor: 'text-yellow', acao: 'Marcar como pronto' },
@@ -27,8 +27,8 @@ function atualizarIndicadoresCozinha() {
 }
 function criarCardCozinha(pedido) {
   const atrasado = minutosCozinha(pedido.tempo) >= 20 && pedido.status !== 'pronto';
-  const coluna = colunasCozinha.find(item => item.id === pedido.status) || colunasCozinha[0];
-  const podeAvancar = pedido.status === 'enviado_cozinha' || pedido.status === 'em_preparo';
+  const coluna = colunasCozinha.find(item => (item.estados || [item.id]).includes(pedido.status)) || colunasCozinha[0];
+  const podeAvancar = ['enviado_cozinha', 'em_preparo', 'novo', 'preparo'].includes(pedido.status);
   const card = document.createElement('article');
   card.className = `cozinha-card ${atrasado ? 'atrasado ' : ''}prioridade-${pedido.prioridade || 'normal'} rounded-xl bg-card border border-border p-4`;
   card.innerHTML = `<div class="flex items-start justify-between gap-3"><div><div class="flex items-center gap-2"><span class="font-mono text-xs font-semibold">${escapeCozinha(pedido.id)}</span>${pedido.prioridade === 'alta' ? '<span class="flex items-center gap-1 px-2 py-0.5 rounded-md bg-red/10 text-red border border-red/20 text-[10px] font-medium"><i data-lucide="flame" class="w-3 h-3"></i> Alta</span>' : '<span class="px-2 py-0.5 rounded-md bg-yellow/10 text-yellow border border-yellow/20 text-[10px] font-medium">Normal</span>'}</div><div class="flex items-center gap-2 text-sm font-semibold mt-3"><i data-lucide="${pedido.canal === 'delivery' ? 'bike' : 'armchair'}" class="w-4 h-4 text-muted"></i>${escapeCozinha(pedido.mesa)}</div></div><div class="text-right"><div class="flex items-center gap-1 text-xs ${atrasado ? 'text-red' : 'text-muted'}"><i data-lucide="${atrasado ? 'clock-alert' : 'clock-3'}" class="w-3.5 h-3.5"></i>${escapeCozinha(pedido.tempo)}</div><div class="text-[10px] text-muted mt-1">${escapeCozinha(pedido.horario)}</div></div></div><div class="flex items-center justify-between gap-3 mt-4"><div class="min-w-0"><div class="text-sm truncate">${escapeCozinha(pedido.cliente)}</div><div class="text-xs text-muted mt-1">${escapeCozinha(pedido.garcom)}</div></div><strong class="text-sm text-accent">${moedaCozinha(pedido.valor)}</strong></div><div class="mt-4 rounded-lg bg-card2 border border-border2 divide-y divide-border2">${pedido.itens.map(item => `<div class="cozinha-item flex items-center justify-between gap-2 px-3 py-2"><span class="text-xs truncate">${item.quantidade}x ${escapeCozinha(item.nome)}</span><span class="text-[10px] text-muted whitespace-nowrap">${moedaCozinha(item.valor)}</span></div>`).join('')}</div><div class="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-border2"><button type="button" data-detalhe-cozinha="${escapeCozinha(pedido.id)}" class="text-xs text-muted hover:text-white">Ver detalhes</button><button type="button" data-acao-cozinha="${escapeCozinha(pedido.id)}" class="btn-press ${podeAvancar ? 'flex' : 'hidden'} items-center gap-1.5 px-3 py-2 rounded-lg bg-accent hover:bg-accentHover text-white text-xs font-medium"><i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>${coluna.acao}</button></div>`;
@@ -45,7 +45,7 @@ function renderizarCozinha() {
 }
 function abrirModalCozinha(id) {
   const pedido = pedidosCozinha().find(item => String(item.id) === String(id)); if (!pedido) return;
-  const coluna = colunasCozinha.find(item => item.id === pedido.status) || colunasCozinha[0];
+  const coluna = colunasCozinha.find(item => (item.estados || [item.id]).includes(pedido.status)) || colunasCozinha[0];
   document.getElementById('tituloModalCozinha').textContent = pedido.id;
   document.getElementById('resumoModalCozinha').textContent = `${pedido.mesa} · ${pedido.cliente} · ${pedido.horario}`;
   document.getElementById('dadosModalCozinha').innerHTML = [['Mesa / canal', `${pedido.mesa} · ${pedido.canal}`], ['Cliente', pedido.cliente], ['Garçom', pedido.garcom], ['Tempo de espera', pedido.tempo], ['Prioridade', pedido.prioridade === 'alta' ? 'Alta' : 'Normal'], ['Valor', moedaCozinha(pedido.valor)]].map(([label, valor]) => `<div class="rounded-lg bg-card2 border border-border2 p-3"><div class="text-[10px] text-muted uppercase tracking-wider mb-1">${label}</div><div class="text-sm font-medium">${escapeCozinha(valor)}</div></div>`).join('');

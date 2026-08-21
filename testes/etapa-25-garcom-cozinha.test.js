@@ -98,8 +98,8 @@ test('fila da cozinha só opera pedidos enviados e não marca pedido como entreg
 test('assets das telas administrativas preservam as etapas anteriores e versionam o histórico na Etapa 7', () => {
   const shell = ler('scripts/shell/apex-shell.js');
   for (const rota of ['novo-pedido', 'fila-cozinha']) {
-    assert.match(shell, new RegExp(`${rota}[^\\n]*etapa5-garcom-cozinha`));
+    assert.match(shell, new RegExp(`${rota}[^\\n]*${rota === 'fila-cozinha' ? 'etapa19-fluxo-operacional' : 'etapa5-garcom-cozinha'}`));
   }
   assert.match(shell, /historico-pedidos[^\n]*etapa7-historico/);
-  assert.match(shell, /pedidos-ativos[^\n]*etapa6-caixa/);
+  assert.match(shell, /pedidos-ativos[^\n]*etapa19-fluxo-operacional/);
 });
