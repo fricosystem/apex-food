@@ -13,6 +13,13 @@ test('validar QR público lê o restaurante como snapshot', () => {
   assert.doesNotMatch(helper, /encontrado\.restauranteRef\.data\(/);
 });
 
+test('consulta QR mapeia falhas do Firestore para códigos públicos seguros', () => {
+  const helper = ler('api/_lib/qrcode-mesas.js');
+  assert.match(helper, /QR_INDICE_INDISPONIVEL/);
+  assert.match(helper, /QR_FIRESTORE_INDISPONIVEL/);
+  assert.doesNotMatch(helper, /throw erro;/);
+});
+
 test('tela pública mantém validação QR antes da identificação', () => {
   const controller = ler('scripts/publico/mesa.js');
   assert.match(controller, /requisitar\(`\?acao=validar&qr=/);

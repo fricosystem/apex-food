@@ -7,3 +7,7 @@ A correção foi publicada no commit `ae646cb`, com 311/311 testes, e o deployme
 ## Reprodução após a primeira correção
 
 O link público recuperado da Mesa 04 foi `https://apexfood.vercel.app/mesa?qr=8arLYtHpBXXJzL5iLvhzP4t3duexcwtpaWNIUMp_fOE`. Após o deployment do commit `ae646cb`, a tela ainda exibiu `Não foi possível concluir a solicitação`. A correção do `DocumentReference` removeu uma causa real, mas existe outra falha no caminho público. O próximo passo é consultar diretamente a resposta HTTP do endpoint para obter o código e o `requestId`, sem depender da mensagem genérica da interface.
+
+## Segunda reprodução após deployment resiliente
+
+Mesmo após o commit `c69b6ac` e o deployment concluído, o endpoint `GET /api/v1/qrcode-mesa?acao=validar&qr=...` continuou retornando HTTP 500 com `ERRO_INTERNO`. Portanto, a falha não está apenas na leitura opcional do documento pai do restaurante. A próxima ação deve capturar a exceção server-side por etapa ou revisar a consulta `collectionGroup('mesas')` e a resolução da referência em produção.

@@ -191,7 +191,19 @@ function dtoSessaoPublica(sessaoDocumento, mesaDocumento, comandaDocumento, part
 
 async function buscarMesaPorToken(token) {
   const hash = hashSha256(token);
-  const consulta = await getAdminDb().collectionGroup('mesas').where('qrHash', '==', hash).limit(1).get();
+  let consulta;
+  try {
+    consulta = await getAdminDb().collectionGroup('mesas').where('qrHash', '==', hash).limit(1).get();
+  } catch (erro) {
+    const codigoFirebase = String(erro?.code || '').toLowerCase();
+    if (codigoFirebase.includes('failed-precondition') || codigoFirebase.includes('index')) {
+      throw new ApiError(503, 'QR_INDICE_INDISPONIVEL', 'O acesso público da mesa está aguardando a configuração do Firestore.');
+    }
+    if (codigoFirebase.includes('permission-denied') || codigoFirebase.includes('unauthenticated')) {
+      throw new ApiError(503, 'QR_FIRESTORE_INDISPONIVEL', 'O acesso público da mesa está temporariamente indisponível.');
+    }
+    throw new ApiError(503, 'QR_FIRESTORE_INDISPONIVEL', 'O acesso público da mesa está temporariamente indisponível.');
+  }
   const mesaDocumento = consulta.docs[0];
   if (!mesaDocumento) throw new ApiError(404, 'QR_NAO_ENCONTRADO', 'Este QR Code não está ativo.');
   const dados = mesaDocumento.data() || {};
