@@ -23,6 +23,7 @@ const {
 } = require('./modulos-operacionais');
 const { criarNotificacoesNaTransacao, TIPOS_NOTIFICACAO } = require('./notificacoes');
 const { enviarNotificacaoFcm } = require('./fcm-notificacoes');
+const { baixarEstoqueParaPedido, devolverEstoqueDoPedido } = require('./estoque-pedidos');
 
 const PAPEIS_PEDIDOS = ['proprietario', 'administrador', 'gerente', 'garcom', 'cozinha'];
 const PAPEIS_GARCOM = ['proprietario', 'administrador', 'gerente', 'garcom'];
@@ -223,6 +224,16 @@ async function criarPedido(identidade, corpo, idRequisicao) {
         observacoes: item.observacoes,
       };
     });
+    await baixarEstoqueParaPedido({
+      transacao,
+      restauranteRef: restaurante,
+      idPedido: pedidoRef.id,
+      idRestaurante: identidade.idRestaurante,
+      idAtor: identidade.idUsuario,
+      itens: itensPersistidos,
+      documentosProdutos: produtoDocumentos,
+      motivo: 'Baixa automática do pedido administrativo.',
+    });
     const taxaEntregaCentavos = dados.tipoAtendimento === 'delivery' ? 890 : 0;
     const totalCentavos = valorCentavos + taxaEntregaCentavos;
     transacao.set(pedidoRef, {
@@ -245,6 +256,7 @@ async function criarPedido(identidade, corpo, idRequisicao) {
       taxaEntregaCentavos,
       descontoCentavos: 0,
       valorCentavos: totalCentavos,
+      estoqueBaixado: true,
       pagamento: null,
       versao: 1,
       criadoPor: identidade.idUsuario,
@@ -481,10 +493,14 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
     const comandaRef = pedido.idComanda ? restaurante.collection('comandas').doc(String(pedido.idComanda)) : null;
     const mesaRef = pedido.idMesa ? restaurante.collection('mesas').doc(String(pedido.idMesa)) : null;
     const fichaRef = pedido.id ? restaurante.collection('fichasCozinha').doc(String(pedido.id)) : null;
-    const [comandaDocumento, mesaDocumento, fichaDocumento] = await Promise.all([
+    const deveDevolverEstoque = ['rejeitado_garcom', 'cancelado'].includes(para) && pedido.estoqueBaixado === true && pedido.estoqueRestaurado !== true;
+    const itensParaDevolucao = Array.isArray(pedido.itens) ? pedido.itens : Array.isArray(pedido.itensResumo) ? pedido.itensResumo : [];
+    const produtoRefsDevolucao = deveDevolverEstoque ? itensParaDevolucao.map(item => restaurante.collection('produtosCardapio').doc(String(item?.idProduto || ''))) : [];
+    const [comandaDocumento, mesaDocumento, fichaDocumento, documentosProdutosDevolucao] = await Promise.all([
       comandaRef ? transacao.get(comandaRef) : null,
       mesaRef ? transacao.get(mesaRef) : null,
       fichaRef ? transacao.get(fichaRef) : null,
+      deveDevolverEstoque ? Promise.all(produtoRefsDevolucao.map(referencia => transacao.get(referencia))) : Promise.resolve([]),
     ]);
     if (!comandaDocumento?.exists) throw new ApiError(409, 'COMANDA_NAO_ENCONTRADA', 'A comanda deste pedido não foi encontrada.');
     if (!mesaDocumento?.exists) throw new ApiError(409, 'MESA_NAO_ENCONTRADA', 'A mesa deste pedido não foi encontrada.');
@@ -518,8 +534,6 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
       agora.idGarcomResponsavel = identidade.idUsuario;
       agora.idGarcom = identidade.idUsuario;
     }
-    transacao.update(pedidoRef, agora);
-
     const papelAtor = identidade.papeis.find(papel => ['proprietario', 'administrador', 'gerente', 'garcom', 'cozinha'].includes(papel)) || 'operador';
     const evento = {
       idRestaurante: identidade.idRestaurante,
@@ -549,11 +563,27 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
       atualizacaoComanda.idGarcomResponsavel = identidade.idUsuario;
     }
     if (['rejeitado_garcom', 'cancelado'].includes(para)) {
+      if (pedido.estoqueBaixado === true && pedido.estoqueRestaurado !== true) {
+        await devolverEstoqueDoPedido({
+          transacao,
+          restauranteRef: restaurante,
+          idPedido: pedidoRef.id,
+          idRestaurante: identidade.idRestaurante,
+          idAtor: identidade.idUsuario,
+          itens: itensParaDevolucao,
+          documentosProdutos: documentosProdutosDevolucao,
+          motivo: `Devolução automática do pedido ${para === 'rejeitado_garcom' ? 'rejeitado pelo garçom' : 'cancelado'}.`,
+        });
+        agora.estoqueRestaurado = true;
+      }
       const totalPedido = Number(pedido.totalCentavos || pedido.valorCentavos || 0);
       atualizacaoComanda.quantidadePedidosAbertos = Math.max(0, Number(comanda.quantidadePedidosAbertos || 0) - 1);
       atualizacaoComanda.totalCentavos = Math.max(0, Number(comanda.totalCentavos || 0) - totalPedido);
       atualizacaoComanda.valorCentavos = atualizacaoComanda.totalCentavos;
     }
+    transacao.update(pedidoRef, agora);
+    transacao.set(pedidoRef.collection('historicoStatus').doc(), evento);
+    transacao.set(pedidoRef.collection('eventos').doc(), evento);
     if (comandaRef) transacao.update(comandaRef, atualizacaoComanda);
 
     if (['enviado_cozinha', 'em_preparo', 'pronto'].includes(para) && !fichaRef) throw new ApiError(409, 'FICHA_COZINHA_INVALIDA', 'Não foi possível encaminhar este pedido à cozinha.');
@@ -679,6 +709,18 @@ async function atualizarStatusPedido(identidade, corpo, idRequisicao) {
     if (para === 'entregue') agora.entregueEm = FieldValue.serverTimestamp();
     if (para === 'finalizado') agora.finalizadoEm = FieldValue.serverTimestamp();
     if (para === 'cancelado') agora.canceladoEm = FieldValue.serverTimestamp();
+    if (para === 'cancelado' && pedido.estoqueBaixado === true && pedido.estoqueRestaurado !== true) {
+      await devolverEstoqueDoPedido({
+        transacao,
+        restauranteRef: caminhoRestaurante(identidade.idRestaurante),
+        idPedido: pedidoRef.id,
+        idRestaurante: identidade.idRestaurante,
+        idAtor: identidade.idUsuario,
+        itens: Array.isArray(pedido.itens) ? pedido.itens : Array.isArray(pedido.itensResumo) ? pedido.itensResumo : [],
+        motivo: 'Devolução automática do pedido administrativo cancelado.',
+      });
+      agora.estoqueRestaurado = true;
+    }
     transacao.update(pedidoRef, agora);
     transacao.set(pedidoRef.collection('historicoStatus').doc(), { de, para, motivo: motivo || '', idAtor: identidade.idUsuario, criadoEm: FieldValue.serverTimestamp() });
     if (['finalizado', 'cancelado'].includes(para) && pedido.idMesa) {

@@ -85,10 +85,10 @@ test('interface pública apresenta cardápio, carrinho, comanda e polling sem ar
 test('Fluxo público mantém os assets da mesa e avança para a central da etapa9', () => {
   const shell = ler('scripts/shell/apex-shell.js');
   const index = ler('index.html');
-  assert.match(shell, /mesaPublico|paginas\/publico\/mesa\.html\?v=etapa8-seguranca/);
-  assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa8-seguranca/);
-  assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa8-seguranca/);
-  assert.match(index, /apex-shell\.js\?v=etapa19-fluxo-operacional/);
+  assert.match(shell, /mesaPublico|paginas\/publico\/mesa\.html\?v=etapa20-cardapio-estoque/);
+  assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa20-cardapio-estoque/);
+  assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa20-cardapio-estoque/);
+  assert.match(index, /apex-shell\.js\?v=etapa20-cardapio-estoque/);
 });
 
 test('cookie da sessão é assinado com restaurante e sessão na ordem correta', () => {

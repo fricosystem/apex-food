@@ -45,7 +45,7 @@ function produtosVisiveis() {
   return produtosPedido.filter(produto => {
     const pertenceCategoria = estadoNovoPedido.categoria === 'todas' || produto.categoria === estadoNovoPedido.categoria;
     const correspondeBusca = !busca || `${produto.nome} ${produto.descricao}`.toLocaleLowerCase('pt-BR').includes(busca);
-    return produto.disponibilidade !== false && pertenceCategoria && correspondeBusca;
+    return produto.disponibilidade !== false && Number(produto.estoque || 0) > 0 && pertenceCategoria && correspondeBusca;
   });
 }
 
@@ -66,9 +66,9 @@ function renderizarCatalogo() {
 
 function adicionarProduto(id) {
   const produto = produtoPorId(id);
-  if (!produto) return;
+  if (!produto || produto.disponibilidade === false || Number(produto.estoque || 0) <= 0) return;
   const atual = estadoNovoPedido.carrinho.get(String(id)) || { produto, quantidade: 0 };
-  atual.quantidade += 1;
+  atual.quantidade = Math.min(Number(produto.estoque || 0), atual.quantidade + 1);
   estadoNovoPedido.carrinho.set(String(id), atual);
   renderizarCatalogo();
   renderizarCarrinho();
@@ -78,7 +78,7 @@ function alterarQuantidade(id, delta) {
   const chave = String(id);
   const atual = estadoNovoPedido.carrinho.get(chave);
   if (!atual) return;
-  atual.quantidade += delta;
+  atual.quantidade = Math.min(Number(atual.produto.estoque || 0), atual.quantidade + delta);
   if (atual.quantidade <= 0) estadoNovoPedido.carrinho.delete(chave); else estadoNovoPedido.carrinho.set(chave, atual);
   renderizarCatalogo();
   renderizarCarrinho();

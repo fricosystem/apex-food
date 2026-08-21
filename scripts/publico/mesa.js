@@ -274,7 +274,7 @@
     const produtos = (estado.cardapio?.produtos || []).filter(produto => estado.categoriaSelecionada === 'todas' || produto.idCategoria === estado.categoriaSelecionada);
     elementos.cardapioProdutos.replaceChildren();
     if (!produtos.length) {
-      elementos.cardapioVazioTexto.textContent = estado.cardapio?.produtos?.length ? 'Nenhum produto está disponível nesta categoria.' : 'O cardápio desta mesa ainda não foi publicado.';
+      elementos.cardapioVazioTexto.textContent = estado.cardapio?.produtos?.length ? 'Nenhum produto está disponível nesta categoria.' : 'Nenhum produto disponível no momento.';
       alternar(elementos.cardapioVazio, true);
       alternar(elementos.cardapioProdutos, false);
       return;
@@ -360,7 +360,7 @@
       estado.cardapio = await requisitar('?acao=cardapio');
       estado.categoriaSelecionada = 'todas';
       if (!estado.cardapio.categorias?.length || !estado.cardapio.produtos?.length) {
-        elementos.cardapioVazioTexto.textContent = 'O cardápio desta mesa ainda não foi publicado.';
+        elementos.cardapioVazioTexto.textContent = 'Nenhum produto disponível no momento.';
         alternar(elementos.cardapioVazio, true);
       } else {
         renderizarCategorias();

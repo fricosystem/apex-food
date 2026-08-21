@@ -6,7 +6,7 @@
   const api = () => window.apexModulosApi;
   const aviso = mensagem => typeof window.mostrarAvisoPedido === 'function' ? window.mostrarAvisoPedido(mensagem) : window.alert(mensagem);
   const escapar = valor => window.ferramentasInterfaceApexFood?.escaparHtml ? window.ferramentasInterfaceApexFood.escaparHtml(valor) : String(valor ?? '');
-  const produtosDigital = () => (window.dadosCardapioApexFood?.produtos || []).filter(produto => produto.disponibilidade !== false);
+  const produtosDigital = () => (window.dadosCardapioApexFood?.produtos || []).filter(produto => produto.disponibilidade !== false && Number(produto.estoque || 0) > 0);
   const categoriasDigital = () => window.dadosCardapioApexFood?.categorias || [];
   const moedaDigital = valor => window.ferramentasInterfaceApexFood?.formatarMoeda ? window.ferramentasInterfaceApexFood.formatarMoeda(valor) : Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 

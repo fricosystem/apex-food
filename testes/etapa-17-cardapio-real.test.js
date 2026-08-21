@@ -37,7 +37,9 @@ test('telas de Cardápio expõem campos reais e não mantêm métricas fictícia
   assert.match(promocoes, /id="descontoPromocao"/);
   assert.doesNotMatch(promocoes, /text-yellow mt-2">15%/);
   assert.doesNotMatch(promocoes, /R\$ 4\.280/);
-  assert.match(dados, /window\.location\.hostname/);
+  assert.doesNotMatch(dados, /previewCardapio|window\.location\.hostname/);
+  assert.match(dados, /window\.dadosCardapioApexFood = \{ categorias: \[\], produtos: \[\], promocoes: \[\] \}/);
+  assert.match(dados, /etapa20-cardapio-estoque/);
 });
 
 test('estoque usa movimentação transacional e cliente same-origin', () => {

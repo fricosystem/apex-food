@@ -15,6 +15,7 @@ const { caminhoRestaurante, textoOpcional, inteiroPositivo, registrarAuditoriaOp
 const { registrarAuditoria } = require('./auditoria');
 const { criarNotificacoesNaTransacao, TIPOS_NOTIFICACAO } = require('./notificacoes');
 const { enviarNotificacaoFcm } = require('./fcm-notificacoes');
+const { baixarEstoqueParaPedido } = require('./estoque-pedidos');
 
 const NOME_COOKIE_MESA = 'apex_mesa';
 const TTL_SESSAO_MESA_SEGUNDOS = 4 * 60 * 60;
@@ -469,7 +470,7 @@ async function listarCardapioPublico(contexto) {
     .map(documento => ({ id: documento.id, nome: String(documento.data()?.nome || 'Categoria'), descricao: String(documento.data()?.descricao || ''), cor: String(documento.data()?.cor || 'orange') }));
   const categoriasIds = new Set(categoriasPublicas.map(item => item.id));
   const produtosPublicos = produtos.docs
-    .filter(documento => { const dados = documento.data() || {}; return dados.estado !== 'excluido' && !dados.excluidoEm && categoriasIds.has(String(dados.idCategoria || '')); })
+    .filter(documento => { const dados = documento.data() || {}; return dados.estado !== 'excluido' && !dados.excluidoEm && dados.disponibilidade !== false && Number(dados.estoque || 0) > 0 && categoriasIds.has(String(dados.idCategoria || '')); })
     .sort((a, b) => String(a.data()?.nome || '').localeCompare(String(b.data()?.nome || ''), 'pt-BR'))
     .map(documento => produtoPublico(documento, configuracao.exibirPrecos));
   const promocoesPublicas = promocoes.docs
@@ -604,6 +605,16 @@ async function criarPedidoPublico(req, res, corpo) {
         estadoItem: 'ativo',
       };
     });
+    await baixarEstoqueParaPedido({
+      transacao,
+      restauranteRef: contexto.restauranteRef,
+      idPedido: pedidoRef.id,
+      idRestaurante: contexto.cookie.idRestaurante,
+      idAtor: `sessao:${contexto.sessaoDocumento.id}`,
+      itens: itensPersistidos,
+      documentosProdutos: produtoDocumentos,
+      motivo: 'Baixa automática do pedido enviado pela comanda digital.',
+    });
     const pedidoNumero = Number(`${Date.now()}${String(Math.floor(Math.random() * 100)).padStart(2, '0')}`);
     const statusPedido = 'aguardando_confirmacao_garcom';
     const comanda = comandaDocumento.data() || {};
@@ -635,6 +646,7 @@ async function criarPedidoPublico(req, res, corpo) {
       descontoCentavos: 0,
       totalCentavos: subtotalCentavos,
       valorCentavos: subtotalCentavos,
+      estoqueBaixado: true,
       pagamento: null,
       versao: 1,
       criadoPor: 'cliente_mesa',
