@@ -11,3 +11,7 @@ O link público recuperado da Mesa 04 foi `https://apexfood.vercel.app/mesa?qr=8
 ## Segunda reprodução após deployment resiliente
 
 Mesmo após o commit `c69b6ac` e o deployment concluído, o endpoint `GET /api/v1/qrcode-mesa?acao=validar&qr=...` continuou retornando HTTP 500 com `ERRO_INTERNO`. Portanto, a falha não está apenas na leitura opcional do documento pai do restaurante. A próxima ação deve capturar a exceção server-side por etapa ou revisar a consulta `collectionGroup('mesas')` e a resolução da referência em produção.
+
+## Diagnóstico definitivo do Firestore
+
+Após o commit `f25e15d`, o endpoint público passou a retornar HTTP 503 com `QR_INDICE_INDISPONIVEL`, confirmando que a consulta `collectionGroup('mesas').where('qrHash', '==', hash)` está bloqueada pela configuração de índice do Firestore. No Console, a criação de índice manual exibiu o aviso `this index is not necessary, configure using single field index controls`; portanto, o ajuste correto é habilitar o índice de campo único para `qrHash` com escopo `COLLECTION_GROUP` na seção Automático, e não criar um índice manual composto.
