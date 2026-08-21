@@ -17,3 +17,9 @@ A rota `/reservas` exibiu a agenda dos cinco dias, filtros de busca/status/canal
 ## Observação de ambiente
 
 O preview local não possui sessão Firebase real nem dados do restaurante. Por isso, os estados vazios são esperados. Nenhuma mutação foi executada durante o preview.
+
+## Verificação em produção
+
+Após o push do commit `d536c30`, o status do GitHub/Vercel passou para `success` com a descrição `Deployment has completed`.
+
+As URLs `https://apexfood.vercel.app/mapa-mesas` e `https://apexfood.vercel.app/reservas` responderam sem 404 e redirecionaram para `/autenticacao` quando acessadas sem sessão, confirmando que as rotas limpas e o guard de autenticação estão ativos em produção.
