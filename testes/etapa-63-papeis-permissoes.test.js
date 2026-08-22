@@ -39,6 +39,7 @@ test('rota, tela e cliente de Papéis e Permissões estão registrados', () => {
   const pagina = ler('paginas/equipe/papeis.html');
   const script = ler('scripts/equipe/papeis.js');
   const cliente = ler('scripts/api/modulos-client.js');
+  const vercel = ler('vercel.json');
   assert.match(shell, /papeis:\s*\{ titulo: 'Papéis e Permissões'/);
   assert.match(shell, /papeis\.html\?v=fase51-papeis-locais/);
   assert.match(index, /href: '\/papeis'/);
@@ -48,6 +49,9 @@ test('rota, tela e cliente de Papéis e Permissões estão registrados', () => {
   assert.match(script, /criarPapel/);
   assert.match(script, /arquivarPapel/);
   assert.match(cliente, /async function listarPapeis/);
+  assert.ok(vercel.includes('papeis\\\\.html'));
+  assert.ok(vercel.includes('Location":"/papeis"'));
+  assert.ok(vercel.includes('funcionarios|papeis|escala-trabalho'));
 });
 
 test('handler de papéis usa middleware, contexto local e auditoria', () => {
