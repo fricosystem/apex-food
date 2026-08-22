@@ -58,6 +58,14 @@ test('shell usa History API e mantém compatibilidade com hash legado', () => {
   assert.doesNotMatch(shell, /window\.location\.hash\s*=/);
 });
 
+test('navegação carrega o estilo antes do fragmento e fecha estados transitórios', () => {
+  const shell = ler('scripts/shell/apex-shell.js');
+  assert.match(shell, /const atualizarEstilos = async pagina/);
+  assert.match(shell, /await atualizarEstilos\(pagina\);\s+if \(token !== carregamentoAtual\) return;\s+container\.innerHTML = html/);
+  assert.match(shell, /const fecharEstadosTransitorios = \(\) =>/);
+  assert.match(shell, /fecharEstadosTransitorios\(\);\s+if \(window\.location\.pathname !== destino\)/);
+});
+
 test('fragmentos internos continuam referenciando arquivos HTML físicos', () => {
   const shell = extrairBlocoPagina('scripts/shell/apex-shell.js', 'const paginas = {', '  };');
   const fragmentos = [...shell.matchAll(/fragmento:\s*['"]([^'"]+)['"]/g)].map(match => match[1]);

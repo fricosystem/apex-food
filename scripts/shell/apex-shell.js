@@ -62,9 +62,26 @@
     const container = document.getElementById('conteudoPagina');
     if (container) container.innerHTML = `<div class="p-6"><div class="rounded-xl border border-red/30 bg-red/10 p-5"><h2 class="font-semibold text-red-300">Não foi possível abrir esta página</h2><p class="text-sm text-muted mt-2">${mensagem}</p></div></div>`;
   };
-  const atualizarEstilos = pagina => {
-    document.querySelectorAll('link[data-apex-page-style]').forEach(link => link.remove());
-    pagina.estilos.forEach(caminho => { const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = caminho; link.dataset.apexPageStyle = 'true'; document.head.appendChild(link); });
+  const atualizarEstilos = async pagina => {
+    const anteriores = [...document.querySelectorAll('link[data-apex-page-style]')];
+    const carregamentos = pagina.estilos.map(caminho => new Promise((resolve, reject) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = caminho;
+      link.dataset.apexPageStyle = 'true';
+      link.onload = resolve;
+      link.onerror = () => reject(new Error(`Falha ao carregar o estilo ${caminho}`));
+      document.head.appendChild(link);
+    }));
+    await Promise.all(carregamentos);
+    anteriores.forEach(link => link.remove());
+  };
+  const fecharEstadosTransitorios = () => {
+    document.querySelectorAll('.cardapio-modal.aberto, .modal-shell.is-open, [role="dialog"].aberto').forEach(modal => {
+      modal.classList.remove('aberto', 'is-open');
+      modal.setAttribute('aria-hidden', 'true');
+    });
+    document.body.style.overflow = '';
   };
   const carregarScripts = scripts => scripts.reduce((fila, caminho) => fila.then(() => new Promise((resolve, reject) => { document.querySelectorAll(`script[data-apex-page-script="${caminho}"]`).forEach(script => script.remove()); const script = document.createElement('script'); script.src = caminho; script.dataset.apexPageScript = caminho; script.onload = resolve; script.onerror = () => reject(new Error(`Falha ao carregar ${caminho}`)); document.body.appendChild(script); })), Promise.resolve());
   const atualizarNavegacao = chave => { document.querySelectorAll('[data-apex-rota]').forEach(link => { const ativo = Boolean(link.dataset.apexRota) && paginaPorHref(link.dataset.apexRota) === chave; link.classList.toggle('active', ativo); link.closest('.tree-item')?.classList.toggle('active', ativo); }); };
@@ -83,8 +100,9 @@
       if (!resposta.ok) throw new Error(`A rota retornou HTTP ${resposta.status}.`);
       const html = await resposta.text();
       if (token !== carregamentoAtual) return;
+      await atualizarEstilos(pagina);
+      if (token !== carregamentoAtual) return;
       container.innerHTML = html;
-      atualizarEstilos(pagina);
       await carregarScripts(pagina.scripts);
       if (token !== carregamentoAtual) return;
       document.title = `APEX Food — ${pagina.titulo}`;
@@ -104,6 +122,7 @@
     const chave = paginas[alvo] ? alvo : paginaPorHref(alvo);
     const pagina = paginas[chave] || paginas.home;
     const destino = pagina.href || '/';
+    fecharEstadosTransitorios();
     if (window.location.pathname !== destino) {
       window.history[opcoes.substituir ? 'replaceState' : 'pushState']({}, '', destino);
     }

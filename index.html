@@ -259,8 +259,8 @@ const sidebarSections = [
         link.dataset.apexRota = item.href || '';
         link.innerHTML = `<i data-lucide="${item.icon}" class="w-4 h-4 flex-shrink-0"></i><span>${item.label}</span>`;
         link.addEventListener('click', (e) => {
+          e.preventDefault();
           if (!item.href) {
-            e.preventDefault();
             closeMenu();
             window.mostrarAvisoPedido?.(`${item.label}: módulo preparado para a próxima integração.`);
             return;
@@ -270,8 +270,8 @@ const sidebarSections = [
           link.classList.add('active');
           treeItem.classList.add('active');
           closeMenu();
-          e.preventDefault();
-          window.apexShell?.navegar(item.href);
+          if (window.apexShell?.navegar) window.apexShell.navegar(item.href);
+          else window.location.assign(item.href);
         });
         treeItem.appendChild(link);
         nav.appendChild(treeItem);
@@ -319,6 +319,6 @@ const sidebarSections = [
     });
   };
 </script>
-<script src="scripts/compartilhados/ferramentas-interface.js?v=fase12"></script><script src="scripts/auth/api-client.js?v=etapa14-perfil"></script><script src="scripts/compartilhados/perfil-sidebar.js?v=etapa15-perfil"></script><script src="scripts/api/modulos-client.js?v=etapa22-dados-reais-global"></script><script src="scripts/compartilhados/notificacoes.js?v=etapa13-diagnostico-fcm"></script><script src="configuracoes/firebase-messaging-publico.js?v=etapa11-fcm"></script><script src="scripts/compartilhados/notificacoes-sistema.js?v=etapa11-fcm"></script><script src="scripts/shell/apex-shell.js?v=etapa22-responsivo-comanda"></script></body>
+<script src="scripts/compartilhados/ferramentas-interface.js?v=fase12"></script><script src="scripts/auth/api-client.js?v=etapa14-perfil"></script><script src="scripts/compartilhados/perfil-sidebar.js?v=etapa15-perfil"></script><script src="scripts/api/modulos-client.js?v=etapa22-dados-reais-global"></script><script src="scripts/compartilhados/notificacoes.js?v=etapa13-diagnostico-fcm"></script><script src="configuracoes/firebase-messaging-publico.js?v=etapa11-fcm"></script><script src="scripts/compartilhados/notificacoes-sistema.js?v=etapa11-fcm"></script><script src="scripts/shell/apex-shell.js?v=etapa24-navegacao-fluida"></script></body>
 </html>
 
