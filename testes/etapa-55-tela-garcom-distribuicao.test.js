@@ -62,6 +62,11 @@ test('desempate segue prioridade, última atribuição e ID lexicográfico', () 
   assert.equal(selecionado.id, 'FUN-1');
 });
 
+test('módulo operacional exporta a validação de papel usada pelos handlers', () => {
+  const modulos = require('../api/_lib/modulos-operacionais');
+  assert.equal(typeof modulos.exigirPapel, 'function');
+});
+
 test('handler de pedidos usa a função de carga existente ao preservar o responsável', () => {
   const handler = ler('api/_lib/pedidos-handler.js');
   assert.match(handler, /const carga = cargaFuncionario\(dadosFuncionario\);/);

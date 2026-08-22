@@ -154,6 +154,7 @@ module.exports = {
   ESTADOS_MESA,
   caminhoRestaurante,
   obterIdentidadeOperacional,
+  exigirPapel,
   limitarInteiro,
   textoObrigatorio,
   textoOpcional,
