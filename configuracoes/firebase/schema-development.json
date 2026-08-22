@@ -1,7 +1,7 @@
 {
   "ambiente": "development",
   "projeto": "apex-food-6c1cb",
-  "versaoEstrutura": "2.0.0",
+  "versaoEstrutura": "2.1.0",
   "status": "contrato-documental-sem-dados-criados",
   "acessoFirestore": "api-server-side-admin-sdk",
   "colecoesRaiz": [
@@ -89,6 +89,15 @@
     "cnpj",
     "cpf"
   ],
+  "camposProvisionamento": [
+    "chaveIdempotencia",
+    "dadosEstabelecimentoValidados",
+    "dadosDiretorValidados",
+    "emailDiretorCanonico",
+    "expiraEm",
+    "tentativas",
+    "ultimoErroPublico"
+  ],
   "camposControle": [
     "idRestaurante",
     "criadoEm",
@@ -111,7 +120,8 @@
   "auditoriaSomenteAcrescimo": true,
   "regrasFirestoreAbertas": false,
   "dadosOperacionaisCriados": false,
+  "frontendAlterado": true,
+  "provisionamentoImplementado": true,
   "dadosMultiestabelecimentoCriados": false,
-  "frontendAlterado": false,
-  "observacao": "Contrato documental da Fase 2. A implementação de identidade global, provisionamento do Diretor, papéis, permissões, telas e migração ocorrerá somente após aprovação das fases correspondentes."
+  "observacao": "Contrato e fluxo de provisionamento implementados na Fase 4. A criação real depende da configuração segura do UID do Desenvolvedor na Vercel e de homologação autorizada; nenhum dado real foi criado por esta alteração."
 }

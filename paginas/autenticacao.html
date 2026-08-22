@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://cdn.jsdelivr.net/npm/fontsource-inter@5.0.0/index.css" rel="stylesheet">
-  <link rel="stylesheet" href="../estilos/auth/auth.css">
+  <link rel="stylesheet" href="../estilos/auth/auth.css?v=fase41-provisionamento">
   <link rel="icon" href="../assets/apex-food-logo-aprimorada.png" type="image/png">
   <link rel="apple-touch-icon" href="../assets/apex-food-logo-aprimorada.png">
   <link rel="manifest" href="../manifest.webmanifest">
@@ -18,7 +18,7 @@
   <script src="../scripts/auth/api-client.js" defer></script>
   <script src="../configuracoes/firebase-messaging-publico.js?v=etapa11-fcm" defer></script>
   <script src="../scripts/compartilhados/notificacoes-sistema.js?v=etapa11-fcm" defer></script>
-  <script src="../scripts/auth/auth.js" defer></script>
+  <script src="../scripts/auth/auth.js?v=fase41-provisionamento" defer></script>
 </head>
 <body>
   <main class="auth-page">
@@ -65,27 +65,181 @@
           <div class="auth-feedback" id="auth-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
 
           <div class="auth-context-choice" id="auth-context-choice" hidden>
-            <div class="auth-field">
-              <label for="auth-restaurant-select">Restaurante ativo</label>
-              <select class="auth-input" id="auth-restaurant-select" aria-label="Selecione o restaurante ativo"></select>
-            </div>
-            <button class="auth-submit" id="auth-context-submit" type="button">
-              <span>Continuar para o sistema</span>
-              <i data-lucide="arrow-right" aria-hidden="true"></i>
-            </button>
-
-            <div id="auth-onboarding" hidden>
-              <p class="auth-context-description">Sua conta foi autenticada, mas ainda não possui um restaurante. Informe o nome comercial real para criar o primeiro espaço de operação.</p>
+            <div id="auth-restaurant-context" hidden>
               <div class="auth-field">
-                <label for="auth-restaurant-name">Nome comercial do restaurante</label>
-                <input class="auth-input" id="auth-restaurant-name" name="restaurantName" type="text" value="APEX FOOD RESTAURANTE" maxlength="120" autocomplete="organization" required>
-                <span class="auth-field-message" data-error-for="auth-restaurant-name" aria-live="polite"></span>
+                <label for="auth-restaurant-select">Restaurante ativo</label>
+                <select class="auth-input" id="auth-restaurant-select" aria-label="Selecione o restaurante ativo"></select>
               </div>
-              <button class="auth-submit" id="auth-onboarding-submit" type="button">
-                <span>Criar restaurante e continuar</span>
+              <button class="auth-submit" id="auth-context-submit" type="button">
+                <span>Continuar para o sistema</span>
                 <i data-lucide="arrow-right" aria-hidden="true"></i>
               </button>
             </div>
+
+            <div id="auth-no-restaurant" hidden>
+              <p class="auth-context-description">Sua conta foi autenticada, mas ainda não está vinculada a um restaurante ativo. Solicite um convite ou aguarde o provisionamento do estabelecimento.</p>
+            </div>
+
+            <section id="auth-onboarding" class="auth-provisionamento" aria-labelledby="auth-provisionamento-title" hidden>
+              <div class="auth-provisionamento-heading">
+                <p class="auth-eyebrow">Novo estabelecimento</p>
+                <h3 id="auth-provisionamento-title">Cadastre o restaurante com segurança</h3>
+                <p class="auth-context-description">Preencha os dados em etapas. A senha será usada apenas no Firebase Authentication e nunca será gravada no Firestore.</p>
+              </div>
+              <ol class="auth-provisionamento-steps" id="auth-provisionamento-steps" aria-label="Etapas do cadastro">
+                <li class="is-active" data-provision-step-indicator="1"><span>1</span><strong>Estabelecimento</strong></li>
+                <li data-provision-step-indicator="2"><span>2</span><strong>Diretor</strong></li>
+                <li data-provision-step-indicator="3"><span>3</span><strong>Conta</strong></li>
+                <li data-provision-step-indicator="4"><span>4</span><strong>Revisão</strong></li>
+              </ol>
+
+              <form id="auth-provisionamento-form" novalidate>
+                <section class="auth-provisionamento-step" data-provision-step="1" aria-labelledby="provision-step-1-title">
+                  <h4 id="provision-step-1-title">Dados do estabelecimento</h4>
+                  <div class="auth-field">
+                    <label for="provision-nome">Nome do estabelecimento</label>
+                    <input class="auth-input" id="provision-nome" name="provisionNome" type="text" autocomplete="organization" maxlength="120" placeholder="Ex.: APEX Food Centro" required>
+                    <span class="auth-field-message" data-error-for="provision-nome" aria-live="polite"></span>
+                  </div>
+                  <div class="auth-provisionamento-grid">
+                    <div class="auth-field">
+                      <label for="provision-tipo-documento">Documento</label>
+                      <select class="auth-input" id="provision-tipo-documento" name="provisionTipoDocumento" required>
+                        <option value="cnpj">CNPJ</option>
+                        <option value="cpf">CPF</option>
+                      </select>
+                    </div>
+                    <div class="auth-field">
+                      <label for="provision-documento">Número do documento</label>
+                      <input class="auth-input" id="provision-documento" name="provisionDocumento" type="text" inputmode="numeric" autocomplete="off" placeholder="Digite o CNPJ ou CPF" required>
+                      <span class="auth-field-message" data-error-for="provision-documento" aria-live="polite"></span>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="auth-provisionamento-step" data-provision-step="2" aria-labelledby="provision-step-2-title" hidden>
+                  <h4 id="provision-step-2-title">Dados do Diretor</h4>
+                  <div class="auth-field">
+                    <label for="provision-diretor-nome">Nome completo</label>
+                    <input class="auth-input" id="provision-diretor-nome" name="provisionDiretorNome" type="text" autocomplete="name" placeholder="Nome e sobrenome" required>
+                    <span class="auth-field-message" data-error-for="provision-diretor-nome" aria-live="polite"></span>
+                  </div>
+                  <div class="auth-provisionamento-grid">
+                    <div class="auth-field">
+                      <label for="provision-diretor-cpf">CPF</label>
+                      <input class="auth-input" id="provision-diretor-cpf" name="provisionDiretorCpf" type="text" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" required>
+                      <span class="auth-field-message" data-error-for="provision-diretor-cpf" aria-live="polite"></span>
+                    </div>
+                    <div class="auth-field">
+                      <label for="provision-diretor-telefone">Telefone/WhatsApp</label>
+                      <input class="auth-input" id="provision-diretor-telefone" name="provisionDiretorTelefone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(00) 00000-0000" required>
+                      <span class="auth-field-message" data-error-for="provision-diretor-telefone" aria-live="polite"></span>
+                    </div>
+                  </div>
+                  <div class="auth-field">
+                    <label for="provision-cep">CEP</label>
+                    <input class="auth-input" id="provision-cep" name="provisionCep" type="text" inputmode="numeric" autocomplete="postal-code" placeholder="00000-000" required>
+                    <span class="auth-field-message" data-error-for="provision-cep" aria-live="polite"></span>
+                  </div>
+                  <div class="auth-provisionamento-grid auth-provisionamento-grid--endereco">
+                    <div class="auth-field auth-field--wide">
+                      <label for="provision-logradouro">Logradouro</label>
+                      <input class="auth-input" id="provision-logradouro" name="provisionLogradouro" type="text" autocomplete="street-address" placeholder="Rua, avenida ou praça" required>
+                      <span class="auth-field-message" data-error-for="provision-logradouro" aria-live="polite"></span>
+                    </div>
+                    <div class="auth-field">
+                      <label for="provision-numero">Número</label>
+                      <input class="auth-input" id="provision-numero" name="provisionNumero" type="text" autocomplete="address-line2" placeholder="Nº" required>
+                      <span class="auth-field-message" data-error-for="provision-numero" aria-live="polite"></span>
+                    </div>
+                  </div>
+                  <div class="auth-field">
+                    <label for="provision-complemento">Complemento <span class="auth-label-optional">opcional</span></label>
+                    <input class="auth-input" id="provision-complemento" name="provisionComplemento" type="text" autocomplete="address-line2" placeholder="Sala, loja ou complemento">
+                  </div>
+                  <div class="auth-provisionamento-grid auth-provisionamento-grid--endereco">
+                    <div class="auth-field">
+                      <label for="provision-bairro">Bairro</label>
+                      <input class="auth-input" id="provision-bairro" name="provisionBairro" type="text" autocomplete="address-level3" required>
+                      <span class="auth-field-message" data-error-for="provision-bairro" aria-live="polite"></span>
+                    </div>
+                    <div class="auth-field">
+                      <label for="provision-cidade">Cidade</label>
+                      <input class="auth-input" id="provision-cidade" name="provisionCidade" type="text" autocomplete="address-level2" required>
+                      <span class="auth-field-message" data-error-for="provision-cidade" aria-live="polite"></span>
+                    </div>
+                    <div class="auth-field">
+                      <label for="provision-estado">Estado</label>
+                      <input class="auth-input" id="provision-estado" name="provisionEstado" type="text" inputmode="text" maxlength="2" autocomplete="address-level1" placeholder="UF" required>
+                      <span class="auth-field-message" data-error-for="provision-estado" aria-live="polite"></span>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="auth-provisionamento-step" data-provision-step="3" aria-labelledby="provision-step-3-title" hidden>
+                  <h4 id="provision-step-3-title">Credenciais do Diretor</h4>
+                  <p class="auth-context-description">O Diretor usará este email para entrar no APEX Food após a conclusão do cadastro.</p>
+                  <div class="auth-field">
+                    <label for="provision-email">Email</label>
+                    <div class="auth-domain-control">
+                      <input class="auth-input auth-identifier-input" id="provision-email" name="provisionEmail" type="text" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="Digite o email do Diretor" aria-label="Email do Diretor. O domínio @apexfood.com é adicionado automaticamente." required>
+                      <span class="auth-domain-suffix" aria-hidden="true">@apexfood.com</span>
+                    </div>
+                    <span class="auth-field-message" data-error-for="provision-email" aria-live="polite"></span>
+                  </div>
+                  <div class="auth-field">
+                    <label for="provision-senha">Senha</label>
+                    <div class="auth-input-wrap">
+                      <input class="auth-input has-toggle" id="provision-senha" name="provisionSenha" type="password" autocomplete="new-password" minlength="8" placeholder="Crie uma senha forte" required>
+                      <button class="auth-password-toggle" type="button" data-toggle-password="provision-senha" aria-label="Mostrar senha" aria-pressed="false"><i data-lucide="eye" aria-hidden="true"></i></button>
+                    </div>
+                    <span class="auth-field-message" data-error-for="provision-senha" aria-live="polite"></span>
+                  </div>
+                  <div class="auth-field">
+                    <label for="provision-confirmar-senha">Confirmar senha</label>
+                    <div class="auth-input-wrap">
+                      <input class="auth-input has-toggle" id="provision-confirmar-senha" name="provisionConfirmarSenha" type="password" autocomplete="new-password" minlength="8" placeholder="Digite a senha novamente" required>
+                      <button class="auth-password-toggle" type="button" data-toggle-password="provision-confirmar-senha" aria-label="Mostrar senha" aria-pressed="false"><i data-lucide="eye" aria-hidden="true"></i></button>
+                    </div>
+                    <span class="auth-field-message" data-error-for="provision-confirmar-senha" aria-live="polite"></span>
+                  </div>
+                  <div class="auth-field">
+                    <label for="provision-dias-teste">Período de teste grátis</label>
+                    <select class="auth-input" id="provision-dias-teste" name="provisionDiasTeste">
+                      <option value="30">30 dias</option>
+                      <option value="14">14 dias</option>
+                      <option value="7">7 dias</option>
+                      <option value="0">Sem período de teste</option>
+                    </select>
+                  </div>
+                </section>
+
+                <section class="auth-provisionamento-step" data-provision-step="4" aria-labelledby="provision-step-4-title" hidden>
+                  <h4 id="provision-step-4-title">Revise antes de concluir</h4>
+                  <div id="auth-provision-review" class="auth-provisionamento-review"></div>
+                  <label class="auth-checkbox auth-provisionamento-confirmacao" for="provision-confirmacao">
+                    <input id="provision-confirmacao" name="provisionConfirmacao" type="checkbox" required>
+                    <span>Confirmo que os dados estão corretos e autorizo a criação do estabelecimento e da conta do Diretor.</span>
+                  </label>
+                </section>
+
+                <section class="auth-provisionamento-step auth-provisionamento-sucesso" data-provision-step="5" aria-labelledby="provision-step-5-title" hidden>
+                  <i data-lucide="circle-check" aria-hidden="true"></i>
+                  <h4 id="provision-step-5-title">Cadastro concluído</h4>
+                  <p id="auth-provision-success-message">O estabelecimento e o acesso do Diretor foram criados com sucesso.</p>
+                  <button class="auth-submit" id="auth-provision-novo" type="button"><span>Cadastrar outro estabelecimento</span><i data-lucide="plus" aria-hidden="true"></i></button>
+                </section>
+
+                <div class="auth-provisionamento-actions" data-provision-actions>
+                  <button class="auth-text-button" id="auth-provision-cancel" type="button">Cancelar</button>
+                  <div>
+                    <button class="auth-secondary-submit" id="auth-provision-back" type="button" hidden>Voltar</button>
+                    <button class="auth-submit" id="auth-provision-next" type="button"><span>Continuar</span><i data-lucide="arrow-right" aria-hidden="true"></i></button>
+                    <button class="auth-submit" id="auth-provision-confirm" type="button" hidden><span>Concluir cadastro</span><i data-lucide="check" aria-hidden="true"></i></button>
+                  </div>
+                </div>
+              </form>
+            </section>
           </div>
 
           <div class="auth-form-card" id="auth-form-card">

@@ -10,7 +10,7 @@ const ler = (arquivo) => fs.readFileSync(path.join(raiz, arquivo), 'utf8');
 
 test('contrato multiestabelecimento mantém coleções e campos em português', () => {
   const esquema = JSON.parse(ler('configuracoes/firebase/schema-development.json'));
-  assert.equal(esquema.versaoEstrutura, '2.0.0');
+  assert.equal(esquema.versaoEstrutura, '2.1.0');
   assert.equal(esquema.acessoFirestore, 'api-server-side-admin-sdk');
   assert.equal(esquema.dadosMultiestabelecimentoCriados, false);
   assert.deepEqual(esquema.tiposDocumentoEstabelecimento, ['cnpj', 'cpf']);
