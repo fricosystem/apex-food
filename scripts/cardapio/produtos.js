@@ -49,6 +49,7 @@ function normalizarListaProduto(valor) {
 
 function estadoRequisitoProduto(tipo) { return tipo === 'especialidade' ? { valores: especialidadesNecessariasProdutoAtual, lista: 'listaEspecialidadesNecessariasProduto', vazio: 'especialidadesNecessariasProdutoVazio', rotulo: 'Especialidade', exemplo: 'massas' } : { valores: estacoesNecessariasProdutoAtual, lista: 'listaEstacoesNecessariasProduto', vazio: 'estacoesNecessariasProdutoVazio', rotulo: 'Estação', exemplo: 'forno' }; }
 
+function sincronizarListaRequisitoProduto(tipo) { const estado = estadoRequisitoProduto(tipo); const lista = document.getElementById(estado.lista); if (!lista) return estado.valores; const valores = [...lista.querySelectorAll(`[data-requisito-${tipo}-valor]`)].map(input => input.value); estado.valores.splice(0, estado.valores.length, ...valores); return estado.valores; }
 function renderizarListaRequisitoProduto(tipo) {
   const estado = estadoRequisitoProduto(tipo);
   const lista = document.getElementById(estado.lista);
@@ -56,10 +57,11 @@ function renderizarListaRequisitoProduto(tipo) {
   if (!lista || !vazio) return;
   vazio.classList.toggle('hidden', estado.valores.length > 0);
   lista.innerHTML = estado.valores.map((valor, indice) => `<div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center" data-requisito-${tipo}-linha="${indice}"><input data-requisito-${tipo}-valor="true" list="${tipo === 'especialidade' ? 'opcoesEspecialidadesNecessariasProduto' : 'opcoesEstacoesNecessariasProduto'}" maxlength="80" required placeholder="Ex.: ${estado.exemplo}" value="${escapeProduto(valor)}" class="min-w-0 w-full flex-1 bg-card border border-border2 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-accent/60" /><button type="button" data-requisito-${tipo}-remover="${indice}" aria-label="Remover ${estado.rotulo.toLocaleLowerCase('pt-BR')}" class="btn-press w-full shrink-0 whitespace-nowrap rounded-lg border border-border2 px-3 py-2.5 text-[11px] text-muted hover:border-red/50 hover:text-red-200 sm:w-auto">Remover</button></div>`).join('');
-  lista.querySelectorAll(`[data-requisito-${tipo}-remover]`).forEach(botao => botao.addEventListener('click', () => { estado.valores.splice(Number(botao.dataset[`requisito${tipo[0].toUpperCase()}${tipo.slice(1)}Remover`]), 1); renderizarListaRequisitoProduto(tipo); }));
+  lista.querySelectorAll(`[data-requisito-${tipo}-remover]`).forEach(botao => botao.addEventListener('click', () => { sincronizarListaRequisitoProduto(tipo); estado.valores.splice(Number(botao.dataset[`requisito${tipo[0].toUpperCase()}${tipo.slice(1)}Remover`]), 1); renderizarListaRequisitoProduto(tipo); }));
 }
 
 function adicionarRequisitoProduto(tipo) {
+  sincronizarListaRequisitoProduto(tipo);
   const estado = estadoRequisitoProduto(tipo);
   estado.valores.push('');
   renderizarListaRequisitoProduto(tipo);

@@ -42,6 +42,17 @@ test('listas de habilidades mantêm layout responsivo nos modais', () => {
   }
 });
 
+test('adicionar e remover linhas preservam valores já digitados', () => {
+  const controllerFuncionarios = ler('scripts/equipe/funcionarios.js');
+  const controllerProdutos = ler('scripts/cardapio/produtos.js');
+  assert.match(controllerFuncionarios, /function sincronizarListaEquipe\(tipo\)/);
+  assert.match(controllerFuncionarios, /function adicionarItemListaEquipe\(tipo\) \{ sincronizarListaEquipe\(tipo\);/);
+  assert.match(controllerFuncionarios, /sincronizarListaEquipe\(tipo\); estado\.valores\.splice/);
+  assert.match(controllerProdutos, /function sincronizarListaRequisitoProduto\(tipo\)/);
+  assert.match(controllerProdutos, /function adicionarRequisitoProduto\(tipo\) \{\n  sincronizarListaRequisitoProduto\(tipo\);/);
+  assert.match(controllerProdutos, /sincronizarListaRequisitoProduto\(tipo\); estado\.valores\.splice/);
+});
+
 test('backend normaliza listas antigas e novas sem duplicidade de caixa', () => {
   const dados = equipe.dadosFuncionario({ nome: 'Cozinheiro Teste', cargo: 'Cozinheiro', setor: 'Cozinha', turno: 'Integral', especialidadesCozinha: 'Massas, massas, Chapa', estacoesCozinha: ['Forno', 'forno', 'Bancada fria'] });
   assert.deepEqual(dados.especialidadesCozinha, ['Massas', 'Chapa']);
