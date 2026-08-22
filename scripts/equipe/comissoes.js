@@ -95,6 +95,9 @@ document.getElementById('fecharModalComissao').addEventListener('click', fecharM
 document.getElementById('backdropComissao').addEventListener('click', fecharModalComissao);
 document.addEventListener('keydown', event => { if (event.key === 'Escape') fecharModalComissao(); });
 function atualizarComissoesRemotas() { renderizarPeriodosComissao(); atualizarIndicadoresComissao(); renderizarComissoes(); }
+window.dadosComissoesPronto = window.dadosEquipePronto && typeof window.dadosEquipePronto.then === 'function'
+  ? window.dadosEquipePronto
+  : Promise.resolve();
 renderizarPeriodosComissao();
 atualizarIndicadoresComissao();
 renderizarComissoes();

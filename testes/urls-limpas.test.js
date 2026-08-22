@@ -61,9 +61,33 @@ test('shell usa History API e mantém compatibilidade com hash legado', () => {
 test('navegação carrega o estilo antes do fragmento e fecha estados transitórios', () => {
   const shell = ler('scripts/shell/apex-shell.js');
   assert.match(shell, /const atualizarEstilos = async pagina/);
-  assert.match(shell, /await atualizarEstilos\(pagina\);\s+if \(token !== carregamentoAtual\) return;\s+container\.innerHTML = html/);
+  assert.match(shell, /await atualizarEstilos\(pagina\);\s+if \(token !== carregamentoAtual\) return;\s+const fragmentoReal = document\.createElement\('div'\)/);
+  assert.match(shell, /fragmentoReal\.hidden = true;[\s\S]*fragmentoReal\.innerHTML = html;[\s\S]*container\.appendChild\(fragmentoReal\)/);
   assert.match(shell, /const fecharEstadosTransitorios = \(\) =>/);
   assert.match(shell, /fecharEstadosTransitorios\(\);\s+if \(window\.location\.pathname !== destino\)/);
+});
+
+test('skeleton global aguarda o Firestore antes de revelar cada fragmento', () => {
+  const shell = ler('scripts/shell/apex-shell.js');
+  const tokens = ler('estilos/compartilhados/tokens-apex.css');
+  assert.match(shell, /const criarSkeletonPagina = \(chave, pagina\)/);
+  assert.match(shell, /data-apex-skeleton="true"/);
+  assert.match(shell, /const promessasPorPagina = \{/);
+  assert.match(shell, /await aguardarDadosPagina\(chave\)/);
+  assert.match(shell, /fragmentoReal\.hidden = false;/);
+  for (const nome of ['dadosVisaoGeralPronto', 'dadosPedidosPronto', 'dadosCardapioPronto', 'dadosMesasPronto', 'dadosEquipePronto', 'dadosFinanceirosPronto', 'dadosRelatoriosPronto']) {
+    assert.match(shell, new RegExp(nome));
+  }
+  assert.match(tokens, /\.apex-skeleton-pagina/);
+  assert.match(tokens, /@keyframes apexSkeletonShimmer/);
+  assert.match(tokens, /prefers-reduced-motion/);
+});
+
+test('controllers autônomos expõem prontidão para o skeleton global', () => {
+  assert.match(ler('scripts/cardapio/cardapio-digital.js'), /window\.dadosCardapioDigitalPronto = carregarConfiguracao\(\)/);
+  assert.match(ler('scripts/configuracoes/perfil.js'), /window\.dadosPerfilPronto = carregar\(\)/);
+  assert.match(ler('scripts/equipe/comissoes.js'), /window\.dadosComissoesPronto/);
+  assert.match(ler('scripts/publico/mesa.js'), /window\.dadosMesaPublicaPronto = carregarMesa\(\)/);
 });
 
 test('fragmentos internos continuam referenciando arquivos HTML físicos', () => {

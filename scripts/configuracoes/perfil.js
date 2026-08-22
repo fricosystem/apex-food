@@ -183,7 +183,7 @@
     porId('formPerfil')?.addEventListener('submit', salvarPerfil);
     porId('formPreferencias')?.addEventListener('submit', salvarPreferencias);
     porId('formSenha')?.addEventListener('submit', salvarSenha);
-    carregar();
+    window.dadosPerfilPronto = carregar();
     window.lucide?.createIcons();
   }
 

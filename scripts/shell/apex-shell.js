@@ -83,6 +83,50 @@
     });
     document.body.style.overflow = '';
   };
+  const criarSkeletonPagina = (chave, pagina) => {
+    const titulo = String(pagina.titulo || 'página');
+    if (chave === 'mesa') {
+      return `<div class="apex-skeleton-pagina apex-skeleton-pagina--publica" role="status" aria-label="Carregando ${titulo}"><div class="apex-skeleton apex-skeleton--avatar mx-auto"></div><span class="apex-skeleton apex-skeleton--small mx-auto"></span><span class="apex-skeleton apex-skeleton--titulo mx-auto"></span><span class="apex-skeleton apex-skeleton--small mx-auto"></span><div class="apex-skeleton-bloco"><span class="apex-skeleton apex-skeleton--small"></span><span class="apex-skeleton apex-skeleton--linha mt-4"></span><span class="apex-skeleton apex-skeleton--linha mt-3"></span></div><div class="apex-skeleton-bloco"><span class="apex-skeleton apex-skeleton--small"></span><div class="apex-skeleton-lista mt-4"><span class="apex-skeleton apex-skeleton--linha"></span><span class="apex-skeleton apex-skeleton--linha"></span><span class="apex-skeleton apex-skeleton--linha"></span></div></div></div>`;
+    }
+    const metricas = Array.from({ length: 4 }, () => '<div class="apex-skeleton-card"><span class="apex-skeleton apex-skeleton--micro"></span><span class="apex-skeleton apex-skeleton--valor"></span></div>').join('');
+    const linhas = Array.from({ length: 5 }, () => '<span class="apex-skeleton apex-skeleton--linha"></span>').join('');
+    return `<div class="apex-skeleton-pagina" role="status" aria-label="Carregando ${titulo}"><div class="apex-skeleton-cabecalho"><div class="apex-skeleton-lista"><span class="apex-skeleton apex-skeleton--small"></span><span class="apex-skeleton apex-skeleton--titulo"></span></div><div class="apex-skeleton-acoes"><span class="apex-skeleton apex-skeleton--botao"></span><span class="apex-skeleton apex-skeleton--botao"></span></div></div><div class="apex-skeleton-grade apex-skeleton-grade--metricas">${metricas}</div><div class="apex-skeleton-grade apex-skeleton-grade--principal"><div class="apex-skeleton-bloco"><span class="apex-skeleton apex-skeleton--small"></span><span class="apex-skeleton apex-skeleton--grafico"></span></div><div class="apex-skeleton-bloco"><span class="apex-skeleton apex-skeleton--small"></span><div class="apex-skeleton-lista mt-4">${linhas}</div></div></div></div>`;
+  };
+  const promessasPorPagina = {
+    home: ['dadosVisaoGeralPronto'],
+    operacional: ['dadosPedidosPronto'],
+    'dashboard-financeiro': ['dadosFinanceirosPronto'],
+    'dashboard-desempenho': ['dadosPedidosPronto', 'dadosEquipePronto', 'dadosRelatoriosPronto'],
+    'novo-pedido': ['dadosPedidosPronto'],
+    'pedidos-ativos': ['dadosPedidosPronto'],
+    'historico-pedidos': ['dadosPedidosPronto'],
+    'fila-cozinha': ['dadosPedidosPronto'],
+    categorias: ['dadosCardapioPronto'],
+    produtos: ['dadosCardapioPronto'],
+    promocoes: ['dadosCardapioPronto'],
+    'cardapio-digital': ['dadosCardapioPronto', 'dadosCardapioDigitalPronto'],
+    'mapa-mesas': ['dadosMesasPronto'],
+    reservas: ['dadosMesasPronto', 'dadosReservasPronto'],
+    'configuracao-mesas': ['dadosMesasPronto'],
+    funcionarios: ['dadosEquipePronto'],
+    'escala-trabalho': ['dadosEquipePronto'],
+    comissoes: ['dadosEquipePronto', 'dadosComissoesPronto'],
+    'fechamento-caixa': ['dadosFinanceirosPronto'],
+    'fluxo-caixa': ['dadosFinanceirosPronto'],
+    'contas-pagar-receber': ['dadosFinanceirosPronto'],
+    'relatorios-financeiros': ['dadosFinanceirosPronto'],
+    'vendas-por-periodo': ['dadosPedidosPronto', 'dadosCardapioPronto', 'dadosRelatoriosPronto'],
+    'produtos-mais-vendidos': ['dadosPedidosPronto', 'dadosCardapioPronto', 'dadosRelatoriosPronto'],
+    'horarios-de-pico': ['dadosPedidosPronto', 'dadosCardapioPronto', 'dadosRelatoriosPronto'],
+    'avaliacoes-clientes': ['dadosRelatoriosPronto'],
+    'performance-equipe': ['dadosEquipePronto', 'dadosRelatoriosPronto'],
+    'configuracoes-perfil': ['dadosPerfilPronto'],
+    mesa: ['dadosMesaPublicaPronto'],
+  };
+  const aguardarDadosPagina = chave => Promise.all((promessasPorPagina[chave] || []).map(nome => {
+    const promessa = window[nome];
+    return promessa && typeof promessa.then === 'function' ? promessa.catch(() => undefined) : Promise.resolve();
+  }));
   const carregarScripts = scripts => scripts.reduce((fila, caminho) => fila.then(() => new Promise((resolve, reject) => { document.querySelectorAll(`script[data-apex-page-script="${caminho}"]`).forEach(script => script.remove()); const script = document.createElement('script'); script.src = caminho; script.dataset.apexPageScript = caminho; script.onload = resolve; script.onerror = () => reject(new Error(`Falha ao carregar ${caminho}`)); document.body.appendChild(script); })), Promise.resolve());
   const atualizarNavegacao = chave => { document.querySelectorAll('[data-apex-rota]').forEach(link => { const ativo = Boolean(link.dataset.apexRota) && paginaPorHref(link.dataset.apexRota) === chave; link.classList.toggle('active', ativo); link.closest('.tree-item')?.classList.toggle('active', ativo); }); };
   async function carregar(chave) {
@@ -92,6 +136,8 @@
     const container = document.getElementById('conteudoPagina');
     if (!container) return;
     container.setAttribute('aria-busy', 'true');
+    container.classList.add('carregando');
+    container.innerHTML = `<div data-apex-skeleton="true">${criarSkeletonPagina(chave, pagina)}</div>`;
     try {
       const resposta = await fetch(pagina.fragmento, {
         cache: 'no-store',
@@ -102,9 +148,16 @@
       if (token !== carregamentoAtual) return;
       await atualizarEstilos(pagina);
       if (token !== carregamentoAtual) return;
-      container.innerHTML = html;
+      const fragmentoReal = document.createElement('div');
+      fragmentoReal.dataset.apexFragmentoReal = 'true';
+      fragmentoReal.hidden = true;
+      fragmentoReal.innerHTML = html;
+      container.appendChild(fragmentoReal);
       await carregarScripts(pagina.scripts);
+      await aguardarDadosPagina(chave);
       if (token !== carregamentoAtual) return;
+      fragmentoReal.hidden = false;
+      container.querySelector('[data-apex-skeleton]')?.remove();
       document.title = `APEX Food — ${pagina.titulo}`;
       const tituloHeader = document.getElementById('tituloHeader');
       if (tituloHeader) tituloHeader.textContent = pagina.titulo;
@@ -115,7 +168,10 @@
     } catch (erro) {
       if (token === carregamentoAtual) emitirErro(erro.message || 'Tente novamente.');
     } finally {
-      if (token === carregamentoAtual) container.removeAttribute('aria-busy');
+      if (token === carregamentoAtual) {
+        container.classList.remove('carregando');
+        container.removeAttribute('aria-busy');
+      }
     }
   }
   function navegar(alvo, opcoes = {}) {

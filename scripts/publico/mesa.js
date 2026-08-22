@@ -653,5 +653,5 @@
   window.addEventListener('beforeunload', () => { estado.pollingAtivo = false; pararPolling(); });
 
   renderizarCarrinho();
-  carregarMesa();
+  window.dadosMesaPublicaPronto = carregarMesa();
 })();

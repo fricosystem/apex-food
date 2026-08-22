@@ -82,6 +82,6 @@
   document.getElementById('configAceitarPedidos')?.addEventListener('change', evento => salvarConfiguracao({ aceitarPedidos: evento.target.checked }));
   document.getElementById('configMostrarPromocoes')?.addEventListener('change', evento => salvarConfiguracao({ mostrarPromocoes: evento.target.checked }));
   renderizarQrVisual(); renderizarConfiguracao(); renderizarPreviewDigital(); window.lucide?.createIcons();
-  carregarConfiguracao();
+  window.dadosCardapioDigitalPronto = carregarConfiguracao();
   document.addEventListener('apex:cardapio-atualizado', renderizarPreviewDigital);
 })();

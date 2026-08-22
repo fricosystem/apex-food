@@ -105,5 +105,5 @@ test('assets alterados preservam etapas anteriores e atualizam o caixa na Etapa 
   assert.match(shell, /pedidos-ativos[^\n]*etapa19-fluxo-operacional/);
   assert.match(shell, /mapa-mesas[^\n]*etapa21-salao-tempo-real/);
   assert.match(shell, /fechamento-caixa[^\n]*etapa19-fluxo-operacional/);
-  assert.match(index, /apex-shell\.js\?v=etapa24-navegacao-fluida/);
+  assert.match(index, /apex-shell\.js\?v=etapa25-skeleton-firestore/);
 });
