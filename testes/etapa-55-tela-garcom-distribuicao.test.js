@@ -62,6 +62,12 @@ test('desempate segue prioridade, última atribuição e ID lexicográfico', () 
   assert.equal(selecionado.id, 'FUN-1');
 });
 
+test('handler de pedidos usa a função de carga existente ao preservar o responsável', () => {
+  const handler = ler('api/_lib/pedidos-handler.js');
+  assert.match(handler, /const carga = cargaFuncionario\(dadosFuncionario\);/);
+  assert.doesNotMatch(handler, /const carga = cargaAtual\(dadosFuncionario\);/);
+});
+
 test('comanda preserva a atribuição e o pedido QR recebe o snapshot do responsável', () => {
   const qrcode = ler('api/_lib/qrcode-mesas.js');
   assert.match(qrcode, /atribuirGarcomResponsavel/);

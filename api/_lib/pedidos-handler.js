@@ -166,7 +166,7 @@ async function atribuirGarcomResponsavel({ transacao, restaurante, idRestaurante
     const funcionarioDocumento = funcionariosDocumentos.find(documento => documento.id === idFuncionarioResponsavel || String(documento.data()?.idUsuario || '') === idUsuarioResponsavel);
     if (funcionarioDocumento && (incrementoMesa || incrementoComanda || incrementoPedido)) {
       const dadosFuncionario = funcionarioDocumento.data() || {};
-      const carga = cargaAtual(dadosFuncionario);
+      const carga = cargaFuncionario(dadosFuncionario);
       const cargaNova = { mesasAtivas: carga.mesasAtivas + incrementoMesa, comandasAtivas: carga.comandasAtivas + incrementoComanda, pedidosPendentes: carga.pedidosPendentes + incrementoPedido, tarefasAtivas: carga.tarefasAtivas };
       transacao.update(funcionarioDocumento.ref, { cargaAtual: cargaNova, disponibilidadeAtendimento: 'em_atendimento', atualizadoPor: idAtor, atualizadoEm: FieldValue.serverTimestamp(), versao: Number(dadosFuncionario.versao || 1) + 1 });
     }

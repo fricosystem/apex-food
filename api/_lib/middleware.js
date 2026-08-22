@@ -53,6 +53,7 @@ async function executar(req, res, opcoes, handler) {
   const inicio = agoraMs();
   const metodos = opcoes.metodos || ['GET'];
   let status = 200;
+  let codigoErroInterno;
   try {
     const corsOk = aplicarCors(req, res);
     if (!corsOk) throw new ApiError(403, 'ORIGEM_NAO_PERMITIDA', 'Origem não permitida.');
@@ -67,6 +68,7 @@ async function executar(req, res, opcoes, handler) {
     responder(res, status, resultado?.corpo ?? resultado);
   } catch (erro) {
     status = erro?.status || 500;
+    codigoErroInterno = erro?.code || erro?.name || (erro instanceof Error ? 'Error' : 'ERRO_DESCONHECIDO');
     responderErro(res, erro, idRequisicao);
   } finally {
     logSeguro({
@@ -76,7 +78,7 @@ async function executar(req, res, opcoes, handler) {
       rota: req.url?.split('?')[0] || '',
       status,
       duracaoMs: agoraMs() - inicio,
-      codigoErro: undefined,
+      codigoErro: codigoErroInterno,
     });
   }
 }
