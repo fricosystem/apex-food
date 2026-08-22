@@ -29,6 +29,14 @@ test('handler financeiro preserva centavos, idempotência e auditoria', () => {
   assert.match(helper, /CONFIRMACAO_NECESSARIA/);
 });
 
+test('fluxo de recebimento do caixa recebe o guard de permissão local', () => {
+  const handler = ler('api/_lib/financeiro-handler.js');
+  const helper = ler('api/_lib/financeiro.js');
+  assert.match(handler, /exigirPermissao\(identidade, \['caixa\.operar'\]\)/);
+  assert.match(helper, /obterIdentidadeOperacional,\s*\n\s*exigirPermissao,/);
+  assert.match(helper, /obterIdentidadeOperacional,\s*\n\s*exigirPermissao,\s*\n\s*limitarInteiro,/);
+});
+
 test('controllers financeiros usam operações persistidas e não placeholders', () => {
   const controllers = [
     ler('scripts/financeiro/fluxo-caixa.js'),

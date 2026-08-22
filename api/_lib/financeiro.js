@@ -4,6 +4,7 @@ const { ApiError } = require('./http');
 const {
   caminhoRestaurante,
   obterIdentidadeOperacional,
+  exigirPermissao,
   limitarInteiro,
   textoObrigatorio,
   textoOpcional,
@@ -324,6 +325,7 @@ module.exports = {
   validarFechamento,
   caminhoRestaurante,
   obterIdentidadeOperacional,
+  exigirPermissao,
   limitarInteiro,
   textoObrigatorio,
   textoOpcional,
