@@ -9,6 +9,7 @@ const handlers = Object.freeze({
   pedidos: require('../_lib/pedidos-handler'),
   notificacoes: require('../_lib/notificacoes-handler'),
   perfil: require('../_lib/perfil-handler'),
+  desenvolvedor: require('../_lib/desenvolvedor-handler'),
 });
 
 function moduloDaRequisicao(req) {
@@ -21,6 +22,7 @@ function moduloDaRequisicao(req) {
   if (url.includes('/financeiro')) return 'financeiro';
   if (url.includes('/pedidos')) return 'pedidos';
   if (url.includes('/perfil')) return 'perfil';
+  if (url.includes('/desenvolvedor')) return 'desenvolvedor';
   return '';
 }
 

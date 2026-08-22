@@ -5,11 +5,26 @@ const { exigirSessao } = require('../../_lib/sessao');
 const { resolverIdentidadeSessao } = require('../../_lib/autorizacao');
 const { lerUsuario } = require('../../_lib/usuarios');
 const { lerContexto } = require('../../_lib/contexto');
+const { getAdminAuth } = require('../../../backend/firebase/admin');
+const { dtoAcessoGlobal, usuarioAutorizadoGlobal } = require('../../_lib/autorizacao-global');
+
+async function obterAcessoGlobal(sessao) {
+  try {
+    const usuarioAuth = await getAdminAuth().getUser(sessao.uid);
+    if (!usuarioAutorizadoGlobal(usuarioAuth)) return dtoAcessoGlobal(null);
+    return dtoAcessoGlobal({ tipoConta: 'desenvolvedor', acessoGlobal: 'desenvolvedor', papeisGlobais: ['desenvolvedor'] });
+  } catch {
+    return dtoAcessoGlobal(null);
+  }
+}
 
 module.exports = async function session(req, res) {
   return executar(req, res, { metodos: ['GET'] }, async () => {
     const sessao = await exigirSessao(req);
-    const usuario = await lerUsuario(sessao.uid);
+    const [usuario, acessoGlobal] = await Promise.all([
+      lerUsuario(sessao.uid),
+      obterAcessoGlobal(sessao),
+    ]);
     const contexto = lerContexto(req);
     let identidade = null;
     if (contexto?.idRestaurante) {
@@ -31,6 +46,7 @@ module.exports = async function session(req, res) {
           nomeExibicao: usuario?.nomeExibicao || null,
           estado: usuario?.estado || 'ativo',
           emailVerificado: sessao.email_verified === true,
+          ...acessoGlobal,
         },
         restauranteAtivo: identidade ? {
           idRestaurante: identidade.idRestaurante,

@@ -27,6 +27,8 @@ Cada ambiente deve possuir seu próprio conjunto de variáveis na Vercel. Nunca 
 | `FIREBASE_PRIVATE_KEY` | Secret Dev | Secret Staging | Secret Production exclusivo |
 | `SESSION_SECRET` | Secret Dev | Secret Staging | Secret Production exclusivo |
 | `CSRF_SECRET` | Secret Dev | Secret Staging | Secret Production exclusivo |
+| `APEX_DESENVOLVEDOR_UID` | UID aprovado do Desenvolvedor Dev | UID aprovado de staging | UID aprovado de produção |
+| `APEX_DESENVOLVEDOR_EMAIL` | Email aprovado opcional | Email aprovado opcional | Email aprovado opcional |
 
 ## Regras de separação
 
@@ -44,7 +46,9 @@ Cada ambiente deve possuir seu próprio conjunto de variáveis na Vercel. Nunca 
 - Cadastrar o domínio `.vercel.app` real em Authorized Domains quando o deploy existir.
 - Criar um projeto Firebase Staging separado antes de qualquer teste com dados persistentes compartilhados.
 - Confirmar região do Firestore.
-- Cadastrar variáveis sensíveis diretamente na Vercel, nunca no Git.
+- Cadastrar variáveis sensíveis e os identificadores de acesso global diretamente na Vercel, nunca no Git.
+- Preferir `APEX_DESENVOLVEDOR_UID` ao email; `APEX_DESENVOLVEDOR_EMAIL` é opcional e deve apontar para uma conta Firebase Authentication conhecida.
+- Nunca colocar senha, token, chave privada, UID autorizado ou email autorizado em HTML, JavaScript público, URL ou localStorage.
 - Manter `apex-food-6c1cb` classificado como Development até aprovação explícita de produção.
 
 ## Status

@@ -185,6 +185,10 @@
     return requisitar('/operacional?modulo=perfil');
   }
 
+  async function consultarAcessoDesenvolvedor() {
+    return requisitar('/operacional?modulo=desenvolvedor');
+  }
+
   async function atualizarPerfil(payload) {
     return requisitar('/operacional?modulo=perfil', { method: 'PATCH', body: { acao: 'atualizar_perfil', ...payload } });
   }
@@ -293,6 +297,7 @@
     listarVisaoGeral,
     listarNotificacoes,
     listarPerfil,
+    consultarAcessoDesenvolvedor,
     atualizarPerfil,
     atualizarPreferenciasPerfil,
     alterarSenhaPerfil,
