@@ -54,6 +54,14 @@ function idDocumento(valor, campo = 'id') {
   return valor;
 }
 
+function listaCodigosOperacionais(valor, campo) {
+  if (valor === undefined || valor === null || valor === '') return [];
+  const itens = Array.isArray(valor) ? valor : typeof valor === 'string' ? valor.split(',') : null;
+  if (!itens || itens.length > 30) throw new ApiError(400, 'PAYLOAD_INVALIDO', `${campo} é inválido.`);
+  const normalizados = itens.map(item => textoObrigatorio(String(item), `${campo}[]`, 80));
+  return [...new Set(normalizados)];
+}
+
 function dadosVisiveis(docs) {
   return docs
     .filter((documento) => {
@@ -114,6 +122,8 @@ function validarPromocao(corpo) {
 }
 
 async function validarProduto(idRestaurante, corpo) {
+  if (corpo.especialidadesNecessarias !== undefined && !Array.isArray(corpo.especialidadesNecessarias) && typeof corpo.especialidadesNecessarias !== 'string') throw new ApiError(400, 'PAYLOAD_INVALIDO', 'especialidadesNecessarias é inválido.');
+  if (corpo.estacoesNecessarias !== undefined && !Array.isArray(corpo.estacoesNecessarias) && typeof corpo.estacoesNecessarias !== 'string') throw new ApiError(400, 'PAYLOAD_INVALIDO', 'estacoesNecessarias é inválido.');
   const idCategoria = idDocumento(corpo.idCategoria, 'idCategoria');
   const categoria = await caminhoRestaurante(idRestaurante).collection('categoriasCardapio').doc(idCategoria).get();
   if (!categoria.exists || categoria.data()?.estado === 'excluido') {
@@ -129,6 +139,8 @@ async function validarProduto(idRestaurante, corpo) {
     unidade: textoObrigatorio(corpo.unidade || 'unidade', 'unidade', 40),
     tempoPreparo: corpo.tempoPreparo === undefined ? 0 : inteiroNaoNegativo(corpo.tempoPreparo, 'tempoPreparo', 1440),
     disponibilidade: corpo.disponibilidade === undefined ? true : corpo.disponibilidade === true,
+    especialidadesNecessarias: listaCodigosOperacionais(corpo.especialidadesNecessarias, 'especialidadesNecessarias'),
+    estacoesNecessarias: listaCodigosOperacionais(corpo.estacoesNecessarias, 'estacoesNecessarias'),
   };
 }
 
@@ -239,6 +251,8 @@ function camposAtualizaveisProduto(corpo) {
     if (typeof corpo.disponibilidade !== 'boolean') throw new ApiError(400, 'PAYLOAD_INVALIDO', 'disponibilidade é inválida.');
     atualizacoes.disponibilidade = corpo.disponibilidade;
   }
+  if (corpo.especialidadesNecessarias !== undefined) atualizacoes.especialidadesNecessarias = listaCodigosOperacionais(corpo.especialidadesNecessarias, 'especialidadesNecessarias');
+  if (corpo.estacoesNecessarias !== undefined) atualizacoes.estacoesNecessarias = listaCodigosOperacionais(corpo.estacoesNecessarias, 'estacoesNecessarias');
   if (!Object.keys(atualizacoes).length) throw new ApiError(400, 'PAYLOAD_INVALIDO', 'Nenhum campo atualizável foi informado.');
   return atualizacoes;
 }

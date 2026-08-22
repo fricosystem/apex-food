@@ -42,6 +42,8 @@
       estoque: Number(produto.estoque || 0),
       tempoPreparo: Number(produto.tempoPreparo || 0),
       tags: Array.isArray(produto.tags) ? produto.tags : [],
+      especialidadesNecessarias: Array.isArray(produto.especialidadesNecessarias) ? produto.especialidadesNecessarias : [],
+      estacoesNecessarias: Array.isArray(produto.estacoesNecessarias) ? produto.estacoesNecessarias : [],
     };
   }
 

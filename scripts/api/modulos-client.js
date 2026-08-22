@@ -108,6 +108,14 @@
     return requisitar('/pedidos', { method: 'PATCH', body: { recurso: 'pedido', ...payload } });
   }
 
+  async function listarFichasCozinha(parametros = {}) {
+    return requisitar(`/pedidos${query({ recurso: 'fichas', ...parametros })}`);
+  }
+
+  async function atualizarTarefaCozinha(payload) {
+    return requisitar('/pedidos', { method: 'PATCH', body: { recurso: 'tarefaCozinha', ...payload } });
+  }
+
   async function listarSalao(recurso = '') {
     return requisitar(`/salao${query({ recurso })}`);
   }
@@ -259,6 +267,8 @@
     listarPedidos,
     criarPedido,
     atualizarStatusPedido,
+    listarFichasCozinha,
+    atualizarTarefaCozinha,
     listarSalao,
     gerarQrMesa,
     consultarQrMesa,

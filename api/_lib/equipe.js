@@ -150,6 +150,7 @@ function dtoFuncionario(documento) {
     capacidadeMesas: Number(dados.capacidadeMesas || 1),
     capacidadeComandas: Number(dados.capacidadeComandas || 1),
     capacidadePedidos: Number(dados.capacidadePedidos || 1),
+    capacidadeTarefas: Number(dados.capacidadeTarefas || dados.capacidadePedidos || 1),
     especialidadesCozinha: Array.isArray(dados.especialidadesCozinha) ? dados.especialidadesCozinha : [],
     estacoesCozinha: Array.isArray(dados.estacoesCozinha) ? dados.estacoesCozinha : [],
     cargaAtual: {
@@ -217,6 +218,7 @@ function dadosFuncionario(corpo) {
     capacidadeMesas: capacidadeOperacional(corpo.capacidadeMesas, 'capacidadeMesas'),
     capacidadeComandas: capacidadeOperacional(corpo.capacidadeComandas, 'capacidadeComandas'),
     capacidadePedidos: capacidadeOperacional(corpo.capacidadePedidos, 'capacidadePedidos'),
+    capacidadeTarefas: capacidadeOperacional(corpo.capacidadeTarefas, 'capacidadeTarefas'),
     especialidadesCozinha: listaOperacional(corpo.especialidadesCozinha, 'especialidadesCozinha'),
     estacoesCozinha: listaOperacional(corpo.estacoesCozinha, 'estacoesCozinha'),
     prioridadeDistribuicao: prioridadeOperacional(corpo.prioridadeDistribuicao),

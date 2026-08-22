@@ -30,6 +30,7 @@
       capacidadeMesas: Math.max(1, Number(funcionario.capacidadeMesas || 1)),
       capacidadeComandas: Math.max(1, Number(funcionario.capacidadeComandas || 1)),
       capacidadePedidos: Math.max(1, Number(funcionario.capacidadePedidos || 1)),
+      capacidadeTarefas: Math.max(1, Number(funcionario.capacidadeTarefas || funcionario.capacidadePedidos || 1)),
       especialidadesCozinha: Array.isArray(funcionario.especialidadesCozinha) ? funcionario.especialidadesCozinha : [],
       estacoesCozinha: Array.isArray(funcionario.estacoesCozinha) ? funcionario.estacoesCozinha : [],
       cargaAtual: {

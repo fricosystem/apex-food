@@ -95,6 +95,7 @@ function validarCamposParciaisFuncionario(corpo, existente) {
     capacidadeMesas: existente.capacidadeMesas === undefined ? 1 : existente.capacidadeMesas,
     capacidadeComandas: existente.capacidadeComandas === undefined ? 1 : existente.capacidadeComandas,
     capacidadePedidos: existente.capacidadePedidos === undefined ? 1 : existente.capacidadePedidos,
+    capacidadeTarefas: existente.capacidadeTarefas === undefined ? (existente.capacidadePedidos === undefined ? 1 : existente.capacidadePedidos) : existente.capacidadeTarefas,
     especialidadesCozinha: Array.isArray(existente.especialidadesCozinha) ? existente.especialidadesCozinha : [],
     estacoesCozinha: Array.isArray(existente.estacoesCozinha) ? existente.estacoesCozinha : [],
     prioridadeDistribuicao: existente.prioridadeDistribuicao === undefined ? 0 : existente.prioridadeDistribuicao,
@@ -111,6 +112,7 @@ function validarCamposParciaisFuncionario(corpo, existente) {
   if (corpo.capacidadeMesas !== undefined) base.capacidadeMesas = corpo.capacidadeMesas;
   if (corpo.capacidadeComandas !== undefined) base.capacidadeComandas = corpo.capacidadeComandas;
   if (corpo.capacidadePedidos !== undefined) base.capacidadePedidos = corpo.capacidadePedidos;
+  if (corpo.capacidadeTarefas !== undefined) base.capacidadeTarefas = corpo.capacidadeTarefas;
   if (corpo.especialidadesCozinha !== undefined) base.especialidadesCozinha = corpo.especialidadesCozinha;
   if (corpo.estacoesCozinha !== undefined) base.estacoesCozinha = corpo.estacoesCozinha;
   if (corpo.prioridadeDistribuicao !== undefined) base.prioridadeDistribuicao = corpo.prioridadeDistribuicao;
@@ -141,6 +143,7 @@ async function criarFuncionario(identidade, corpo, idRequisicao) {
     capacidadeMesas: dados.capacidadeMesas,
     capacidadeComandas: dados.capacidadeComandas,
     capacidadePedidos: dados.capacidadePedidos,
+    capacidadeTarefas: dados.capacidadeTarefas,
     especialidadesCozinha: dados.especialidadesCozinha,
     estacoesCozinha: dados.estacoesCozinha,
     cargaAtual: { mesasAtivas: 0, comandasAtivas: 0, pedidosPendentes: 0, tarefasAtivas: 0 },
@@ -191,6 +194,7 @@ async function atualizarFuncionario(identidade, corpo, idRequisicao) {
     capacidadeMesas: dados.capacidadeMesas,
     capacidadeComandas: dados.capacidadeComandas,
     capacidadePedidos: dados.capacidadePedidos,
+    capacidadeTarefas: dados.capacidadeTarefas,
     especialidadesCozinha: dados.especialidadesCozinha,
     estacoesCozinha: dados.estacoesCozinha,
     prioridadeDistribuicao: dados.prioridadeDistribuicao,

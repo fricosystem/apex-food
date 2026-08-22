@@ -18,6 +18,7 @@ const estadoPedidosVazio = {
   produtos: [],
   pedidosAtivos: [],
   pedidosHistorico: [],
+  fichasCozinha: [],
   status: statusPedidos,
 };
 window.dadosPedidosApexFood = estadoPedidosVazio;
@@ -99,11 +100,12 @@ function substituirLista(destino, itens) {
 async function carregarPedidosReais() {
   if (!window.apexModulosApi?.listarPedidos) return;
   try {
-    const [pedidosResposta, cardapioResposta, salaoResposta, equipeResposta] = await Promise.all([
+    const [pedidosResposta, cardapioResposta, salaoResposta, equipeResposta, fichasResposta] = await Promise.all([
       window.apexModulosApi.listarPedidos({ limite: 300 }),
       window.apexModulosApi.listarCardapio(),
       window.apexModulosApi.listarSalao('mesas'),
       window.apexModulosApi.listarEquipe('funcionarios'),
+      window.apexModulosApi.listarFichasCozinha?.({ limite: 300 }) || Promise.resolve({ fichas: [] }),
     ]);
     const pedidos = Array.isArray(pedidosResposta?.pedidos) ? pedidosResposta.pedidos.map(adaptarPedidoReal) : [];
     const cardapioCategorias = Array.isArray(cardapioResposta?.categorias) ? cardapioResposta.categorias : [];
@@ -116,12 +118,14 @@ async function carregarPedidosReais() {
     substituirLista(dados.pedidosHistorico, pedidos.filter(item => ['entregue', 'finalizado', 'rejeitado_garcom', 'cancelado'].includes(item.status) || (item.status === 'servido' && pedidosDaComandaEncerrados(item))));
     dados.mesas = Array.isArray(salaoResposta?.mesas) ? salaoResposta.mesas : [];
     dados.funcionarios = Array.isArray(equipeResposta?.funcionarios) ? equipeResposta.funcionarios : [];
+    substituirLista(dados.fichasCozinha, Array.isArray(fichasResposta?.fichas) ? fichasResposta.fichas : []);
     window.dadosPedidosRemotoAtivo = true;
   } catch (erro) {
     substituirLista(window.dadosPedidosApexFood.categorias, []);
     substituirLista(window.dadosPedidosApexFood.produtos, []);
     substituirLista(window.dadosPedidosApexFood.pedidosAtivos, []);
     substituirLista(window.dadosPedidosApexFood.pedidosHistorico, []);
+    substituirLista(window.dadosPedidosApexFood.fichasCozinha, []);
     window.dadosPedidosRemotoAtivo = false;
     window.dadosPedidosErro = erro;
   }

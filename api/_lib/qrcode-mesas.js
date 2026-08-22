@@ -689,6 +689,8 @@ async function criarPedidoPublico(req, res, corpo) {
         subtotalCentavos: totalCentavos,
         totalCentavos,
         observacoes: item.observacoes,
+        especialidadesNecessarias: Array.isArray(produto.especialidadesNecessarias) ? produto.especialidadesNecessarias : [],
+        estacoesNecessarias: Array.isArray(produto.estacoesNecessarias) ? produto.estacoesNecessarias : [],
         idParticipante: contexto.participanteDocumento.id,
         estadoItem: 'ativo',
       };
@@ -699,6 +701,8 @@ async function criarPedidoPublico(req, res, corpo) {
     let atribuicaoGarcom = {
       status: comanda.statusDistribuicaoGarcom || (comanda.idGarcomResponsavel ? 'atribuido' : 'aguardando_atribuicao'),
       idGarcomResponsavel: comanda.idGarcomResponsavel || null,
+      idFuncionarioResponsavel: comanda.idFuncionarioResponsavel || null,
+      idUsuarioGarcomResponsavel: comanda.idUsuarioGarcomResponsavel || null,
       nomeGarcomResponsavel: String(comanda.nomeGarcomResponsavel || comanda.nomeGarcom || ''),
     };
     if (!comanda.idGarcomResponsavel) {

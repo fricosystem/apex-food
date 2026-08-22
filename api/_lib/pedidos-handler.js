@@ -24,6 +24,8 @@ const {
 const { criarNotificacoesNaTransacao, TIPOS_NOTIFICACAO } = require('./notificacoes');
 const { enviarNotificacaoFcm } = require('./fcm-notificacoes');
 const { baixarEstoqueParaPedido, devolverEstoqueDoPedido } = require('./estoque-pedidos');
+const { distribuirTarefasCozinha } = require('./cozinha-distribuicao');
+const { atualizarTarefaCozinha } = require('./cozinha-tarefas-handler');
 
 const PAPEIS_PEDIDOS = ['proprietario', 'administrador', 'gerente', 'garcom', 'cozinha'];
 const PAPEIS_GARCOM = ['proprietario', 'administrador', 'gerente', 'garcom'];
@@ -212,6 +214,7 @@ async function atribuirGarcomResponsavel({ transacao, restaurante, idRestaurante
 
 function normalizarRecurso(valor) {
   if (valor === 'historico' || valor === 'cozinha' || valor === 'pedido') return 'pedidos';
+  if (valor === 'ficha' || valor === 'fichaCozinha' || valor === 'fichasCozinha') return 'fichas';
   if (valor === 'historicoComanda' || valor === 'historico-comanda') return 'historicoComanda';
   if (valor === 'comanda') return 'comandas';
   return valor || 'pedidos';
@@ -236,6 +239,20 @@ function dtoPedido(documento) {
   dto.statusPedido = dto.statusPedido || null;
   dto.status = dto.statusPedido || dto.status || 'novo';
   dto.canal = dto.canal || dto.tipoAtendimento || 'mesa';
+  return dto;
+}
+
+function dtoFichaCozinha(documento) {
+  const dto = dtoDocumento(documento);
+  for (const campo of ['criadoEm', 'atualizadoEm', 'iniciadoEm', 'prontoEm', 'canceladaEm']) {
+    if (campo in dto) dto[campo] = timestampParaIso(dto[campo]);
+  }
+  dto.id = String(dto.id);
+  dto.statusFicha = dto.statusFicha || 'aguardando_preparo';
+  dto.tarefas = Array.isArray(dto.tarefas) ? dto.tarefas : [];
+  dto.tarefasTotal = Number(dto.tarefasTotal || dto.tarefas.length || 0);
+  dto.tarefasAtribuidas = Number(dto.tarefasAtribuidas || dto.tarefas.filter(tarefa => tarefa.idCozinheiroResponsavel).length || 0);
+  dto.tarefasAguardandoAtribuicao = Number(dto.tarefasAguardandoAtribuicao || Math.max(0, dto.tarefasTotal - dto.tarefasAtribuidas));
   return dto;
 }
 
@@ -279,18 +296,28 @@ async function listarHistoricoComanda(identidade, req) {
 async function listarPedidos(identidade, req) {
   const recurso = normalizarRecurso(queryString(req, 'recurso'));
   if (recurso === 'historicoComanda') return listarHistoricoComanda(identidade, req);
-  if (!['pedidos', 'comandas'].includes(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso de pedidos inválido.');
+  if (!['pedidos', 'comandas', 'fichas'].includes(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso de pedidos inválido.');
   const limite = limitarInteiro(req.query?.limite, 200, 300);
-  const documentos = await listarColecao(identidade.idRestaurante, recurso, limite);
+  const nomeColecaoRecurso = recurso === 'fichas' ? 'fichasCozinha' : recurso;
+  const documentos = await listarColecao(identidade.idRestaurante, nomeColecaoRecurso, limite);
   const eGarcomSemSupervisao = identidade.papeis.includes('garcom') && !identidade.papeis.some(papel => ['proprietario', 'administrador', 'gerente'].includes(papel));
+  const eCozinhaSemSupervisao = identidade.papeis.includes('cozinha') && !identidade.papeis.some(papel => ['proprietario', 'administrador', 'gerente'].includes(papel));
   const visivelParaGarcom = item => {
     if (!eGarcomSemSupervisao) return true;
     return [item.idGarcomResponsavel, item.idUsuarioGarcomResponsavel, item.idFuncionarioResponsavel, item.idGarcom].filter(Boolean).map(String).includes(String(identidade.idUsuario));
   };
+  const visivelParaCozinha = item => {
+    if (!eCozinhaSemSupervisao || recurso !== 'fichas') return true;
+    if (item.statusDistribuicaoCozinha === 'aguardando_atribuicao') return true;
+    return [item.idCozinheiroResponsavel, item.idUsuarioCozinheiroResponsavel].filter(Boolean).map(String).includes(String(identidade.idUsuario))
+      || (Array.isArray(item.tarefas) && item.tarefas.some(tarefa => [tarefa.idCozinheiroResponsavel, tarefa.idUsuarioCozinheiroResponsavel].filter(Boolean).map(String).includes(String(identidade.idUsuario))));
+  };
+  const dto = recurso === 'pedidos' ? dtoPedido : recurso === 'fichas' ? dtoFichaCozinha : dtoDocumento;
   const itens = documentos
     .filter(documento => documento.data()?.estado !== 'excluido')
-    .map(recurso === 'pedidos' ? dtoPedido : dtoDocumento)
+    .map(dto)
     .filter(item => visivelParaGarcom(item))
+    .filter(item => visivelParaCozinha(item))
     .filter(item => recurso !== 'pedidos' || filtroPedido(item, req));
   return { corpo: { [recurso]: itens, meta: { idRestaurante: identidade.idRestaurante, limite, recurso } } };
 }
@@ -652,6 +679,17 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
     if (!comandaDocumento?.exists) throw new ApiError(409, 'COMANDA_NAO_ENCONTRADA', 'A comanda deste pedido não foi encontrada.');
     if (!mesaDocumento?.exists) throw new ApiError(409, 'MESA_NAO_ENCONTRADA', 'A mesa deste pedido não foi encontrada.');
     const comanda = comandaDocumento.data() || {};
+    let distribuicaoCozinha = null;
+    let funcionariosCozinhaDocumentos = [];
+    let escalasCozinhaDocumentos = [];
+    if (para === 'enviado_cozinha') {
+      const [funcionariosSnapshot, escalasSnapshot] = await Promise.all([
+        transacao.get(restaurante.collection('funcionarios').limit(300)),
+        transacao.get(restaurante.collection('escalas').limit(1000)),
+      ]);
+      funcionariosCozinhaDocumentos = funcionariosSnapshot.docs;
+      escalasCozinhaDocumentos = escalasSnapshot.docs;
+    }
     if (['confirmado_garcom', 'enviado_cozinha', 'em_preparo', 'pronto', 'servido'].includes(para) && ['encaminhada_caixa', 'encerrada', 'cancelada'].includes(comanda.statusComanda || comanda.status)) {
       throw new ApiError(409, 'COMANDA_ENCERRADA', 'A comanda não aceita novas alterações neste momento.');
     }
@@ -708,6 +746,18 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
       atualizadoEm: FieldValue.serverTimestamp(),
       versao: Number(comanda.versao || 1) + 1,
     };
+    if (para === 'enviado_cozinha') {
+      distribuicaoCozinha = distribuirTarefasCozinha({
+        transacao,
+        restaurante,
+        idRestaurante: identidade.idRestaurante,
+        fichaRef,
+        pedido: { ...pedido, id: pedidoRef.id },
+        funcionariosDocumentos: funcionariosCozinhaDocumentos,
+        escalasDocumentos: escalasCozinhaDocumentos,
+        idAtor: identidade.idUsuario,
+      });
+    }
     if (para === 'confirmado_garcom') {
       atualizacaoComanda.statusComanda = 'em_consumo';
       atualizacaoComanda.status = 'em_consumo';
@@ -749,6 +799,11 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
         idMesa: pedido.idMesa || null,
         idGarcomResponsavel: pedido.idGarcomResponsavel || identidade.idUsuario,
         statusFicha: 'aguardando_preparo',
+        statusDistribuicaoCozinha: distribuicaoCozinha?.statusDistribuicaoCozinha || 'aguardando_atribuicao',
+        tarefas: distribuicaoCozinha?.tarefas || [],
+        tarefasTotal: distribuicaoCozinha?.tarefasTotal || 0,
+        tarefasAtribuidas: distribuicaoCozinha?.tarefasAtribuidas || 0,
+        tarefasAguardandoAtribuicao: distribuicaoCozinha?.tarefasAguardandoAtribuicao || 0,
         prioridade: pedido.prioridade || 'normal',
         itensSnapshot: Array.isArray(pedido.itens) ? pedido.itens : Array.isArray(pedido.itensResumo) ? pedido.itensResumo : [],
         observacoes: pedido.observacoes || '',
@@ -898,9 +953,11 @@ module.exports = async function pedidos(req, res) {
     const corpo = await lerCorpoJson(req);
     if (metodo === 'POST') {
       if (corpo.recurso === 'encaminhamentoCaixa' || corpo.recurso === 'encaminharComandaCaixa') return encaminharComandaCaixa(identidade, corpo, idRequisicao);
+      if (corpo.recurso === 'tarefaCozinha' || corpo.recurso === 'tarefa-cozinha') return atualizarTarefaCozinha(identidade, corpo, idRequisicao);
       return criarPedido(identidade, corpo, idRequisicao);
     }
     if (corpo.recurso === 'encaminhamentoCaixa' || corpo.recurso === 'encaminharComandaCaixa') return encaminharComandaCaixa(identidade, corpo, idRequisicao);
+    if (corpo.recurso === 'tarefaCozinha' || corpo.recurso === 'tarefa-cozinha') return atualizarTarefaCozinha(identidade, corpo, idRequisicao);
     if (corpo.recurso !== 'pedido' && corpo.recurso !== 'status') throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso de pedidos inválido.');
     return atualizarStatusPedido(identidade, corpo, idRequisicao);
   });

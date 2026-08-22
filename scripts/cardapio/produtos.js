@@ -28,6 +28,10 @@ function numeroCampo(id, padrao = 0) {
   return Number.isFinite(valor) && valor >= 0 ? valor : padrao;
 }
 
+function listaCampo(id) {
+  return [...new Set(String(document.getElementById(id)?.value || '').split(',').map(item => item.trim()).filter(Boolean))];
+}
+
 function preencherCategoriasProduto() {
   const options = categoriasProduto()
     .map(categoria => `<option value="${escapeProduto(categoria.id)}">${escapeProduto(categoria.nome)}</option>`)
@@ -109,6 +113,8 @@ function preencherFormularioProduto(produto) {
   document.getElementById('estoqueNovoProduto').value = produto ? produto.estoque : '';
   document.getElementById('unidadeNovoProduto').value = produto?.unidade || 'unidade';
   document.getElementById('tempoPreparoNovoProduto').value = produto ? produto.tempoPreparo : '';
+  document.getElementById('especialidadesNecessariasProduto').value = Array.isArray(produto?.especialidadesNecessarias) ? produto.especialidadesNecessarias.join(', ') : '';
+  document.getElementById('estacoesNecessariasProduto').value = Array.isArray(produto?.estacoesNecessarias) ? produto.estacoesNecessarias.join(', ') : '';
   document.getElementById('disponibilidadeNovoProduto').checked = produto ? produto.disponibilidade : true;
 }
 
@@ -152,6 +158,8 @@ async function salvarProduto(event) {
     tempoPreparo: Math.round(numeroCampo('tempoPreparoNovoProduto')),
     descricao: document.getElementById('descricaoNovoProduto').value.trim(),
     disponibilidade: document.getElementById('disponibilidadeNovoProduto').checked,
+    especialidadesNecessarias: listaCampo('especialidadesNecessariasProduto'),
+    estacoesNecessarias: listaCampo('estacoesNecessariasProduto'),
   };
   if (!window.dadosCardapioRemotoAtivo || !window.apexModulosApi) {
     mostrarAvisoPedido('Não foi possível conectar ao Cardápio real. Tente novamente.');
