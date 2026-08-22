@@ -96,9 +96,11 @@ test('interface pública apresenta cardápio, carrinho, comanda e polling sem ar
 test('Fluxo público mantém os assets da mesa e avança para a central da etapa9', () => {
   const shell = ler('scripts/shell/apex-shell.js');
   const index = ler('index.html');
-  assert.match(shell, /mesaPublico|paginas\/publico\/mesa\.html\?v=etapa23-comanda-passos-mobile/);
-  assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa23-comanda-passos-mobile/);
-  assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa23-comanda-passos-mobile/);
+  const pagina = ler('paginas/publico/mesa.html');
+  assert.match(pagina, /mesa-publica-logo w-28 h-28 sm:w-32 sm:h-32/);
+  assert.match(shell, /paginas\/publico\/mesa\.html\?v=etapa34-logo-mesa/);
+  assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa34-logo-mesa/);
+  assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa34-logo-mesa/);
   assert.match(index, /apex-shell\.js\?v=etapa31-especialidades/);
 });
 
