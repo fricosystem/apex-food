@@ -91,6 +91,7 @@ test('tela exclusiva e navegação usam o shell único e os ativos versionados',
   assert.match(shell, /etapa26-garcom-distribuicao/);
   assert.match(menu, /Atendimento dos garçons/);
   assert.match(pagina, /Mesas atribuídas/);
+  assert.match(pagina, /p-4 sm:p-6 space-y-4 sm:space-y-6 fade-in/);
   assert.match(controller, /listarPedidos/);
   assert.match(controller, /atualizarStatusPedido/);
   assert.match(controller, /encaminharComandaCaixa/);
