@@ -51,7 +51,7 @@ test('rota, tela e cliente de Papéis e Permissões estão registrados', () => {
   assert.match(cliente, /async function listarPapeis/);
   assert.ok(vercel.includes('papeis\\\\.html'));
   assert.ok(vercel.includes('Location":"/papeis"'));
-  assert.ok(vercel.includes('funcionarios|papeis|escala-trabalho'));
+  assert.ok(vercel.includes('funcionarios|papeis|dashboard-estabelecimentos|gerenciar-estabelecimentos|escala-trabalho'));
 });
 
 test('handler de papéis usa middleware, contexto local e auditoria', () => {
