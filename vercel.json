@@ -72,6 +72,7 @@
     {"src":"^/paginas/relatorios/performance-equipe\\.html$","missing":[{"type":"header","key":"X-Apex-Fragment"}],"status":308,"headers":{"Location":"/performance-equipe"}},
     {"src":"^/paginas/relatorios/performance-equipe$","missing":[{"type":"header","key":"X-Apex-Fragment"}],"status":308,"headers":{"Location":"/performance-equipe"}},
     { "src": "^/autenticacao$", "dest": "/paginas/autenticacao" },
+    { "src": "^/papeis$", "dest": "/index" },
     { "src": "^/(mesa|novo-pedido|pedidos-ativos|atendimento-garcom|historico-pedidos|fila-cozinha|operacional|dashboard-financeiro|dashboard-desempenho|categorias|produtos|promocoes|cardapio-digital|mapa-mesas|reservas|configuracao-mesas|funcionarios|papeis|escala-trabalho|comissoes|fechamento-caixa|fluxo-caixa|contas-pagar-receber|relatorios-financeiros|vendas-por-periodo|produtos-mais-vendidos|horarios-de-pico|avaliacoes-clientes|performance-equipe|configuracoes-perfil)$", "dest": "/index" }
   ],
   "headers": [
