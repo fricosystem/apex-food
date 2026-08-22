@@ -245,6 +245,14 @@
     return requisitar(`/pedidos${query({ recurso: 'historicoComanda', idComanda, ...parametros })}`);
   }
 
+  async function obterDetalhesComanda(idComanda) {
+    return requisitar(`/pedidos${query({ recurso: 'detalhesComanda', idComanda })}`);
+  }
+
+  async function obterDetalhesComandaCaixa(idComanda) {
+    return requisitar(`/financeiro${query({ recurso: 'detalhesComanda', idComanda })}`);
+  }
+
   async function atualizarEncaminhamentoCaixa(payload) {
     return requisitar('/financeiro', { method: 'PATCH', body: { recurso: 'encaminhamentoCaixa', ...payload } });
   }
@@ -301,6 +309,8 @@
     fecharCaixaFinanceiro,
     listarEncaminhamentosCaixa,
     listarHistoricoComanda,
+    obterDetalhesComanda,
+    obterDetalhesComandaCaixa,
     atualizarEncaminhamentoCaixa,
     encaminharComandaCaixa,
   });

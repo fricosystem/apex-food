@@ -11,6 +11,7 @@ const statusAtivos = [
 ];
 const statusOrdem = statusAtivos.map(item => item.id);
 const elementosAtivos = { painel: document.getElementById('painelPedidos'), busca: document.getElementById('buscaAtivo'), canal: document.getElementById('filtroCanal') };
+let detalhesModalAtual = '';
 
 function moedaAtivo(valor) { return window.ferramentasInterfaceApexFood?.formatarMoeda ? window.ferramentasInterfaceApexFood.formatarMoeda(valor) : Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
 function escapeAtivo(valor) { return window.ferramentasInterfaceApexFood?.escaparHtml ? window.ferramentasInterfaceApexFood.escaparHtml(valor) : String(valor ?? ''); }
@@ -57,6 +58,35 @@ function renderizarPainelAtivos() {
   window.lucide?.createIcons();
 }
 function preencherAtivo(id, valor, fallback = '—') { const elemento = document.getElementById(id); if (elemento) elemento.textContent = valor || fallback; }
+function dataAtivo(valor) { if (!valor) return 'Data não informada'; const data = new Date(valor); return Number.isNaN(data.getTime()) ? 'Data não informada' : data.toLocaleString('pt-BR'); }
+function renderizarDetalhesComandaAtiva(detalhes) {
+  const participantes = document.getElementById('participantesModalPedido');
+  const historico = document.getElementById('historicoModalPedido');
+  const fichaEl = document.getElementById('fichaModalPedido');
+  const listaParticipantes = Array.isArray(detalhes?.participantes) ? detalhes.participantes : [];
+  const listaHistorico = Array.isArray(detalhes?.historico) ? detalhes.historico : [];
+  const listaFichas = Array.isArray(detalhes?.fichas) ? detalhes.fichas : [];
+  if (participantes) participantes.innerHTML = listaParticipantes.length ? listaParticipantes.map(item => `<div class="flex items-center justify-between gap-2"><span>${escapeAtivo(item.nomeExibicao)}</span><span class="text-[10px] text-muted">${escapeAtivo(item.estadoParticipante || 'ativo')}</span></div>`).join('') : '<span>Nenhum participante encontrado.</span>';
+  if (historico) historico.innerHTML = listaHistorico.length ? listaHistorico.slice(0, 8).map(item => `<div class="border-l-2 border-border pl-2"><div class="flex items-center justify-between gap-2"><span class="font-medium">${escapeAtivo(item.statusNovo || 'Atualização')}</span><span class="text-[10px] text-muted">${escapeAtivo(dataAtivo(item.criadoEm))}</span></div><p class="text-[10px] text-muted mt-1">${escapeAtivo(item.motivo || 'Sem observação registrada.')}</p></div>`).join('') : '<span>Nenhum evento registrado.</span>';
+  if (fichaEl) fichaEl.innerHTML = listaFichas.length ? listaFichas.map(ficha => `<div><div class="flex items-center justify-between gap-2"><span class="font-medium">${escapeAtivo(ficha.statusFicha || 'Ficha')}</span><span class="text-[10px] text-muted">${Number(ficha.tarefasAtribuidas || 0)}/${Number(ficha.tarefasTotal || ficha.tarefas?.length || 0)} tarefas</span></div><p class="text-[10px] text-muted mt-1">${escapeAtivo(ficha.statusDistribuicaoCozinha || 'Distribuição pendente')}</p></div>`).join('') : '<span>Este pedido ainda não possui ficha de cozinha.</span>';
+}
+async function carregarDetalhesModalPedido(idComanda) {
+  detalhesModalAtual = String(idComanda || '');
+  if (!idComanda || !window.apexModulosApi?.obterDetalhesComanda) {
+    renderizarDetalhesComandaAtiva(null);
+    return;
+  }
+  try {
+    const resposta = await window.apexModulosApi.obterDetalhesComanda(String(idComanda));
+    if (detalhesModalAtual === String(idComanda)) renderizarDetalhesComandaAtiva(resposta);
+  } catch (erro) {
+    if (detalhesModalAtual === String(idComanda)) {
+      renderizarDetalhesComandaAtiva(null);
+      const historico = document.getElementById('historicoModalPedido');
+      if (historico) historico.textContent = erro.message || 'Não foi possível carregar o histórico.';
+    }
+  }
+}
 function abrirModalAtivo(id) {
   const pedido = pedidosAtivos().find(item => String(item.id) === String(id)); if (!pedido) return;
   const status = statusPedido(pedido);
@@ -79,7 +109,7 @@ function abrirModalAtivo(id) {
   recusar.classList.toggle('hidden', pedido.status !== 'aguardando_confirmacao_garcom');
   encaminhar.classList.toggle('hidden', pedido.status !== 'servido');
   acao.classList.toggle('hidden', pedido.status === 'servido' || !proximo);
-  const modal = document.getElementById('modalPedido'); modal.classList.add('aberto'); modal.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; window.lucide?.createIcons(); document.getElementById('fecharModalPedido').focus();
+  const modal = document.getElementById('modalPedido'); modal.classList.add('aberto'); modal.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; window.lucide?.createIcons(); document.getElementById('fecharModalPedido').focus(); carregarDetalhesModalPedido(pedido.idComanda || pedido.comandaId || '');
 }
 function fecharModalAtivo() { const modal = document.getElementById('modalPedido'); modal.classList.remove('aberto'); modal.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
 async function atualizarPedidosAtivos() { if (window.recarregarPedidosReais) await window.recarregarPedidosReais(); else renderizarPainelAtivos(); }

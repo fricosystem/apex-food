@@ -26,6 +26,7 @@ const { enviarNotificacaoFcm } = require('./fcm-notificacoes');
 const { baixarEstoqueParaPedido, devolverEstoqueDoPedido } = require('./estoque-pedidos');
 const { distribuirTarefasCozinha } = require('./cozinha-distribuicao');
 const { atualizarTarefaCozinha } = require('./cozinha-tarefas-handler');
+const { lerDetalhesComanda } = require('./detalhes-comanda');
 
 const PAPEIS_PEDIDOS = ['proprietario', 'administrador', 'gerente', 'garcom', 'cozinha'];
 const PAPEIS_GARCOM = ['proprietario', 'administrador', 'gerente', 'garcom'];
@@ -216,6 +217,7 @@ function normalizarRecurso(valor) {
   if (valor === 'historico' || valor === 'cozinha' || valor === 'pedido') return 'pedidos';
   if (valor === 'ficha' || valor === 'fichaCozinha' || valor === 'fichasCozinha') return 'fichas';
   if (valor === 'historicoComanda' || valor === 'historico-comanda') return 'historicoComanda';
+  if (valor === 'detalhesComanda' || valor === 'detalhes-comanda') return 'detalhesComanda';
   if (valor === 'comanda') return 'comandas';
   return valor || 'pedidos';
 }
@@ -296,6 +298,10 @@ async function listarHistoricoComanda(identidade, req) {
 async function listarPedidos(identidade, req) {
   const recurso = normalizarRecurso(queryString(req, 'recurso'));
   if (recurso === 'historicoComanda') return listarHistoricoComanda(identidade, req);
+  if (recurso === 'detalhesComanda') {
+    const detalhes = await lerDetalhesComanda({ restaurante: caminhoRestaurante(identidade.idRestaurante), idComanda: queryString(req, 'idComanda') });
+    return { corpo: { recurso: 'detalhesComanda', ...detalhes, meta: { idRestaurante: identidade.idRestaurante } } };
+  }
   if (!['pedidos', 'comandas', 'fichas'].includes(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso de pedidos inválido.');
   const limite = limitarInteiro(req.query?.limite, 200, 300);
   const nomeColecaoRecurso = recurso === 'fichas' ? 'fichasCozinha' : recurso;
@@ -682,6 +688,16 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
     let distribuicaoCozinha = null;
     let funcionariosCozinhaDocumentos = [];
     let escalasCozinhaDocumentos = [];
+    let tarefasFichaCancelamento = [];
+    let funcionariosCancelamentoDocumentos = [];
+    if (['rejeitado_garcom', 'cancelado'].includes(para) && fichaDocumento?.exists) {
+      const tarefasSnapshot = await transacao.get(fichaRef.collection('tarefas').limit(100));
+      tarefasFichaCancelamento = tarefasSnapshot.docs;
+      const idsFuncionarios = [...new Set(tarefasSnapshot.docs.map(documento => documento.data()?.idCozinheiroResponsavel).filter(Boolean).map(String))];
+      if (idsFuncionarios.length) {
+        funcionariosCancelamentoDocumentos = await Promise.all(idsFuncionarios.map(idFuncionario => transacao.get(restaurante.collection('funcionarios').doc(idFuncionario))));
+      }
+    }
     if (para === 'enviado_cozinha') {
       const [funcionariosSnapshot, escalasSnapshot] = await Promise.all([
         transacao.get(restaurante.collection('funcionarios').limit(300)),
@@ -738,9 +754,6 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
       criadoEm: FieldValue.serverTimestamp(),
       versaoEvento: Number(pedido.versao || 1),
     };
-    transacao.set(pedidoRef.collection('historicoStatus').doc(), evento);
-    transacao.set(pedidoRef.collection('eventos').doc(), evento);
-
     const atualizacaoComanda = {
       atualizadoPor: identidade.idUsuario,
       atualizadoEm: FieldValue.serverTimestamp(),
@@ -784,10 +797,36 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
       atualizacaoComanda.totalCentavos = Math.max(0, Number(comanda.totalCentavos || 0) - totalPedido);
       atualizacaoComanda.valorCentavos = atualizacaoComanda.totalCentavos;
     }
+    if (['rejeitado_garcom', 'cancelado'].includes(para) && fichaDocumento?.exists) {
+      const ficha = fichaDocumento.data() || {};
+      const tarefasAtivas = tarefasFichaCancelamento.filter(documento => ['aguardando_preparo', 'em_preparo'].includes(documento.data()?.statusTarefa));
+      const tarefasEmbutidas = Array.isArray(ficha.tarefas) ? ficha.tarefas : [];
+      const tarefasAtualizadas = tarefasEmbutidas.map(item => tarefasAtivas.some(documento => documento.id === item.id) ? { ...item, statusTarefa: 'cancelada', motivo: motivo || 'Pedido cancelado.', atualizadoEm: null } : item);
+      for (const tarefaDocumento of tarefasAtivas) {
+        const tarefa = tarefaDocumento.data() || {};
+        transacao.update(tarefaDocumento.ref, { statusTarefa: 'cancelada', motivo: motivo || 'Pedido cancelado.', canceladaEm: FieldValue.serverTimestamp(), atualizadoPor: identidade.idUsuario, atualizadoEm: FieldValue.serverTimestamp(), versao: Number(tarefa.versao || 1) + 1 });
+        transacao.set(tarefaDocumento.ref.collection('historicoStatus').doc(), { idRestaurante: identidade.idRestaurante, idFicha: fichaRef.id, idTarefa: tarefaDocumento.id, statusAnterior: tarefa.statusTarefa || 'aguardando_preparo', statusNovo: 'cancelada', idAtor: identidade.idUsuario, motivo: motivo || 'Pedido cancelado.', criadoEm: FieldValue.serverTimestamp() });
+      }
+      for (const funcionarioDocumento of funcionariosCancelamentoDocumentos.filter(documento => documento.exists)) {
+        const funcionario = funcionarioDocumento.data() || {};
+        const idFuncionario = funcionarioDocumento.id;
+        const tarefasDoFuncionario = tarefasAtivas.filter(documento => String(documento.data()?.idCozinheiroResponsavel || '') === idFuncionario).length;
+        if (!tarefasDoFuncionario) continue;
+        const carga = funcionario.cargaAtual || {};
+        const tarefasRestantes = Math.max(0, Number(carga.tarefasAtivas || 0) - tarefasDoFuncionario);
+        const novaCarga = { mesasAtivas: Math.max(0, Number(carga.mesasAtivas || 0)), comandasAtivas: Math.max(0, Number(carga.comandasAtivas || 0) - 1), pedidosPendentes: Math.max(0, Number(carga.pedidosPendentes || 0) - tarefasDoFuncionario), tarefasAtivas: tarefasRestantes };
+        transacao.update(funcionarioDocumento.ref, { cargaAtual: novaCarga, disponibilidadeAtendimento: tarefasRestantes > 0 ? 'em_atendimento' : 'disponivel', atualizadoPor: identidade.idUsuario, atualizadoEm: FieldValue.serverTimestamp(), versao: Number(funcionario.versao || 1) + 1 });
+      }
+      transacao.update(fichaRef, { statusFicha: 'cancelada', statusDistribuicaoCozinha: 'cancelada', tarefas: tarefasAtualizadas, tarefasTotal: tarefasAtualizadas.length || tarefasFichaCancelamento.length, tarefasAguardandoAtribuicao: 0, canceladaEm: FieldValue.serverTimestamp(), motivoCancelamento: motivo || 'Pedido cancelado.', atualizadoPor: identidade.idUsuario, atualizadoEm: FieldValue.serverTimestamp(), versao: Number(ficha.versao || 1) + 1 });
+    }
     transacao.update(pedidoRef, agora);
+
     transacao.set(pedidoRef.collection('historicoStatus').doc(), evento);
     transacao.set(pedidoRef.collection('eventos').doc(), evento);
-    if (comandaRef) transacao.update(comandaRef, atualizacaoComanda);
+    if (comandaRef) {
+      transacao.update(comandaRef, atualizacaoComanda);
+      transacao.set(comandaRef.collection('historicoStatus').doc(), { statusAnterior: comanda.statusComanda || comanda.status || 'aberta', statusNovo: para, idPedido: pedidoRef.id, idAtor: identidade.idUsuario, papelAtor, motivo: motivo || '', criadoEm: FieldValue.serverTimestamp(), versao: Number(comanda.versao || 1) + 1 });
+    }
 
     if (['enviado_cozinha', 'em_preparo', 'pronto'].includes(para) && !fichaRef) throw new ApiError(409, 'FICHA_COZINHA_INVALIDA', 'Não foi possível encaminhar este pedido à cozinha.');
     if (para === 'enviado_cozinha') {
@@ -822,8 +861,6 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
         atualizadoEm: FieldValue.serverTimestamp(),
         versao: Number(fichaDocumento.data()?.versao || 1) + 1,
       });
-    } else if (['cancelado', 'rejeitado_garcom'].includes(para) && fichaDocumento?.exists) {
-      transacao.update(fichaRef, { statusFicha: 'cancelada', canceladaEm: FieldValue.serverTimestamp(), atualizadoPor: identidade.idUsuario, atualizadoEm: FieldValue.serverTimestamp(), versao: Number(fichaDocumento.data()?.versao || 1) + 1 });
     }
 
     const estadoMesa = {
@@ -840,6 +877,7 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
       estadoAtendimento: estadoMesa,
       atualizadoPor: identidade.idUsuario,
       atualizadoEm: FieldValue.serverTimestamp(),
+      versao: Number(mesaDocumento?.data()?.versao || 1) + 1,
     });
 
     resultado = { recurso: 'pedido', id, de, para, statusPedido: para, status: para, atualizado: true };

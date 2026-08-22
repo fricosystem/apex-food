@@ -2,6 +2,7 @@
   'use strict';
 
   const estado = { pedidos: [], comandas: [], mesas: [], carregando: false };
+  let detalheGarcomAtual = '';
   const statusConfig = {
     aguardando_confirmacao_garcom: { label: 'Aguardando confirmação', classe: 'bg-blue/10 text-blue border-blue/30' },
     confirmado_garcom: { label: 'Confirmado', classe: 'bg-purple/10 text-purpleLight border-purple/30' },
@@ -90,6 +91,34 @@
     }).join('') : '<div class="rounded-xl border border-border2 border-dashed p-6 text-center sm:col-span-2 2xl:col-span-1"><i data-lucide="armchair" class="w-5 h-5 text-muted mx-auto mb-2"></i><p class="text-xs font-medium">Nenhuma mesa atribuída encontrada</p><p class="text-[10px] text-muted mt-1">As novas comandas serão distribuídas conforme a disponibilidade da equipe.</p></div>';
   }
 
+  function dataGarcom(valor) { if (!valor) return 'Data não informada'; const data = new Date(valor); return Number.isNaN(data.getTime()) ? 'Data não informada' : data.toLocaleString('pt-BR'); }
+  function renderizarDetalhesGarcom(detalhes, pedido) {
+    const participantes = document.getElementById('participantesModalDetalhesGarcom');
+    const fichaEl = document.getElementById('fichaModalDetalhesGarcom');
+    const historico = document.getElementById('historicoModalDetalhesGarcom');
+    const participantesLista = Array.isArray(detalhes?.participantes) ? detalhes.participantes : [];
+    const historicoLista = Array.isArray(detalhes?.historico) ? detalhes.historico : [];
+    const ficha = (detalhes?.fichas || []).find(item => String(item.idPedido || item.id) === String(pedido.id));
+    if (participantes) participantes.innerHTML = participantesLista.length ? participantesLista.map(item => `<div class="flex items-center justify-between gap-2"><span>${esc(item.nomeExibicao)}</span><span class="text-[10px] text-muted">${esc(item.estadoParticipante || 'ativo')}</span></div>`).join('') : '<span>Nenhum participante encontrado.</span>';
+    if (fichaEl) fichaEl.innerHTML = ficha ? `<div class="flex items-center justify-between gap-2"><span>${esc(ficha.statusFicha || 'Ficha')}</span><span class="text-[10px] text-muted">${Number(ficha.tarefasAtribuidas || 0)}/${Number(ficha.tarefasTotal || ficha.tarefas?.length || 0)} tarefas</span></div><p class="text-[10px] text-muted mt-1">${esc(ficha.statusDistribuicaoCozinha || 'Distribuição pendente')}</p>` : '<span>Este pedido ainda não possui ficha de cozinha.</span>';
+    if (historico) historico.innerHTML = historicoLista.length ? historicoLista.slice(0, 8).map(item => `<div class="border-l-2 border-border pl-2"><div class="flex items-center justify-between gap-2"><span class="font-medium">${esc(item.statusNovo || 'Atualização')}</span><span class="text-[10px] text-muted">${esc(dataGarcom(item.criadoEm))}</span></div><p class="text-[10px] text-muted mt-1">${esc(item.motivo || 'Sem observação registrada.')}</p></div>`).join('') : '<span>Nenhum evento registrado.</span>';
+  }
+  async function abrirDetalhesGarcom(id) {
+    const pedido = estado.pedidos.find(item => String(item.id) === String(id)); if (!pedido) return;
+    detalheGarcomAtual = String(pedido.id);
+    document.getElementById('tituloModalDetalhesGarcom').textContent = pedido.id;
+    document.getElementById('resumoModalDetalhesGarcom').textContent = `${pedido.mesa} · ${pedido.cliente}`;
+    document.getElementById('dadosModalDetalhesGarcom').innerHTML = [['Status', dadosStatus(pedido.status).label], ['Mesa / canal', `${pedido.mesa} · ${pedido.canal || 'salão'}`], ['Garçom', pedido.garcom], ['Itens', pedido.quantidadeItens], ['Valor', moeda(pedido.totalCentavos || pedido.valorCentavos)]].map(([label, valor]) => `<div class="rounded-lg bg-card2 border border-border2 p-3"><div class="text-[10px] text-muted uppercase tracking-wider mb-1">${label}</div><div class="text-sm font-medium">${esc(valor)}</div></div>`).join('');
+    document.getElementById('contagemModalDetalhesGarcom').textContent = `${pedido.quantidadeItens} item(ns)`;
+    document.getElementById('itensModalDetalhesGarcom').innerHTML = pedido.itens.map(item => `<div class="flex items-center justify-between gap-3 px-3 py-2.5"><span class="text-xs sm:text-sm">${Number(item.quantidade || 0)}x ${esc(item.nome || item.nomeProduto || item.idProduto)}</span><span class="text-xs font-medium">${moeda(item.totalCentavos || item.subtotalCentavos || item.valorCentavos || 0)}</span></div>`).join('');
+    document.getElementById('observacoesModalDetalhesGarcom').textContent = pedido.observacoes || 'Sem observações.';
+    renderizarDetalhesGarcom(null, pedido);
+    const modal = document.getElementById('modalDetalhesGarcom'); modal.classList.add('aberto'); modal.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; window.lucide?.createIcons();
+    if (!pedido.idComanda || !window.apexModulosApi?.obterDetalhesComanda) return;
+    try { const detalhes = await window.apexModulosApi.obterDetalhesComanda(pedido.idComanda); if (detalheGarcomAtual === String(pedido.id)) renderizarDetalhesGarcom(detalhes, pedido); } catch (erro) { if (detalheGarcomAtual === String(pedido.id)) { document.getElementById('historicoModalDetalhesGarcom').textContent = erro.message || 'Não foi possível carregar o histórico.'; } }
+  }
+  function fecharDetalhesGarcom() { const modal = document.getElementById('modalDetalhesGarcom'); modal.classList.remove('aberto'); modal.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; detalheGarcomAtual = ''; }
+
   function botaoAcao(pedido) {
     if (pedido.status === 'aguardando_confirmacao_garcom') return `<button type="button" data-acao="confirmar" data-pedido-id="${esc(pedido.id)}" class="btn-press px-3 py-2 rounded-lg bg-accent hover:bg-accentHover text-white text-xs font-medium">Confirmar pedido</button><button type="button" data-acao="recusar" data-pedido-id="${esc(pedido.id)}" class="btn-press px-3 py-2 rounded-lg bg-red/10 border border-red/30 text-red-100 text-xs font-medium">Recusar</button>`;
     if (pedido.status === 'confirmado_garcom') return `<button type="button" data-acao="enviar_cozinha" data-pedido-id="${esc(pedido.id)}" class="btn-press px-3 py-2 rounded-lg bg-accent hover:bg-accentHover text-white text-xs font-medium">Enviar à cozinha</button>`;
@@ -105,7 +134,7 @@
     document.getElementById('painelPedidosGarcom').innerHTML = pedidos.length ? pedidos.map(pedido => {
       const status = dadosStatus(pedido.status);
       const itens = pedido.itens.slice(0, 3).map(item => `${Number(item.quantidade || 0)}x ${esc(item.nome || item.nomeProduto || item.idProduto)}`).join(' · ');
-      return `<article class="rounded-xl bg-card2 border border-border2 p-4"><div class="flex flex-col lg:flex-row lg:items-start justify-between gap-3"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="font-mono text-xs font-semibold">${esc(pedido.id)}</span><span class="px-2 py-1 rounded-md border text-[10px] font-medium ${status.classe}">${esc(status.label)}</span></div><h4 class="text-sm font-semibold mt-2">${esc(pedido.mesa)} · ${esc(pedido.cliente)}</h4><p class="text-xs text-muted mt-1">${esc(itens || 'Itens não informados')}</p></div><strong class="text-sm text-accent whitespace-nowrap">${moeda(pedido.totalCentavos || pedido.valorCentavos)}</strong></div><div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 pt-3 border-t border-border2"><span class="text-[10px] text-muted">Garçom: ${esc(pedido.garcom)} · ${pedido.quantidadeItens} item(ns)</span><div class="flex flex-wrap justify-end gap-2">${botaoAcao(pedido)}</div></div></article>`;
+      return `<article class="rounded-xl bg-card2 border border-border2 p-4"><div class="flex flex-col lg:flex-row lg:items-start justify-between gap-3"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="font-mono text-xs font-semibold">${esc(pedido.id)}</span><span class="px-2 py-1 rounded-md border text-[10px] font-medium ${status.classe}">${esc(status.label)}</span></div><h4 class="text-sm font-semibold mt-2">${esc(pedido.mesa)} · ${esc(pedido.cliente)}</h4><p class="text-xs text-muted mt-1">${esc(itens || 'Itens não informados')}</p></div><strong class="text-sm text-accent whitespace-nowrap">${moeda(pedido.totalCentavos || pedido.valorCentavos)}</strong></div><div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 pt-3 border-t border-border2"><span class="text-[10px] text-muted">Garçom: ${esc(pedido.garcom)} · ${pedido.quantidadeItens} item(ns)</span><div class="flex flex-wrap justify-end gap-2"><button type="button" data-detalhes-garcom="${esc(pedido.id)}" class="btn-press px-3 py-2 rounded-lg bg-card border border-border2 text-xs font-medium">Ver detalhes</button>${botaoAcao(pedido)}</div></div></article>`;
     }).join('') : '<div class="rounded-xl border border-border2 border-dashed p-8 text-center"><i data-lucide="inbox" class="w-5 h-5 text-muted mx-auto mb-2"></i><p class="text-xs font-medium">Nenhum pedido encontrado</p><p class="text-[10px] text-muted mt-1">Não há pedidos para o filtro selecionado.</p></div>';
   }
 
@@ -165,6 +194,8 @@
   }
 
   document.getElementById('painelPedidosGarcom').addEventListener('click', event => {
+    const detalhe = event.target.closest('[data-detalhes-garcom]');
+    if (detalhe) return abrirDetalhesGarcom(detalhe.dataset.detalhesGarcom);
     const botao = event.target.closest('[data-acao]');
     if (!botao) return;
     const acao = botao.dataset.acao;
@@ -178,7 +209,11 @@
     if (status) atualizarStatus(botao.dataset.pedidoId, status);
   });
   document.getElementById('filtroStatusGarcom').addEventListener('change', renderizarPedidos);
+  document.getElementById('fecharModalDetalhesGarcom').addEventListener('click', fecharDetalhesGarcom);
+  document.getElementById('fecharModalDetalhesGarcomBtn').addEventListener('click', fecharDetalhesGarcom);
+  document.getElementById('backdropDetalhesGarcom').addEventListener('click', fecharDetalhesGarcom);
   document.getElementById('atualizarAtendimentoGarcom').addEventListener('click', carregarAtendimentoGarcom);
   document.addEventListener('apex:pedidos-atualizado', carregarAtendimentoGarcom);
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') fecharDetalhesGarcom(); });
   carregarAtendimentoGarcom();
 })();

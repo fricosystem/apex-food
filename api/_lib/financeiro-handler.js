@@ -37,9 +37,10 @@ const {
   registrarAuditoriaOperacional,
 } = require('./financeiro');
 const { criarNotificacoesNaTransacao, TIPOS_NOTIFICACAO } = require('./notificacoes');
+const { lerDetalhesComanda } = require('./detalhes-comanda');
 const { enviarNotificacaoFcm } = require('./fcm-notificacoes');
 
-const RECURSOS_LEITURA = new Set(['resumos', 'relatorios', 'contas', 'movimentacoes', 'fechamentos', 'encaminhamentos', 'encaminhamentosCaixa']);
+const RECURSOS_LEITURA = new Set(['resumos', 'relatorios', 'contas', 'movimentacoes', 'fechamentos', 'encaminhamentos', 'encaminhamentosCaixa', 'detalhesComanda']);
 const RECURSOS_MUTACAO = new Set(['conta', 'movimentacao', 'fechamento', 'encaminhamentoCaixa']);
 
 function normalizarRecurso(valor) {
@@ -58,6 +59,8 @@ function normalizarRecurso(valor) {
     encaminhamento: 'encaminhamentos',
     encaminhamentosCaixa: 'encaminhamentos',
     encaminhamentoCaixa: 'encaminhamentoCaixa',
+    detalhesComanda: 'detalhesComanda',
+    'detalhes-comanda': 'detalhesComanda',
     caixa: 'encaminhamentos',
   };
   return mapa[valor] || valor;
@@ -111,6 +114,10 @@ function documentosVisiveis(documentos) {
 async function listarFinanceiro(identidade, req) {
   const recurso = normalizarRecurso(queryString(req, 'recurso'));
   if (recurso && !RECURSOS_LEITURA.has(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso financeiro inválido.');
+  if (recurso === 'detalhesComanda') {
+    const detalhes = await lerDetalhesComanda({ restaurante: caminhoRestaurante(identidade.idRestaurante), idComanda: queryString(req, 'idComanda') });
+    return { corpo: { recurso: 'detalhesComanda', ...detalhes, meta: { idRestaurante: identidade.idRestaurante } } };
+  }
   const limite = limitarInteiro(req.query?.limite, 100, 200);
   const periodo = queryString(req, 'periodo');
   const statusEncaminhamento = queryString(req, 'status');
@@ -432,7 +439,8 @@ module.exports = async function financeiro(req, res) {
     const recurso = mutacao && recursoBruto === 'movimentacao' ? 'movimentacao' : normalizarRecurso(recursoBruto);
     let papeis = PAPEIS_LEITURA_FINANCEIRO;
     if (recurso === 'fechamento' || recurso === 'fechamentos') papeis = PAPEIS_FECHAMENTO;
-    else if (recurso === 'encaminhamentos' || recurso === 'encaminhamentosCaixa') papeis = PAPEIS_LEITURA_CAIXA;
+    else     if (recurso === 'encaminhamentos' || recurso === 'encaminhamentosCaixa' || recurso === 'detalhesComanda') papeis = PAPEIS_LEITURA_CAIXA;
+
     else if (recurso === 'encaminhamentoCaixa') papeis = PAPEIS_MUTACAO_CAIXA;
     else if (mutacao) papeis = PAPEIS_MUTACAO_FINANCEIRO;
     const identidade = await obterIdentidadeOperacional(req, papeis);
