@@ -55,12 +55,33 @@
 [class~="text-xs"] { line-height: var(--apex-entrelinha-auxiliar); }
 [class~="text-sm"] { line-height: var(--apex-entrelinha-corpo); }
 
-/* Bordas dos cards: linha fina e cinza clara, sem faixa lateral colorida. */
+/* Contorno compartilhado: borda fina e cinza clara nos quatro lados, sem faixa lateral colorida. */
 #conteudoPagina [class~="bg-card"][class~="border"],
 #conteudoPagina [class~="bg-card2"][class~="border"],
 #conteudoPagina .pedido-card,
-#conteudoPagina .cozinha-card {
-  border-left: 1px solid var(--apex-borda-secundaria) !important;
+#conteudoPagina .cozinha-card,
+#conteudoPagina .home-modulo,
+#conteudoPagina .financeiro-card,
+#conteudoPagina .relatorio-card,
+#conteudoPagina .equipe-card,
+#conteudoPagina .salao-card,
+#conteudoPagina .table-card {
+  border: 1px solid var(--apex-borda-secundaria) !important;
+}
+
+/* Campos de formulário: contorno uniforme em todas as telas administrativas. */
+#conteudoPagina input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+#conteudoPagina select,
+#conteudoPagina textarea {
+  border: 1px solid var(--apex-borda-secundaria) !important;
+}
+
+#conteudoPagina input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+#conteudoPagina select:focus,
+#conteudoPagina textarea:focus {
+  border-color: var(--apex-laranja) !important;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.12);
 }
 
 

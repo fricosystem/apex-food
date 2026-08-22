@@ -27,11 +27,14 @@ test('cards de Pedidos e Fila da Cozinha usam borda lateral cinza clara fina uni
   assert.doesNotMatch(fila, /prioridade-(alta|normal)[^}]*border-left:\s*3px/);
 });
 
-test('regra compartilhada aplica borda cinza clara fina aos cards do conteúdo', () => {
+test('regra compartilhada aplica contorno completo cinza claro aos cards e campos do conteúdo', () => {
   const tokens = ler('estilos/compartilhados/tokens-apex.css');
   assert.match(tokens, /#conteudoPagina \[class~="bg-card"\]\[class~="border"\]/);
   assert.match(tokens, /#conteudoPagina \.pedido-card/);
-  assert.match(tokens, /border-left:\s*1px solid var\(--apex-borda-secundaria\)/);
+  assert.match(tokens, /border:\s*1px solid var\(--apex-borda-secundaria\) !important/);
+  assert.match(tokens, /#conteudoPagina input:not\(\[type="checkbox"\]\):not\(\[type="radio"\]\)/);
+  assert.match(tokens, /#conteudoPagina select/);
+  assert.match(tokens, /#conteudoPagina textarea/);
   assert.doesNotMatch(tokens, /border-left:\s*1px solid var\(--apex-laranja\)/);
 });
 
