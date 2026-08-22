@@ -57,6 +57,16 @@
     avaliacaoFeedback: document.getElementById('mesaPublicaAvaliacaoFeedback'),
     enviarAvaliacao: document.getElementById('mesaPublicaEnviarAvaliacao'),
     avaliacaoEnviada: document.getElementById('mesaPublicaAvaliacaoEnviada'),
+    ingredientesModal: document.getElementById('mesaPublicaIngredientesModal'),
+    ingredientesBackdrop: document.getElementById('mesaPublicaIngredientesBackdrop'),
+    ingredientesFechar: document.getElementById('mesaPublicaIngredientesFechar'),
+    ingredientesCancelar: document.getElementById('mesaPublicaIngredientesCancelar'),
+    ingredientesConfirmar: document.getElementById('mesaPublicaIngredientesConfirmar'),
+    ingredientesTitulo: document.getElementById('mesaPublicaIngredientesTitulo'),
+    ingredientesDescricao: document.getElementById('mesaPublicaIngredientesDescricao'),
+    ingredientesLista: document.getElementById('mesaPublicaIngredientesLista'),
+    ingredientesVazio: document.getElementById('mesaPublicaIngredientesVazio'),
+    ingredientesFeedback: document.getElementById('mesaPublicaIngredientesFeedback'),
   };
 
   const parametros = new URLSearchParams(window.location.search);
@@ -77,6 +87,7 @@
     avaliacaoNota: 0,
     avaliacaoEnviando: false,
     atendimentoEncerrado: false,
+    personalizacaoProduto: null,
   };
 
   function chaveIdempotencia(prefixo = 'mesa') {
@@ -355,14 +366,89 @@
     });
   }
 
-  function adicionarProduto(produto) {
+  function ingredientesConfigurados(produto) {
+    return Array.isArray(produto?.ingredientes) ? produto.ingredientes.filter(item => item && String(item.nome || '').trim()).map((item, indice) => ({ id: String(item.id || `ingrediente-${indice + 1}`), nome: String(item.nome).trim(), removivel: item.removivel !== false })) : [];
+  }
+
+  function nomesIngredientes(itens) {
+    return (Array.isArray(itens) ? itens : []).map(item => String(item?.nome || item || '').trim()).filter(Boolean);
+  }
+
+  function adicionarProduto(produto, quantidade = 1, ingredientesRemovidos = []) {
     if (!produto?.disponibilidade) return;
     const atual = estado.carrinho.get(produto.id);
-    estado.carrinho.set(produto.id, { produto, quantidade: Math.min(100, Number(atual?.quantidade || 0) + 1) });
+    estado.carrinho.set(produto.id, { produto, quantidade: Math.min(100, Number(atual?.quantidade || 0) + quantidade), ingredientesRemovidos: [...new Set(ingredientesRemovidos)] });
     renderizarProdutos();
     renderizarCarrinho();
     mostrarFeedback(elementos.pedidoFeedback, 'Item adicionado ao carrinho.', 'sucesso');
     window.setTimeout(() => { if (elementos.pedidoFeedback.textContent === 'Item adicionado ao carrinho.') mostrarFeedback(elementos.pedidoFeedback, ''); }, 2600);
+  }
+
+  function renderizarPersonalizacao() {
+    const contexto = estado.personalizacaoProduto;
+    if (!contexto || !elementos.ingredientesLista) return;
+    const ingredientes = ingredientesConfigurados(contexto.produto);
+    elementos.ingredientesTitulo.textContent = contexto.produto.nome;
+    elementos.ingredientesDescricao.textContent = ingredientes.length ? 'Marque os ingredientes que deseja manter. Os demais serão retirados do preparo.' : 'Este produto não possui ingredientes configuráveis.';
+    elementos.ingredientesVazio.classList.toggle('hidden', ingredientes.length > 0);
+    elementos.ingredientesConfirmar.disabled = !ingredientes.length;
+    elementos.ingredientesLista.replaceChildren();
+    ingredientes.forEach(ingrediente => {
+      const linha = criarElemento('label', 'flex items-center gap-3 rounded-lg border border-border2 bg-card2 px-3 py-3 cursor-pointer');
+      const checkbox = criarElemento('input', 'h-4 w-4 accent-accent');
+      checkbox.type = 'checkbox';
+      checkbox.checked = !contexto.ingredientesRemovidos.has(ingrediente.id);
+      checkbox.disabled = ingrediente.removivel === false;
+      checkbox.dataset.ingredienteManter = ingrediente.id;
+      const texto = criarElemento('span', 'min-w-0 flex-1 text-xs text-white', ingrediente.nome);
+      const estadoTexto = criarElemento('span', 'text-[10px] text-muted whitespace-nowrap', ingrediente.removivel === false ? 'Obrigatório' : 'Manter');
+      linha.append(checkbox, texto, estadoTexto);
+      elementos.ingredientesLista.appendChild(linha);
+    });
+    elementos.ingredientesFeedback.classList.add('hidden');
+    window.lucide?.createIcons();
+  }
+
+  function abrirPersonalizacao(produto, adicionarUnidade = true) {
+    if (!produto?.disponibilidade) return;
+    const atual = estado.carrinho.get(produto.id);
+    const removidos = new Set(Array.isArray(atual?.ingredientesRemovidos) ? atual.ingredientesRemovidos : []);
+    const quantidadeAtual = Number(atual?.quantidade || 0);
+    estado.personalizacaoProduto = { produto, quantidade: Math.min(100, quantidadeAtual + (adicionarUnidade ? 1 : 0) || 1), ingredientesRemovidos: removidos };
+    renderizarPersonalizacao();
+    elementos.ingredientesModal.classList.remove('hidden');
+    elementos.ingredientesModal.classList.add('flex');
+    elementos.ingredientesModal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    elementos.ingredientesConfirmar.focus();
+  }
+
+  function fecharPersonalizacao() {
+    if (!elementos.ingredientesModal) return;
+    elementos.ingredientesModal.classList.add('hidden');
+    elementos.ingredientesModal.classList.remove('flex');
+    elementos.ingredientesModal.setAttribute('aria-hidden', 'true');
+    estado.personalizacaoProduto = null;
+    document.body.style.overflow = '';
+  }
+
+  function confirmarPersonalizacao() {
+    const contexto = estado.personalizacaoProduto;
+    if (!contexto) return;
+    const removidos = [...elementos.ingredientesLista.querySelectorAll('[data-ingrediente-manter]')].filter(input => !input.checked && !input.disabled).map(input => input.dataset.ingredienteManter);
+    const ingredientes = ingredientesConfigurados(contexto.produto);
+    const idsValidos = new Set(ingredientes.map(item => item.id));
+    const removidosValidos = removidos.filter(id => idsValidos.has(id));
+    estado.carrinho.set(contexto.produto.id, { produto: contexto.produto, quantidade: contexto.quantidade, ingredientesRemovidos: removidosValidos });
+    fecharPersonalizacao();
+    renderizarProdutos();
+    renderizarCarrinho();
+    mostrarFeedback(elementos.pedidoFeedback, 'Personalização adicionada ao carrinho.', 'sucesso');
+  }
+
+  function iniciarAdicaoProduto(produto) {
+    if (ingredientesConfigurados(produto).length) abrirPersonalizacao(produto);
+    else adicionarProduto(produto);
   }
 
   function renderizarProdutos() {
@@ -391,7 +477,7 @@
       const botao = criarElemento('button', `rounded-lg px-3 py-2 text-[11px] font-semibold ${produto.disponibilidade ? 'bg-accent text-white hover:bg-accentHover' : 'border border-border text-muted cursor-not-allowed'}`, produto.disponibilidade ? (noCarrinho ? `Adicionar mais (${noCarrinho.quantidade})` : 'Adicionar') : 'Indisponível');
       botao.type = 'button';
       botao.disabled = !produto.disponibilidade;
-      botao.addEventListener('click', () => adicionarProduto(produto));
+      botao.addEventListener('click', () => iniciarAdicaoProduto(produto));
       rodape.appendChild(botao);
       card.appendChild(rodape);
       elementos.cardapioProdutos.appendChild(card);
@@ -441,6 +527,20 @@
       remover.type = 'button';
       remover.addEventListener('click', () => { estado.carrinho.delete(item.produto.id); renderizarProdutos(); renderizarCarrinho(); });
       controles.appendChild(remover);
+      const ingredientes = ingredientesConfigurados(item.produto);
+      if (ingredientes.length) {
+        const removidos = new Set(item.ingredientesRemovidos || []);
+        const mantidos = ingredientes.filter(ingrediente => !removidos.has(ingrediente.id)).map(ingrediente => ingrediente.nome);
+        const retirados = ingredientes.filter(ingrediente => removidos.has(ingrediente.id)).map(ingrediente => ingrediente.nome);
+        if (mantidos.length) linha.appendChild(criarElemento('p', 'mt-3 text-[11px] text-muted', `Manter: ${mantidos.join(', ')}`));
+        if (retirados.length) linha.appendChild(criarElemento('p', 'mt-1 text-[11px] text-orange-100', `Retirar: ${retirados.join(', ')}`));
+      }
+      if (ingredientes.length) {
+        const editarPreparo = criarElemento('button', 'text-[11px] text-accent hover:text-orange-200', 'Editar preparo');
+        editarPreparo.type = 'button';
+        editarPreparo.addEventListener('click', () => abrirPersonalizacao(item.produto, false));
+        controles.appendChild(editarPreparo);
+      }
       linha.appendChild(controles);
       elementos.carrinhoLista.appendChild(linha);
     });
@@ -499,7 +599,11 @@
       topo.appendChild(criarElemento('span', `rounded-full border px-2 py-1 text-[10px] font-semibold ${classeStatus(pedido.statusPedido)}`, rotuloStatus(pedido.statusPedido)));
       card.appendChild(topo);
       const lista = criarElemento('div', 'mt-3 space-y-1.5');
-      (pedido.itens || []).forEach(item => lista.appendChild(criarElemento('p', 'text-xs text-muted', `${item.quantidade}x ${item.nomeProduto}${item.observacoes ? ` — ${item.observacoes}` : ''}`)));
+      (pedido.itens || []).forEach(item => {
+        lista.appendChild(criarElemento('p', 'text-xs text-muted', `${item.quantidade}x ${item.nomeProduto}${item.observacoes ? ` — ${item.observacoes}` : ''}`));
+        const retirados = nomesIngredientes(item.ingredientesRemovidos);
+        if (retirados.length) lista.appendChild(criarElemento('p', 'text-[11px] text-orange-100', `Retirar: ${retirados.join(', ')}`));
+      });
       card.appendChild(lista);
       if (pedido.totalCentavos !== null && pedido.totalCentavos !== undefined) card.appendChild(criarElemento('p', 'mt-3 border-t border-border pt-3 text-right text-xs font-semibold text-white', formatarMoeda(pedido.totalCentavos)));
       elementos.pedidos.appendChild(card);
@@ -619,7 +723,7 @@
         method: 'POST',
         body: {
           acao: 'pedido',
-          itens: itens.map(item => ({ idProduto: item.produto.id, quantidade: item.quantidade })),
+          itens: itens.map(item => ({ idProduto: item.produto.id, quantidade: item.quantidade, ingredientesRemovidos: Array.isArray(item.ingredientesRemovidos) ? item.ingredientesRemovidos : [] })),
           observacoes: elementos.observacoes.value.trim(),
           chaveIdempotencia: chaveIdempotencia('pedido-mesa'),
         },
@@ -711,6 +815,10 @@
   });
   elementos.atualizarComanda?.addEventListener('click', () => atualizarComanda());
   elementos.enviarPedido?.addEventListener('click', enviarPedido);
+  elementos.ingredientesFechar?.addEventListener('click', fecharPersonalizacao);
+  elementos.ingredientesCancelar?.addEventListener('click', fecharPersonalizacao);
+  elementos.ingredientesBackdrop?.addEventListener('click', fecharPersonalizacao);
+  elementos.ingredientesConfirmar?.addEventListener('click', confirmarPersonalizacao);
   elementos.avaliacaoNotas?.querySelectorAll('[data-mesa-avaliacao-nota]').forEach(botao => {
     botao.addEventListener('click', () => {
       estado.avaliacaoNota = Number(botao.dataset.mesaAvaliacaoNota || 0);

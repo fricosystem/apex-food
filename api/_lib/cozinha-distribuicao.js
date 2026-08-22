@@ -107,6 +107,9 @@ function tarefasDoPedido(pedido = {}) {
     nomeProduto: String(item.nomeProduto || item.nome || item.idProduto || 'Produto'),
     quantidade: Math.max(1, Number(item.quantidade || 1)),
     observacoes: String(item.observacoes || ''),
+    ingredientes: Array.isArray(item.ingredientes) ? item.ingredientes : [],
+    ingredientesMantidos: Array.isArray(item.ingredientesMantidos) ? item.ingredientesMantidos : [],
+    ingredientesRemovidos: Array.isArray(item.ingredientesRemovidos) ? item.ingredientesRemovidos : [],
     especialidadesNecessarias: Array.isArray(item.especialidadesNecessarias) ? item.especialidadesNecessarias : [],
     estacoesNecessarias: Array.isArray(item.estacoesNecessarias) ? item.estacoesNecessarias : [],
   }));
@@ -142,7 +145,7 @@ function distribuirTarefasCozinha({ transacao, restaurante, idRestaurante, ficha
     tarefa.idTarefa = `${fichaRef.id}:${tarefa.id}`;
     const idTarefa = tarefa.idTarefa;
     const tarefaRef = fichaRef.collection('tarefas').doc(String(tarefa.indice + 1).padStart(3, '0'));
-    transacao.set(tarefaRef, { idRestaurante, idTarefa, idFicha: fichaRef.id, idPedido: String(pedido.id || ''), idProduto: tarefa.idProduto, nomeProduto: tarefa.nomeProduto, quantidade: tarefa.quantidade, observacoes: tarefa.observacoes, especialidadesNecessarias: tarefa.especialidadesNecessarias, estacoesNecessarias: tarefa.estacoesNecessarias, statusTarefa: tarefa.statusTarefa, idCozinheiroResponsavel: tarefa.idCozinheiroResponsavel, idUsuarioCozinheiroResponsavel: tarefa.idUsuarioCozinheiroResponsavel, nomeCozinheiroResponsavel: tarefa.nomeCozinheiroResponsavel, pontuacaoDistribuicao: tarefa.pontuacaoDistribuicao || null, criadoPor: idAtor, atualizadoPor: idAtor, criadoEm: FieldValue.serverTimestamp(), atualizadoEm: FieldValue.serverTimestamp(), versao: 1 });
+    transacao.set(tarefaRef, { idRestaurante, idTarefa, idFicha: fichaRef.id, idPedido: String(pedido.id || ''), idProduto: tarefa.idProduto, nomeProduto: tarefa.nomeProduto, quantidade: tarefa.quantidade, observacoes: tarefa.observacoes, ingredientes: tarefa.ingredientes, ingredientesMantidos: tarefa.ingredientesMantidos, ingredientesRemovidos: tarefa.ingredientesRemovidos, especialidadesNecessarias: tarefa.especialidadesNecessarias, estacoesNecessarias: tarefa.estacoesNecessarias, statusTarefa: tarefa.statusTarefa, idCozinheiroResponsavel: tarefa.idCozinheiroResponsavel, idUsuarioCozinheiroResponsavel: tarefa.idUsuarioCozinheiroResponsavel, nomeCozinheiroResponsavel: tarefa.nomeCozinheiroResponsavel, pontuacaoDistribuicao: tarefa.pontuacaoDistribuicao || null, criadoPor: idAtor, atualizadoPor: idAtor, criadoEm: FieldValue.serverTimestamp(), atualizadoEm: FieldValue.serverTimestamp(), versao: 1 });
   });
   eventos.forEach(evento => transacao.set(restaurante.collection('eventosMesas').doc(), { idRestaurante, idPedido: String(pedido.id || ''), idFicha: fichaRef.id, acao: 'cozinheiro_atribuido', estadoNovo: 'atribuido', ...evento, idAtor, criadoEm: FieldValue.serverTimestamp() }));
   const tarefasAtribuidas = atribuicoes.filter(tarefa => tarefa.statusTarefa === 'aguardando_preparo').length;

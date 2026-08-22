@@ -62,6 +62,26 @@ function listaCodigosOperacionais(valor, campo) {
   return [...new Set(normalizados)];
 }
 
+function listaIngredientes(valor, campo = 'ingredientes') {
+  if (valor === undefined || valor === null || valor === '') return [];
+  if (!Array.isArray(valor) || valor.length > 100) throw new ApiError(400, 'PAYLOAD_INVALIDO', `${campo} é inválido.`);
+  const ids = new Set();
+  const nomes = new Set();
+  return valor.map((item, indice) => {
+    const dados = typeof item === 'string' ? { nome: item } : item && typeof item === 'object' ? item : null;
+    if (!dados) throw new ApiError(400, 'PAYLOAD_INVALIDO', `${campo}[${indice}] é inválido.`);
+    const nome = textoObrigatorio(dados.nome, `${campo}[${indice}].nome`, 120);
+    const nomeChave = nome.toLocaleLowerCase('pt-BR');
+    if (nomes.has(nomeChave)) throw new ApiError(400, 'INGREDIENTES_DUPLICADOS', 'Não repita ingredientes no mesmo produto.');
+    nomes.add(nomeChave);
+    const idInformado = dados.id === undefined || dados.id === null || dados.id === '' ? `ingrediente-${indice + 1}` : String(dados.id);
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(idInformado)) throw new ApiError(400, 'PAYLOAD_INVALIDO', `${campo}[${indice}].id é inválido.`);
+    if (ids.has(idInformado)) throw new ApiError(400, 'INGREDIENTES_DUPLICADOS', 'Não repita identificadores de ingredientes no mesmo produto.');
+    ids.add(idInformado);
+    return { id: idInformado, nome, removivel: dados.removivel !== false };
+  });
+}
+
 function dadosVisiveis(docs) {
   return docs
     .filter((documento) => {
@@ -124,6 +144,7 @@ function validarPromocao(corpo) {
 async function validarProduto(idRestaurante, corpo) {
   if (corpo.especialidadesNecessarias !== undefined && !Array.isArray(corpo.especialidadesNecessarias) && typeof corpo.especialidadesNecessarias !== 'string') throw new ApiError(400, 'PAYLOAD_INVALIDO', 'especialidadesNecessarias é inválido.');
   if (corpo.estacoesNecessarias !== undefined && !Array.isArray(corpo.estacoesNecessarias) && typeof corpo.estacoesNecessarias !== 'string') throw new ApiError(400, 'PAYLOAD_INVALIDO', 'estacoesNecessarias é inválido.');
+  const ingredientes = listaIngredientes(corpo.ingredientes, 'ingredientes');
   const idCategoria = idDocumento(corpo.idCategoria, 'idCategoria');
   const categoria = await caminhoRestaurante(idRestaurante).collection('categoriasCardapio').doc(idCategoria).get();
   if (!categoria.exists || categoria.data()?.estado === 'excluido') {
@@ -141,6 +162,7 @@ async function validarProduto(idRestaurante, corpo) {
     disponibilidade: corpo.disponibilidade === undefined ? true : corpo.disponibilidade === true,
     especialidadesNecessarias: listaCodigosOperacionais(corpo.especialidadesNecessarias, 'especialidadesNecessarias'),
     estacoesNecessarias: listaCodigosOperacionais(corpo.estacoesNecessarias, 'estacoesNecessarias'),
+    ingredientes,
   };
 }
 
@@ -253,6 +275,7 @@ function camposAtualizaveisProduto(corpo) {
   }
   if (corpo.especialidadesNecessarias !== undefined) atualizacoes.especialidadesNecessarias = listaCodigosOperacionais(corpo.especialidadesNecessarias, 'especialidadesNecessarias');
   if (corpo.estacoesNecessarias !== undefined) atualizacoes.estacoesNecessarias = listaCodigosOperacionais(corpo.estacoesNecessarias, 'estacoesNecessarias');
+  if (corpo.ingredientes !== undefined) atualizacoes.ingredientes = listaIngredientes(corpo.ingredientes, 'ingredientes');
   if (!Object.keys(atualizacoes).length) throw new ApiError(400, 'PAYLOAD_INVALIDO', 'Nenhum campo atualizável foi informado.');
   return atualizacoes;
 }

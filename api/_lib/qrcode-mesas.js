@@ -530,6 +530,15 @@ function timestampParaMs(valor) {
   return Number.isNaN(data.getTime()) ? 0 : data.getTime();
 }
 
+function ingredientesProdutoPublicos(valor) {
+  if (!Array.isArray(valor)) return [];
+  return valor.slice(0, 100).map((item, indice) => {
+    const dados = typeof item === 'string' ? { id: `ingrediente-${indice + 1}`, nome: item } : item && typeof item === 'object' ? item : null;
+    if (!dados || !String(dados.nome || '').trim()) return null;
+    return { id: String(dados.id || `ingrediente-${indice + 1}`), nome: String(dados.nome).trim(), removivel: dados.removivel !== false };
+  }).filter(Boolean);
+}
+
 function produtoPublico(documento, exibirPrecos) {
   const dados = documento.data() || {};
   return {
@@ -540,6 +549,7 @@ function produtoPublico(documento, exibirPrecos) {
     precoCentavos: exibirPrecos ? Number(dados.precoCentavos || 0) : null,
     disponibilidade: dados.disponibilidade !== false,
     tempoPreparo: Number(dados.tempoPreparo || 0),
+    ingredientes: ingredientesProdutoPublicos(dados.ingredientes),
   };
 }
 
@@ -601,6 +611,9 @@ function pedidoPublico(documento, exibirPrecos) {
     nomeProduto: item.nomeProduto,
     quantidade: Number(item.quantidade || 0),
     observacoes: String(item.observacoes || ''),
+    ingredientes: Array.isArray(item.ingredientes) ? item.ingredientes : [],
+    ingredientesMantidos: Array.isArray(item.ingredientesMantidos) ? item.ingredientesMantidos : [],
+    ingredientesRemovidos: Array.isArray(item.ingredientesRemovidos) ? item.ingredientesRemovidos : [],
   })) : [];
   return {
     id: documento.id,
@@ -744,6 +757,18 @@ async function criarAvaliacaoPublica(req, res, corpo) {
   return { ...resultado, idempotente: repeticaoIdempotente };
 }
 
+function validarIngredientesRemovidos(valor) {
+  if (valor === undefined || valor === null || valor === '') return [];
+  if (!Array.isArray(valor) || valor.length > 100) throw new ApiError(400, 'INGREDIENTES_INVALIDOS', 'A lista de ingredientes removidos é inválida.');
+  const ids = new Set();
+  return valor.map((item, indice) => {
+    const id = validarId(String(item || ''), `ingredientesRemovidos[${indice}]`);
+    if (ids.has(id)) throw new ApiError(400, 'INGREDIENTES_DUPLICADOS', 'Não repita ingredientes removidos no mesmo item.');
+    ids.add(id);
+    return id;
+  });
+}
+
 function validarItensPedidoPublico(itens) {
   if (!Array.isArray(itens) || !itens.length || itens.length > 50) throw new ApiError(400, 'ITENS_INVALIDOS', 'Selecione ao menos um item para enviar o pedido.');
   const ids = new Set();
@@ -755,6 +780,7 @@ function validarItensPedidoPublico(itens) {
       idProduto,
       quantidade: inteiroPositivo(item?.quantidade, 'quantidade', 100),
       observacoes: textoOpcional(item?.observacoes, 'observacoes', 500),
+      ingredientesRemovidos: validarIngredientesRemovidos(item?.ingredientesRemovidos),
     };
   });
 }
@@ -809,6 +835,15 @@ async function criarPedidoPublico(req, res, corpo) {
       if (!Number.isSafeInteger(precoUnitarioCentavos) || precoUnitarioCentavos < 0) throw new ApiError(409, 'PRECO_INVALIDO', 'Um produto possui preço inválido.');
       const totalCentavos = precoUnitarioCentavos * item.quantidade;
       subtotalCentavos += totalCentavos;
+      const ingredientesConfigurados = ingredientesProdutoPublicos(produto.ingredientes);
+      const idsConfigurados = new Set(ingredientesConfigurados.map(ingrediente => ingrediente.id));
+      const ingredientesRemovidosIds = item.ingredientesRemovidos;
+      if (ingredientesRemovidosIds.some(id => !idsConfigurados.has(id))) throw new ApiError(400, 'INGREDIENTE_INVALIDO', `Um ingrediente selecionado para remoção não pertence ao produto ${item.idProduto}.`);
+      const removidos = new Set(ingredientesRemovidosIds);
+      if (ingredientesRemovidosIds.some(id => ingredientesConfigurados.find(ingrediente => ingrediente.id === id)?.removivel === false)) throw new ApiError(400, 'INGREDIENTE_NAO_REMOVIVEL', 'Um dos ingredientes selecionados não pode ser retirado deste produto.');
+      const ingredientes = ingredientesConfigurados.map(ingrediente => ({ ...ingrediente, mantido: !removidos.has(ingrediente.id) }));
+      const ingredientesMantidos = ingredientes.filter(ingrediente => ingrediente.mantido).map(({ id, nome }) => ({ id, nome }));
+      const ingredientesRemovidos = ingredientes.filter(ingrediente => !ingrediente.mantido).map(({ id, nome }) => ({ id, nome }));
       return {
         idProduto: item.idProduto,
         nome: String(produto.nome || item.idProduto),
@@ -818,6 +853,9 @@ async function criarPedidoPublico(req, res, corpo) {
         subtotalCentavos: totalCentavos,
         totalCentavos,
         observacoes: item.observacoes,
+        ingredientes,
+        ingredientesMantidos,
+        ingredientesRemovidos,
         especialidadesNecessarias: Array.isArray(produto.especialidadesNecessarias) ? produto.especialidadesNecessarias : [],
         estacoesNecessarias: Array.isArray(produto.estacoesNecessarias) ? produto.estacoesNecessarias : [],
         idParticipante: contexto.participanteDocumento.id,
@@ -890,7 +928,7 @@ async function criarPedidoPublico(req, res, corpo) {
       status: statusPedido,
       prioridade: 'normal',
       itens: itensPersistidos,
-      itensResumo: itensPersistidos.map(item => ({ idProduto: item.idProduto, nomeProduto: item.nomeProduto, quantidade: item.quantidade, observacoes: item.observacoes })),
+      itensResumo: itensPersistidos.map(item => ({ idProduto: item.idProduto, nomeProduto: item.nomeProduto, quantidade: item.quantidade, observacoes: item.observacoes, ingredientes: item.ingredientes, ingredientesMantidos: item.ingredientesMantidos, ingredientesRemovidos: item.ingredientesRemovidos })),
       observacoes,
       subtotalCentavos,
       descontoCentavos: 0,

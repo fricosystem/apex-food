@@ -61,7 +61,7 @@ test('desempate da cozinha é determinístico por prioridade, atribuição anter
 test('tarefasDoPedido cria uma tarefa por item com exigências e observações', () => {
   const tarefas = cozinha.tarefasDoPedido({ itens: [{ idProduto: 'PRD-1', nome: 'Lasanha', quantidade: 2, observacoes: 'Sem cebola', especialidadesNecessarias: ['massas'], estacoesNecessarias: ['forno'] }] });
   assert.equal(tarefas.length, 1);
-  assert.deepEqual(tarefas[0], { indice: 0, idProduto: 'PRD-1', nomeProduto: 'Lasanha', quantidade: 2, observacoes: 'Sem cebola', especialidadesNecessarias: ['massas'], estacoesNecessarias: ['forno'] });
+  assert.deepEqual(tarefas[0], { indice: 0, idProduto: 'PRD-1', nomeProduto: 'Lasanha', quantidade: 2, observacoes: 'Sem cebola', ingredientes: [], ingredientesMantidos: [], ingredientesRemovidos: [], especialidadesNecessarias: ['massas'], estacoesNecessarias: ['forno'] });
 });
 
 test('distribuição gera fila geral quando não há cozinheiro compatível', () => {

@@ -28,11 +28,19 @@ function atualizarIndicadoresCozinha() {
 }
 function statusTarefaLabel(status) { return status === 'em_preparo' ? 'Em preparo' : status === 'pronto' ? 'Pronto' : status === 'cancelada' ? 'Cancelada' : 'Aguardando'; }
 function proximoStatusTarefa(status) { return status === 'aguardando_preparo' ? 'em_preparo' : status === 'em_preparo' ? 'pronto' : ''; }
+function personalizacaoCozinhaMarkup(tarefa) {
+  const mantidos = (Array.isArray(tarefa.ingredientesMantidos) ? tarefa.ingredientesMantidos : []).map(item => item?.nome || item).filter(Boolean);
+  const retirados = (Array.isArray(tarefa.ingredientesRemovidos) ? tarefa.ingredientesRemovidos : []).map(item => item?.nome || item).filter(Boolean);
+  if (!mantidos.length && !retirados.length) return '';
+  return `<div class="rounded-md border border-accent/20 bg-accent/5 px-2 py-1.5 text-[10px] leading-relaxed"><span class="font-semibold text-orange-100">Preparo do cliente:</span>${mantidos.length ? `<div class="text-muted">Manter: ${escapeCozinha(mantidos.join(', '))}</div>` : ''}${retirados.length ? `<div class="text-orange-100">Retirar: ${escapeCozinha(retirados.join(', '))}</div>` : ''}</div>`;
+}
+
 function criarTarefaMarkup(ficha, tarefa) {
   const proximo = proximoStatusTarefa(tarefa.statusTarefa);
   const requisitos = [...(tarefa.especialidadesNecessarias || []), ...(tarefa.estacoesNecessarias || [])].join(' · ');
   const responsavel = tarefa.nomeCozinheiroResponsavel || 'Fila geral';
-  return `<div class="cozinha-item flex flex-col gap-2 px-3 py-2.5"><div class="flex items-center justify-between gap-2"><span class="text-xs truncate">${escapeCozinha(tarefa.quantidade)}x ${escapeCozinha(tarefa.nomeProduto || tarefa.nome || tarefa.idProduto)}</span><span class="text-[10px] ${tarefa.statusTarefa === 'pronto' ? 'text-green' : tarefa.statusTarefa === 'em_preparo' ? 'text-yellow' : 'text-muted'}">${escapeCozinha(statusTarefaLabel(tarefa.statusTarefa))}</span></div><div class="flex items-center justify-between gap-2"><span class="text-[10px] text-muted truncate">${escapeCozinha(responsavel)}${requisitos ? ` · ${escapeCozinha(requisitos)}` : ''}</span>${proximo ? `<button type="button" data-acao-tarefa="${escapeCozinha(ficha.id)}" data-tarefa-id="${escapeCozinha(tarefa.id)}" data-proximo-tarefa="${escapeCozinha(proximo)}" class="text-[10px] text-accent hover:text-orange-300">${proximo === 'em_preparo' ? 'Iniciar preparo' : 'Marcar pronto'}</button>` : ''}</div></div>`;
+  const personalizacao = personalizacaoCozinhaMarkup(tarefa);
+  return `<div class="cozinha-item flex flex-col gap-2 px-3 py-2.5"><div class="flex items-center justify-between gap-2"><span class="text-xs truncate">${escapeCozinha(tarefa.quantidade)}x ${escapeCozinha(tarefa.nomeProduto || tarefa.nome || tarefa.idProduto)}</span><span class="text-[10px] ${tarefa.statusTarefa === 'pronto' ? 'text-green' : tarefa.statusTarefa === 'em_preparo' ? 'text-yellow' : 'text-muted'}">${escapeCozinha(statusTarefaLabel(tarefa.statusTarefa))}</span></div>${personalizacao}<div class="flex items-center justify-between gap-2"><span class="text-[10px] text-muted truncate">${escapeCozinha(responsavel)}${requisitos ? ` · ${escapeCozinha(requisitos)}` : ''}</span>${proximo ? `<button type="button" data-acao-tarefa="${escapeCozinha(ficha.id)}" data-tarefa-id="${escapeCozinha(tarefa.id)}" data-proximo-tarefa="${escapeCozinha(proximo)}" class="text-[10px] text-accent hover:text-orange-300">${proximo === 'em_preparo' ? 'Iniciar preparo' : 'Marcar pronto'}</button>` : ''}</div></div>`;
 }
 function criarCardCozinha(pedido) {
   const atrasado = minutosCozinha(pedido.tempo) >= 20 && pedido.status !== 'pronto';

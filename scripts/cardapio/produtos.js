@@ -10,6 +10,7 @@ const elementosProdutos = {
   vazio: document.getElementById('estadoVazioProdutos'),
 };
 let produtoEditandoId = null;
+let ingredientesProdutoAtual = [];
 
 function moedaProduto(valor) {
   return window.ferramentasInterfaceApexFood?.formatarMoeda
@@ -30,6 +31,47 @@ function numeroCampo(id, padrao = 0) {
 
 function listaCampo(id) {
   return [...new Set(String(document.getElementById(id)?.value || '').split(',').map(item => item.trim()).filter(Boolean))];
+}
+
+function novoIdIngrediente() {
+  const sufixo = typeof crypto?.randomUUID === 'function' ? crypto.randomUUID().slice(0, 12) : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `ingrediente-${sufixo}`;
+}
+
+function normalizarIngredientesProduto(produto) {
+  const ingredientes = Array.isArray(produto?.ingredientes) ? produto.ingredientes : [];
+  return ingredientes.map((item, indice) => {
+    const dados = typeof item === 'string' ? { nome: item } : item && typeof item === 'object' ? item : {};
+    return { id: String(dados.id || `ingrediente-${indice + 1}`), nome: String(dados.nome || '').trim(), removivel: dados.removivel !== false };
+  }).filter(item => item.nome);
+}
+
+function renderizarIngredientesProduto() {
+  const lista = document.getElementById('listaIngredientesProduto');
+  const vazio = document.getElementById('ingredientesProdutoVazio');
+  if (!lista || !vazio) return;
+  vazio.classList.toggle('hidden', ingredientesProdutoAtual.length > 0);
+  lista.innerHTML = ingredientesProdutoAtual.map((ingrediente, indice) => `<div class="rounded-lg border border-border bg-card p-3" data-ingrediente-linha="${escapeProduto(ingrediente.id)}"><div class="flex flex-col gap-3 sm:flex-row sm:items-end"><label class="flex-1"><span class="block text-[11px] text-muted mb-1.5">Ingrediente ${indice + 1}</span><input data-ingrediente-nome="true" maxlength="120" required value="${escapeProduto(ingrediente.nome)}" placeholder="Ex.: queijo muçarela" class="w-full bg-card2 border border-border2 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-accent/60" /></label><label class="flex items-center gap-2 text-[11px] text-muted sm:pb-2.5"><input data-ingrediente-removivel="true" type="checkbox" class="disponibilidade-switch" ${ingrediente.removivel ? 'checked' : ''} />Cliente pode retirar</label><button type="button" data-remover-ingrediente="${escapeProduto(ingrediente.id)}" class="btn-press rounded-lg border border-border2 px-3 py-2.5 text-[11px] font-semibold text-muted hover:border-red/50 hover:text-red-200">Remover</button></div></div>`).join('');
+  lista.querySelectorAll('[data-remover-ingrediente]').forEach(botao => botao.addEventListener('click', () => {
+    ingredientesProdutoAtual = ingredientesProdutoAtual.filter(item => item.id !== botao.dataset.removerIngrediente);
+    renderizarIngredientesProduto();
+  }));
+  window.lucide?.createIcons();
+}
+
+function adicionarIngredienteProduto() {
+  ingredientesProdutoAtual.push({ id: novoIdIngrediente(), nome: '', removivel: true });
+  renderizarIngredientesProduto();
+  const inputs = document.querySelectorAll('#listaIngredientesProduto [data-ingrediente-nome]');
+  inputs[inputs.length - 1]?.focus();
+}
+
+function lerIngredientesFormulario() {
+  return [...document.querySelectorAll('#listaIngredientesProduto [data-ingrediente-linha]')].map(linha => ({
+    id: String(linha.dataset.ingredienteLinha || novoIdIngrediente()),
+    nome: String(linha.querySelector('[data-ingrediente-nome]')?.value || '').trim(),
+    removivel: linha.querySelector('[data-ingrediente-removivel]')?.checked !== false,
+  })).filter(item => item.nome);
 }
 
 function preencherCategoriasProduto() {
@@ -115,7 +157,9 @@ function preencherFormularioProduto(produto) {
   document.getElementById('tempoPreparoNovoProduto').value = produto ? produto.tempoPreparo : '';
   document.getElementById('especialidadesNecessariasProduto').value = Array.isArray(produto?.especialidadesNecessarias) ? produto.especialidadesNecessarias.join(', ') : '';
   document.getElementById('estacoesNecessariasProduto').value = Array.isArray(produto?.estacoesNecessarias) ? produto.estacoesNecessarias.join(', ') : '';
+  ingredientesProdutoAtual = normalizarIngredientesProduto(produto);
   document.getElementById('disponibilidadeNovoProduto').checked = produto ? produto.disponibilidade : true;
+  renderizarIngredientesProduto();
 }
 
 function abrirModalProduto(produto = null) {
@@ -135,6 +179,7 @@ function fecharModalProduto() {
   document.body.style.overflow = '';
   document.getElementById('formProduto').reset();
   produtoEditandoId = null;
+  ingredientesProdutoAtual = [];
   preencherFormularioProduto(null);
 }
 
@@ -160,6 +205,7 @@ async function salvarProduto(event) {
     disponibilidade: document.getElementById('disponibilidadeNovoProduto').checked,
     especialidadesNecessarias: listaCampo('especialidadesNecessariasProduto'),
     estacoesNecessarias: listaCampo('estacoesNecessariasProduto'),
+    ingredientes: lerIngredientesFormulario(),
   };
   if (!window.dadosCardapioRemotoAtivo || !window.apexModulosApi) {
     mostrarAvisoPedido('Não foi possível conectar ao Cardápio real. Tente novamente.');
@@ -203,6 +249,7 @@ elementosProdutos.busca.addEventListener('input', renderizarProdutos);
 elementosProdutos.categoria.addEventListener('change', renderizarProdutos);
 elementosProdutos.disponibilidade.addEventListener('change', renderizarProdutos);
 document.getElementById('novoProduto').addEventListener('click', () => abrirModalProduto());
+document.getElementById('adicionarIngredienteProduto').addEventListener('click', adicionarIngredienteProduto);
 document.getElementById('fecharModalProduto').addEventListener('click', fecharModalProduto);
 document.getElementById('cancelarProduto').addEventListener('click', fecharModalProduto);
 document.getElementById('backdropProduto').addEventListener('click', fecharModalProduto);
