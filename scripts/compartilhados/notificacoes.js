@@ -61,7 +61,7 @@
   }
 
   function obterBotoes() {
-    return [...document.querySelectorAll('button[aria-label^="Notificações"]')];
+    return [...document.querySelectorAll('[data-apex-notificacoes-trigger="true"], button[aria-label^="Notificações"]')];
   }
 
   function atualizarBadge() {
@@ -335,8 +335,12 @@
   function inicializar() {
     if (estado.inicializado) return;
     estado.inicializado = true;
-    obterBotoes().forEach(botao => botao.addEventListener('click', () => alternar()));
     document.addEventListener('click', evento => {
+      const trigger = evento.target.closest?.('[data-apex-notificacoes-trigger="true"], button[aria-label^="Notificações"]');
+      if (trigger) {
+        alternar();
+        return;
+      }
       if (!estado.aberto) return;
       const painel = obterPainel();
       if (!painel.contains(evento.target) && !obterBotoes().some(botao => botao.contains(evento.target))) alternar(false);

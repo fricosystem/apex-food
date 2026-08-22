@@ -94,6 +94,10 @@ test('cliente same-origin e central não usam Firebase client, storage local ou 
   assert.match(controller, /apexModulosApi\.listarNotificacoes/);
   assert.match(controller, /apexModulosApi\.atualizarNotificacao/);
   assert.match(controller, /button\[aria-label\^="Notificações"\]/);
+  assert.match(controller, /data-apex-notificacoes-trigger/);
+  assert.match(controller, /evento\.target\.closest/);
+  const index = ler('index.html');
+  assert.match(index, /data-apex-notificacoes-trigger="true"/);
   assert.doesNotMatch(controller, /localStorage|sessionStorage|firebase|FIREBASE_PRIVATE_KEY|idToken/i);
 });
 
@@ -101,7 +105,7 @@ test('shell versiona os assets e preserva o shell único', () => {
   const index = ler('index.html');
   assert.match(index, /apex-shell\.js\?v=etapa25-skeleton-firestore/);
   assert.match(index, /scripts\/api\/modulos-client\.js\?v=etapa22-dados-reais-global/);
-  assert.match(index, /scripts\/compartilhados\/notificacoes\.js\?v=etapa13-diagnostico-fcm/);
+  assert.match(index, /scripts\/compartilhados\/notificacoes\.js\?v=etapa14-header-notificacoes/);
   assert.equal((index.match(/id="sidebarContentDesktop"/g) || []).length, 1);
   assert.equal((index.match(/id="conteudoPagina"/g) || []).length, 1);
 });
