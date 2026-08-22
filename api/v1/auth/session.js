@@ -51,6 +51,7 @@ module.exports = async function session(req, res) {
         restauranteAtivo: identidade ? {
           idRestaurante: identidade.idRestaurante,
           papeis: identidade.papeis,
+          permissoes: Array.isArray(identidade.permissoes) ? identidade.permissoes.slice(0, 40) : [],
         } : null,
       },
     };
