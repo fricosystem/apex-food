@@ -31,6 +31,7 @@ const {
   obterIdentidadeOperacional,
   limitarInteiro,
   textoOpcional,
+  textoObrigatorio,
   enumObrigatorio,
   queryString,
   listarColecao,
@@ -215,15 +216,35 @@ async function atualizarConta(identidade, corpo, idRequisicao) {
   const tipo = corpo.tipo === 'receber' ? 'receber' : corpo.tipo === 'pagar' ? 'pagar' : null;
   if (!tipo) throw new ApiError(400, 'TIPO_INVALIDO', 'tipo de conta inválido.');
   const id = idDocumento(corpo.id, 'id');
-  const estado = validarEstadoConta(tipo, corpo.estado);
+  const estado = validarEstadoConta(tipo, corpo.arquivar === true ? 'excluida' : corpo.estado);
   const restaurante = caminhoRestaurante(identidade.idRestaurante);
   const referencia = restaurante.collection(tipo === 'pagar' ? 'contasPagar' : 'contasReceber').doc(id);
   await referencia.firestore.runTransaction(async (transacao) => {
     const documento = await transacao.get(referencia);
     if (!documento.exists || documento.data()?.estado === 'excluida') throw new ApiError(404, 'CONTA_NAO_ENCONTRADA', 'Conta não encontrada.');
-    const anterior = documento.data()?.estado || (tipo === 'pagar' ? 'pendente' : 'prevista');
+    const atual = documento.data() || {};
+    const anterior = atual.estado || (tipo === 'pagar' ? 'pendente' : 'prevista');
     if (!transicaoContaPermitida(tipo, anterior, estado)) throw new ApiError(409, 'TRANSICAO_INVALIDA', 'A transição desta conta não é permitida.');
-    transacao.update(referencia, { estado, atualizadoPor: identidade.idUsuario, atualizadoEm: FieldValue.serverTimestamp(), versao: Number(documento.data()?.versao || 1) + 1, ...(estado === 'pago' || estado === 'recebido' ? { liquidadoEm: FieldValue.serverTimestamp(), liquidadoPor: identidade.idUsuario } : {}) });
+    const atualizacoes = {
+      estado,
+      atualizadoPor: identidade.idUsuario,
+      atualizadoEm: FieldValue.serverTimestamp(),
+      versao: Number(atual.versao || 1) + 1,
+      ...(estado === 'pago' || estado === 'recebido' ? { liquidadoEm: FieldValue.serverTimestamp(), liquidadoPor: identidade.idUsuario } : {}),
+    };
+    if (corpo.descricao !== undefined) atualizacoes.descricao = textoObrigatorio(corpo.descricao, 'descricao', 180);
+    if (corpo.categoria !== undefined) atualizacoes.categoria = textoObrigatorio(corpo.categoria, 'categoria', 100);
+    if (corpo.vencimento !== undefined) {
+      const vencimento = dataFinanceira(corpo.vencimento, 'vencimento');
+      if (!vencimento) throw new ApiError(400, 'DATA_INVALIDA', 'vencimento é inválido.');
+      atualizacoes.vencimento = vencimento;
+      atualizacoes.vencimentoEm = Timestamp.fromDate(new Date(`${vencimento}T00:00:00.000Z`));
+    }
+    if (corpo.arquivar === true) {
+      atualizacoes.excluidoPor = identidade.idUsuario;
+      atualizacoes.excluidoEm = FieldValue.serverTimestamp();
+    }
+    transacao.update(referencia, atualizacoes);
   });
   await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: 'financeiro.conta.estadoAlterado', tipoRecurso: tipo === 'pagar' ? 'contaPagar' : 'contaReceber', idRecurso: id });
   return { corpo: { recurso: 'conta', tipo, id, atualizado: true } };
@@ -231,14 +252,25 @@ async function atualizarConta(identidade, corpo, idRequisicao) {
 
 async function atualizarMovimentacao(identidade, corpo, idRequisicao) {
   const id = idDocumento(corpo.id, 'id');
-  const estado = validarEstadoMovimentacao(corpo.estado);
+  const estado = validarEstadoMovimentacao(corpo.arquivar === true ? 'excluida' : corpo.estado);
   const referencia = caminhoRestaurante(identidade.idRestaurante).collection('movimentacoesCaixa').doc(id);
   await referencia.firestore.runTransaction(async (transacao) => {
     const documento = await transacao.get(referencia);
     if (!documento.exists || documento.data()?.estado === 'excluida') throw new ApiError(404, 'MOVIMENTACAO_NAO_ENCONTRADA', 'Movimentação não encontrada.');
-    const anterior = documento.data()?.estado || 'pendente';
+    const atual = documento.data() || {};
+    const anterior = atual.estado || 'pendente';
     if (['cancelada', 'excluida'].includes(anterior) || (anterior === 'conciliado' && estado !== 'conciliado')) throw new ApiError(409, 'TRANSICAO_INVALIDA', 'A movimentação não pode ser revertida.');
-    transacao.update(referencia, { estado, atualizadoPor: identidade.idUsuario, atualizadoEm: FieldValue.serverTimestamp(), versao: Number(documento.data()?.versao || 1) + 1 });
+    const atualizacoes = { estado, atualizadoPor: identidade.idUsuario, atualizadoEm: FieldValue.serverTimestamp(), versao: Number(atual.versao || 1) + 1 };
+    if (corpo.categoria !== undefined) atualizacoes.categoria = textoObrigatorio(corpo.categoria, 'categoria', 100);
+    if (corpo.descricao !== undefined) atualizacoes.descricao = textoObrigatorio(corpo.descricao, 'descricao', 240);
+    if (corpo.origem !== undefined) atualizacoes.origem = textoObrigatorio(corpo.origem, 'origem', 100);
+    if (corpo.forma !== undefined) atualizacoes.forma = textoObrigatorio(corpo.forma, 'forma', 80);
+    if (corpo.data !== undefined) atualizacoes.data = dataFinanceira(corpo.data, 'data');
+    if (corpo.arquivar === true) {
+      atualizacoes.excluidoPor = identidade.idUsuario;
+      atualizacoes.excluidoEm = FieldValue.serverTimestamp();
+    }
+    transacao.update(referencia, atualizacoes);
   });
   await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: 'financeiro.movimentacao.estadoAlterado', tipoRecurso: 'movimentacao', idRecurso: id });
   return { corpo: { recurso: 'movimentacao', id, atualizado: true } };

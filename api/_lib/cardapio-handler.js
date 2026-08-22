@@ -285,12 +285,32 @@ function camposAtualizaveisProduto(corpo) {
   return atualizacoes;
 }
 
+async function arquivarRecurso(identidade, recurso, id, idRequisicao) {
+  if (recurso === 'configuracao') throw new ApiError(400, 'RECURSO_INVALIDO', 'A configuração do cardápio não pode ser arquivada.');
+  const referencia = caminhoRestaurante(identidade.idRestaurante).collection(nomeColecao(recurso)).doc(id);
+  await referencia.firestore.runTransaction(async (transacao) => {
+    const documento = await transacao.get(referencia);
+    if (!documento.exists || documento.data()?.estado === 'excluido') throw new ApiError(404, 'RECURSO_NAO_ENCONTRADO', 'Recurso não encontrado.');
+    transacao.update(referencia, {
+      estado: 'excluido',
+      excluidoPor: identidade.idUsuario,
+      excluidoEm: FieldValue.serverTimestamp(),
+      atualizadoPor: identidade.idUsuario,
+      atualizadoEm: FieldValue.serverTimestamp(),
+      versao: Number(documento.data()?.versao || 1) + 1,
+    });
+  });
+  await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: `cardapio.${recurso}.arquivado`, tipoRecurso: recurso, idRecurso: id });
+  return { corpo: { recurso, id, arquivado: true } };
+}
+
 async function atualizarRecurso(identidade, corpo, idRequisicao) {
   const recurso = normalizarRecurso(corpo.recurso);
   if (!RECURSOS_ESCRITA.has(recurso)) {
     throw new ApiError(400, 'RECURSO_INVALIDO', 'Atualização deste recurso não está disponível neste recorte.');
   }
   const id = idDocumento(corpo.id, 'id');
+  if (corpo.arquivar === true) return arquivarRecurso(identidade, recurso, id, idRequisicao);
   const colecao = nomeColecao(recurso);
   const referencia = caminhoRestaurante(identidade.idRestaurante).collection(colecao).doc(recurso === 'configuracao' ? 'configuracao' : id);
   const atualizacoes = recurso === 'categorias'

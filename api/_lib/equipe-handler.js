@@ -241,6 +241,29 @@ async function criarEscala(identidade, corpo, idRequisicao) {
   return { status: 201, corpo: { recurso: 'escala', id: referencia.id, criado: true } };
 }
 
+async function arquivarRecurso(identidade, recurso, id, idRequisicao) {
+  const colecao = recurso === 'funcionarios' ? 'funcionarios' : 'escalas';
+  const referencia = caminhoRestaurante(identidade.idRestaurante).collection(colecao).doc(id);
+  const documento = await referencia.get();
+  if (!documento.exists || documento.data()?.estado === 'excluido') throw new ApiError(404, 'RECURSO_NAO_ENCONTRADO', 'Recurso de equipe não encontrado.');
+  const dados = documento.data() || {};
+  if (recurso === 'funcionarios') {
+    const carga = dados.cargaAtual || {};
+    const possuiCarga = ['mesasAtivas', 'comandasAtivas', 'pedidosPendentes', 'tarefasAtivas'].some((campo) => Number(carga[campo] || 0) > 0);
+    if (possuiCarga) throw new ApiError(409, 'FUNCIONARIO_EM_ATENDIMENTO', 'O funcionário possui atendimento ou tarefas ativas e não pode ser arquivado agora.');
+  }
+  await referencia.update({
+    estado: 'excluido',
+    excluidoPor: identidade.idUsuario,
+    excluidoEm: FieldValue.serverTimestamp(),
+    atualizadoPor: identidade.idUsuario,
+    atualizadoEm: FieldValue.serverTimestamp(),
+    versao: Number(dados.versao || 1) + 1,
+  });
+  await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: `equipe.${recurso}.arquivado`, tipoRecurso: recurso, idRecurso: id });
+  return { corpo: { recurso, id, arquivado: true } };
+}
+
 async function atualizarEscala(identidade, corpo, idRequisicao) {
   const id = idDocumento(corpo.id, 'id');
   const dados = dadosEscala(corpo);
@@ -276,6 +299,7 @@ module.exports = async function equipe(req, res) {
     if (metodo === 'GET') return listarEquipe(identidade, req);
     if (!RECURSOS_MUTACAO.has(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Mutação de equipe inválida ou não disponível.');
     if (metodo === 'POST') return recurso === 'funcionarios' ? criarFuncionario(identidade, corpo, idRequisicao) : criarEscala(identidade, corpo, idRequisicao);
+    if (corpo.arquivar === true) return arquivarRecurso(identidade, recurso, idDocumento(corpo.id, 'id'), idRequisicao);
     return recurso === 'funcionarios' ? atualizarFuncionario(identidade, corpo, idRequisicao) : atualizarEscala(identidade, corpo, idRequisicao);
   });
 };

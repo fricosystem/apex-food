@@ -207,6 +207,30 @@ async function criarMesa(identidade, corpo, idRequisicao) {
   return { status: 201, corpo: { recurso: 'mesa', id: referencia.id, criado: true } };
 }
 
+async function arquivarRecurso(identidade, recurso, id, idRequisicao) {
+  const colecao = recurso === 'reserva' ? 'reservas' : 'mesas';
+  const referencia = caminhoRestaurante(identidade.idRestaurante).collection(colecao).doc(id);
+  const documento = await referencia.get();
+  if (!documento.exists || documento.data()?.estado === 'excluido') throw new ApiError(404, 'RECURSO_NAO_ENCONTRADO', 'Recurso de salão não encontrado.');
+  const dados = documento.data() || {};
+  const mesaId = recurso === 'reserva' ? dados.idMesa : id;
+  if (mesaId) {
+    const mesaDocumento = await referencia.parent.parent.collection('mesas').doc(String(mesaId)).get();
+    const mesa = mesaDocumento.data() || {};
+    if (mesa.estado === 'ocupada' || mesa.idComandaAberta) throw new ApiError(409, 'MESA_EM_ATENDIMENTO', 'A mesa possui atendimento ativo e não pode ser arquivada agora.');
+  }
+  await referencia.update({
+    estado: 'excluido',
+    excluidoPor: identidade.idUsuario,
+    excluidoEm: FieldValue.serverTimestamp(),
+    atualizadoPor: identidade.idUsuario,
+    atualizadoEm: FieldValue.serverTimestamp(),
+    versao: Number(dados.versao || 1) + 1,
+  });
+  await registrarAuditoriaOperacional({ identidade, idRequisicao, acao: `salao.${recurso}.arquivado`, tipoRecurso: recurso, idRecurso: id });
+  return { corpo: { recurso, id, arquivado: true } };
+}
+
 async function atualizarReserva(identidade, corpo, idRequisicao) {
   const id = idDocumento(corpo.id, 'id');
   const estado = corpo.estado;
@@ -325,6 +349,7 @@ module.exports = async function salao(req, res) {
       return recurso === 'reserva' ? criarReserva(identidade, corpo, idRequisicao) : criarMesa(identidade, corpo, idRequisicao);
     }
     if (!RECURSOS_ESCRITA.has(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso de salão inválido.');
+    if (corpo.arquivar === true) return arquivarRecurso(identidade, recurso, idDocumento(corpo.id, 'id'), idRequisicao);
     return recurso === 'reserva' ? atualizarReserva(identidade, corpo, idRequisicao) : atualizarMesa(identidade, corpo, idRequisicao);
   });
 };
