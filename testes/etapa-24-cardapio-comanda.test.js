@@ -99,7 +99,7 @@ test('Fluxo público mantém os assets da mesa e avança para a central da etapa
   assert.match(shell, /mesaPublico|paginas\/publico\/mesa\.html\?v=etapa23-comanda-passos-mobile/);
   assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa23-comanda-passos-mobile/);
   assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa23-comanda-passos-mobile/);
-  assert.match(index, /apex-shell\.js\?v=etapa25-skeleton-firestore/);
+  assert.match(index, /apex-shell\.js\?v=etapa31-especialidades/);
 });
 
 test('comanda pública mantém largura fluida e adapta o cardápio para telas móveis', () => {

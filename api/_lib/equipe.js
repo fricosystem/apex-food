@@ -110,8 +110,15 @@ function prioridadeOperacional(valor) {
 
 function listaOperacional(valor, campo) {
   if (valor === undefined || valor === null || valor === '') return [];
-  if (!Array.isArray(valor) || valor.length > 30) throw new ApiError(400, 'PAYLOAD_INVALIDO', `${campo} é inválido.`);
-  return valor.map((item) => textoObrigatorio(item, `${campo}[]`, 80));
+  const itens = Array.isArray(valor) ? valor : typeof valor === 'string' ? valor.split(',') : null;
+  if (!itens || itens.length > 30) throw new ApiError(400, 'PAYLOAD_INVALIDO', `${campo} é inválido.`);
+  const vistos = new Set();
+  return itens.map((item) => textoObrigatorio(String(item).replace(/\s+/g, ' ').trim(), `${campo}[]`, 80)).filter(item => {
+    const chave = item.toLocaleLowerCase('pt-BR');
+    if (vistos.has(chave)) return false;
+    vistos.add(chave);
+    return true;
+  });
 }
 
 function papelOperacional(valor) {

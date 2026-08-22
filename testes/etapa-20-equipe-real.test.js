@@ -44,10 +44,10 @@ test('controllers da Equipe usam persistência e não exibem placeholders', () =
 test('shell e index versionam as rotas da Fase 8', () => {
   const shell = ler('scripts/shell/apex-shell.js');
   const index = ler('index.html');
-  assert.match(shell, /funcionarios\.html\?v=etapa22-dados-reais-global/);
+  assert.match(shell, /funcionarios\.html\?v=etapa31-especialidades/);
   assert.match(shell, /escala-trabalho\.html\?v=etapa22-dados-reais-global/);
   assert.match(shell, /comissoes\.html\?v=etapa22-dados-reais-global/);
-  assert.match(index, /apex-shell\.js\?v=etapa25-skeleton-firestore/);
+  assert.match(index, /apex-shell\.js\?v=etapa31-especialidades/);
 });
 
 test('contrato de equipe mantém coleções públicas e privadas separadas', () => {

@@ -17,9 +17,10 @@ test('produtos e funcionários expõem os contratos de preparo da cozinha', () =
   for (const campo of ['especialidadesCozinha', 'estacoesCozinha', 'capacidadeTarefas']) assert.match(equipe, new RegExp(campo));
   assert.match(funcionarios, /Capacidade de tarefas/);
   assert.match(funcionarios, /Especialidades de cozinha/);
-  assert.match(funcionarios, /id="estacoesCozinhaFuncionario"/);
-  assert.match(produtos, /id="especialidadesNecessariasProduto"/);
-  assert.match(produtos, /id="estacoesNecessariasProduto"/);
+  assert.match(funcionarios, /id="listaEspecialidadesCozinhaFuncionario"/);
+  assert.match(funcionarios, /id="listaEstacoesCozinhaFuncionario"/);
+  assert.match(produtos, /id="listaEspecialidadesNecessariasProduto"/);
+  assert.match(produtos, /id="listaEstacoesNecessariasProduto"/);
 });
 
 test('listas de preparo são normalizadas no servidor e produtos legados continuam com listas vazias', () => {
@@ -113,10 +114,10 @@ test('cliente e fila usam a ação individual de tarefa sem retirar o fluxo lega
 test('produto e funcionário enviam listas ao endpoint real', () => {
   const produtos = ler('scripts/cardapio/produtos.js');
   const funcionarios = ler('scripts/equipe/funcionarios.js');
-  assert.match(produtos, /especialidadesNecessarias: listaCampo/);
-  assert.match(produtos, /estacoesNecessarias: listaCampo/);
-  assert.match(funcionarios, /especialidadesCozinha: listaFuncionario/);
-  assert.match(funcionarios, /estacoesCozinha: listaFuncionario/);
+  assert.match(produtos, /especialidadesNecessarias: lerListaRequisitoProduto/);
+  assert.match(produtos, /estacoesNecessarias: lerListaRequisitoProduto/);
+  assert.match(funcionarios, /especialidadesCozinha: lerListaEquipe/);
+  assert.match(funcionarios, /estacoesCozinha: lerListaEquipe/);
 });
 
 test('não há nova função serverless para a Fase 4 e assets foram versionados', () => {

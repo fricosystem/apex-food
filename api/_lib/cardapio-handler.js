@@ -58,8 +58,13 @@ function listaCodigosOperacionais(valor, campo) {
   if (valor === undefined || valor === null || valor === '') return [];
   const itens = Array.isArray(valor) ? valor : typeof valor === 'string' ? valor.split(',') : null;
   if (!itens || itens.length > 30) throw new ApiError(400, 'PAYLOAD_INVALIDO', `${campo} é inválido.`);
-  const normalizados = itens.map(item => textoObrigatorio(String(item), `${campo}[]`, 80));
-  return [...new Set(normalizados)];
+  const vistos = new Set();
+  return itens.map(item => textoObrigatorio(String(item).replace(/\s+/g, ' ').trim(), `${campo}[]`, 80)).filter(item => {
+    const chave = item.toLocaleLowerCase('pt-BR');
+    if (vistos.has(chave)) return false;
+    vistos.add(chave);
+    return true;
+  });
 }
 
 function listaIngredientes(valor, campo = 'ingredientes') {

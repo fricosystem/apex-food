@@ -11,6 +11,8 @@ const elementosProdutos = {
 };
 let produtoEditandoId = null;
 let ingredientesProdutoAtual = [];
+let especialidadesNecessariasProdutoAtual = [];
+let estacoesNecessariasProdutoAtual = [];
 
 function moedaProduto(valor) {
   return window.ferramentasInterfaceApexFood?.formatarMoeda
@@ -31,6 +33,44 @@ function numeroCampo(id, padrao = 0) {
 
 function listaCampo(id) {
   return [...new Set(String(document.getElementById(id)?.value || '').split(',').map(item => item.trim()).filter(Boolean))];
+}
+
+function normalizarListaProduto(valor) {
+  const itens = Array.isArray(valor) ? valor : typeof valor === 'string' ? valor.split(',') : [];
+  const vistos = new Set();
+  return itens.map(item => String(item || '').replace(/\s+/g, ' ').trim()).filter(item => {
+    if (!item) return false;
+    const chave = item.toLocaleLowerCase('pt-BR');
+    if (vistos.has(chave)) return false;
+    vistos.add(chave);
+    return true;
+  });
+}
+
+function estadoRequisitoProduto(tipo) { return tipo === 'especialidade' ? { valores: especialidadesNecessariasProdutoAtual, lista: 'listaEspecialidadesNecessariasProduto', vazio: 'especialidadesNecessariasProdutoVazio', rotulo: 'Especialidade', exemplo: 'massas' } : { valores: estacoesNecessariasProdutoAtual, lista: 'listaEstacoesNecessariasProduto', vazio: 'estacoesNecessariasProdutoVazio', rotulo: 'Estação', exemplo: 'forno' }; }
+
+function renderizarListaRequisitoProduto(tipo) {
+  const estado = estadoRequisitoProduto(tipo);
+  const lista = document.getElementById(estado.lista);
+  const vazio = document.getElementById(estado.vazio);
+  if (!lista || !vazio) return;
+  vazio.classList.toggle('hidden', estado.valores.length > 0);
+  lista.innerHTML = estado.valores.map((valor, indice) => `<div class="flex items-center gap-2" data-requisito-${tipo}-linha="${indice}"><input data-requisito-${tipo}-valor="true" list="${tipo === 'especialidade' ? 'opcoesEspecialidadesNecessariasProduto' : 'opcoesEstacoesNecessariasProduto'}" maxlength="80" required placeholder="Ex.: ${estado.exemplo}" value="${escapeProduto(valor)}" class="flex-1 bg-card border border-border2 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-accent/60" /><button type="button" data-requisito-${tipo}-remover="${indice}" aria-label="Remover ${estado.rotulo.toLocaleLowerCase('pt-BR')}" class="btn-press rounded-lg border border-border2 px-3 py-2.5 text-[11px] text-muted hover:border-red/50 hover:text-red-200">Remover</button></div>`).join('');
+  lista.querySelectorAll(`[data-requisito-${tipo}-remover]`).forEach(botao => botao.addEventListener('click', () => { estado.valores.splice(Number(botao.dataset[`requisito${tipo[0].toUpperCase()}${tipo.slice(1)}Remover`]), 1); renderizarListaRequisitoProduto(tipo); }));
+}
+
+function adicionarRequisitoProduto(tipo) {
+  const estado = estadoRequisitoProduto(tipo);
+  estado.valores.push('');
+  renderizarListaRequisitoProduto(tipo);
+  document.querySelector(`#${estado.lista} [data-requisito-${tipo}-valor]:last-child`)?.focus();
+}
+
+function lerListaRequisitoProduto(tipo) {
+  const estado = estadoRequisitoProduto(tipo);
+  const valores = [...document.querySelectorAll(`#${estado.lista} [data-requisito-${tipo}-valor]`)].map(input => input.value.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const vistos = new Set();
+  return valores.filter(valor => { const chave = valor.toLocaleLowerCase('pt-BR'); if (vistos.has(chave)) return false; vistos.add(chave); return true; });
 }
 
 function novoIdIngrediente() {
@@ -155,8 +195,10 @@ function preencherFormularioProduto(produto) {
   document.getElementById('estoqueNovoProduto').value = produto ? produto.estoque : '';
   document.getElementById('unidadeNovoProduto').value = produto?.unidade || 'unidade';
   document.getElementById('tempoPreparoNovoProduto').value = produto ? produto.tempoPreparo : '';
-  document.getElementById('especialidadesNecessariasProduto').value = Array.isArray(produto?.especialidadesNecessarias) ? produto.especialidadesNecessarias.join(', ') : '';
-  document.getElementById('estacoesNecessariasProduto').value = Array.isArray(produto?.estacoesNecessarias) ? produto.estacoesNecessarias.join(', ') : '';
+  especialidadesNecessariasProdutoAtual = normalizarListaProduto(produto?.especialidadesNecessarias);
+  estacoesNecessariasProdutoAtual = normalizarListaProduto(produto?.estacoesNecessarias);
+  renderizarListaRequisitoProduto('especialidade');
+  renderizarListaRequisitoProduto('estacao');
   ingredientesProdutoAtual = normalizarIngredientesProduto(produto);
   document.getElementById('disponibilidadeNovoProduto').checked = produto ? produto.disponibilidade : true;
   renderizarIngredientesProduto();
@@ -180,6 +222,8 @@ function fecharModalProduto() {
   document.getElementById('formProduto').reset();
   produtoEditandoId = null;
   ingredientesProdutoAtual = [];
+  especialidadesNecessariasProdutoAtual = [];
+  estacoesNecessariasProdutoAtual = [];
   preencherFormularioProduto(null);
 }
 
@@ -203,8 +247,8 @@ async function salvarProduto(event) {
     tempoPreparo: Math.round(numeroCampo('tempoPreparoNovoProduto')),
     descricao: document.getElementById('descricaoNovoProduto').value.trim(),
     disponibilidade: document.getElementById('disponibilidadeNovoProduto').checked,
-    especialidadesNecessarias: listaCampo('especialidadesNecessariasProduto'),
-    estacoesNecessarias: listaCampo('estacoesNecessariasProduto'),
+    especialidadesNecessarias: lerListaRequisitoProduto('especialidade'),
+    estacoesNecessarias: lerListaRequisitoProduto('estacao'),
     ingredientes: lerIngredientesFormulario(),
   };
   if (!window.dadosCardapioRemotoAtivo || !window.apexModulosApi) {
@@ -250,6 +294,8 @@ elementosProdutos.categoria.addEventListener('change', renderizarProdutos);
 elementosProdutos.disponibilidade.addEventListener('change', renderizarProdutos);
 document.getElementById('novoProduto').addEventListener('click', () => abrirModalProduto());
 document.getElementById('adicionarIngredienteProduto').addEventListener('click', adicionarIngredienteProduto);
+document.getElementById('adicionarEspecialidadeNecessariaProduto').addEventListener('click', () => adicionarRequisitoProduto('especialidade'));
+document.getElementById('adicionarEstacaoNecessariaProduto').addEventListener('click', () => adicionarRequisitoProduto('estacao'));
 document.getElementById('fecharModalProduto').addEventListener('click', fecharModalProduto);
 document.getElementById('cancelarProduto').addEventListener('click', fecharModalProduto);
 document.getElementById('backdropProduto').addEventListener('click', fecharModalProduto);
