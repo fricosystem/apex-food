@@ -161,7 +161,16 @@ function selecionarGarcomResponsavel({ funcionariosDocumentos, escalasDocumentos
 
 async function atribuirGarcomResponsavel({ transacao, restaurante, idRestaurante, idComanda, idMesa, comanda = {}, mesa = {}, funcionariosDocumentos, escalasDocumentos = [], incrementoMesa = 0, incrementoComanda = 0, incrementoPedido = 0, idAtor }) {
   if (comanda.idGarcomResponsavel) {
-    return { status: 'atribuido', idGarcomResponsavel: String(comanda.idGarcomResponsavel), idFuncionarioResponsavel: String(comanda.idFuncionarioResponsavel || ''), idUsuarioGarcomResponsavel: String(comanda.idUsuarioGarcomResponsavel || ''), nomeGarcomResponsavel: String(comanda.nomeGarcomResponsavel || comanda.nomeGarcom || '') };
+    const idFuncionarioResponsavel = String(comanda.idFuncionarioResponsavel || '');
+    const idUsuarioResponsavel = String(comanda.idUsuarioGarcomResponsavel || comanda.idGarcomResponsavel || '');
+    const funcionarioDocumento = funcionariosDocumentos.find(documento => documento.id === idFuncionarioResponsavel || String(documento.data()?.idUsuario || '') === idUsuarioResponsavel);
+    if (funcionarioDocumento && (incrementoMesa || incrementoComanda || incrementoPedido)) {
+      const dadosFuncionario = funcionarioDocumento.data() || {};
+      const carga = cargaAtual(dadosFuncionario);
+      const cargaNova = { mesasAtivas: carga.mesasAtivas + incrementoMesa, comandasAtivas: carga.comandasAtivas + incrementoComanda, pedidosPendentes: carga.pedidosPendentes + incrementoPedido, tarefasAtivas: carga.tarefasAtivas };
+      transacao.update(funcionarioDocumento.ref, { cargaAtual: cargaNova, disponibilidadeAtendimento: 'em_atendimento', atualizadoPor: idAtor, atualizadoEm: FieldValue.serverTimestamp(), versao: Number(dadosFuncionario.versao || 1) + 1 });
+    }
+    return { status: 'atribuido', idGarcomResponsavel: String(comanda.idGarcomResponsavel), idFuncionarioResponsavel, idUsuarioGarcomResponsavel: idUsuarioResponsavel, nomeGarcomResponsavel: String(comanda.nomeGarcomResponsavel || comanda.nomeGarcom || '') };
   }
   const candidato = selecionarGarcomResponsavel({ funcionariosDocumentos, escalasDocumentos, incrementoMesa, incrementoComanda, incrementoPedido });
   const eventoRef = restaurante.collection('eventosMesas').doc();
@@ -509,9 +518,13 @@ async function encaminharComandaCaixa(identidade, corpo, idRequisicao) {
     if (encaminhamentoDocumento.exists && ['encaminhada', 'recebida'].includes(encaminhamentoDocumento.data()?.statusEncaminhamento)) throw new ApiError(409, 'COMANDA_JA_ENCAMINHADA', 'Esta comanda já foi encaminhada ao caixa.');
     const pedidos = pedidosDocumentos.docs.filter(documento => documento.data()?.estado !== 'excluido');
     if (!pedidos.length) throw new ApiError(409, 'COMANDA_SEM_PEDIDOS', 'A comanda não possui pedidos para encaminhamento.');
+    const estadosEncerrados = new Set(['servido', 'entregue', 'finalizado', 'rejeitado_garcom', 'cancelado']);
+    const pedidosOperacionais = pedidos.filter(documento => !['rejeitado_garcom', 'cancelado'].includes(statusPedidoOperacional(documento.data())));
+    const totalPedidosCentavos = pedidosOperacionais.reduce((total, documento) => total + Number(documento.data()?.totalCentavos ?? documento.data()?.valorCentavos ?? 0), 0);
     const estadosPendentes = new Set(['rascunho', 'aguardando_confirmacao_garcom', 'confirmado_garcom', 'enviado_cozinha', 'em_preparo', 'pronto', 'novo', 'preparo']);
     const pendentes = pedidos.filter(documento => estadosPendentes.has(statusPedidoOperacional(documento.data())));
     if (pendentes.length) throw new ApiError(409, 'COMANDA_COM_PEDIDOS_PENDENTES', 'A comanda possui pedidos que ainda precisam ser concluídos antes do caixa.');
+    if (pedidos.some(documento => !estadosEncerrados.has(statusPedidoOperacional(documento.data())))) throw new ApiError(409, 'COMANDA_COM_PEDIDOS_NAO_ENCERRADOS', 'Todos os pedidos precisam estar servidos ou encerrados operacionalmente antes do caixa.');
     const mesaId = String(comanda.idMesa || corpo.idMesa || '');
     const referenciaMesa = mesaId ? restaurante.collection('mesas').doc(mesaId) : mesaRef;
     if (!referenciaMesa) throw new ApiError(409, 'MESA_NAO_ENCONTRADA', 'A comanda não está vinculada a uma mesa.');
@@ -519,12 +532,15 @@ async function encaminharComandaCaixa(identidade, corpo, idRequisicao) {
     if (!mesaDocumento.exists) throw new ApiError(404, 'MESA_NAO_ENCONTRADA', 'Mesa da comanda não encontrada.');
     const mesa = mesaDocumento.data() || {};
     const totalCentavos = Number(comanda.totalCentavos ?? comanda.valorCentavos ?? 0);
+    if (!Number.isSafeInteger(totalCentavos) || totalCentavos < 0 || totalCentavos !== totalPedidosCentavos) throw new ApiError(409, 'VALOR_COMANDA_INCONSISTENTE', 'O total da comanda não confere com os pedidos operacionais.');
     const pedidosServidos = pedidos.filter(documento => ['servido', 'entregue', 'finalizado'].includes(statusPedidoOperacional(documento.data()))).length;
     const resumoOperacional = {
       idComanda,
       idMesa: referenciaMesa.id,
       nomeMesa: String(mesa.nome || mesa.numero || referenciaMesa.id),
       idGarcomResponsavel: comanda.idGarcomResponsavel || null,
+      idFuncionarioGarcomResponsavel: comanda.idFuncionarioResponsavel || null,
+      idUsuarioGarcomResponsavel: comanda.idUsuarioGarcomResponsavel || null,
       nomeGarcom: String(comanda.nomeGarcomResponsavel || comanda.nomeGarcom || ''),
       totalCentavos: Number.isSafeInteger(totalCentavos) && totalCentavos >= 0 ? totalCentavos : 0,
       quantidadePedidos: pedidos.length,
@@ -537,6 +553,8 @@ async function encaminharComandaCaixa(identidade, corpo, idRequisicao) {
       idComanda,
       idMesa: referenciaMesa.id,
       idGarcomResponsavel: comanda.idGarcomResponsavel || null,
+      idFuncionarioGarcomResponsavel: comanda.idFuncionarioResponsavel || null,
+      idUsuarioGarcomResponsavel: comanda.idUsuarioGarcomResponsavel || null,
       statusEncaminhamento: 'encaminhada',
       resumoOperacional,
       observacaoOperacional: motivo,
@@ -690,6 +708,10 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
     let escalasCozinhaDocumentos = [];
     let tarefasFichaCancelamento = [];
     let funcionariosCancelamentoDocumentos = [];
+    let funcionarioGarcomCancelamentoDocumento = null;
+    if (['rejeitado_garcom', 'cancelado'].includes(para) && comanda.idFuncionarioResponsavel) {
+      funcionarioGarcomCancelamentoDocumento = await transacao.get(restaurante.collection('funcionarios').doc(String(comanda.idFuncionarioResponsavel)));
+    }
     if (['rejeitado_garcom', 'cancelado'].includes(para) && fichaDocumento?.exists) {
       const tarefasSnapshot = await transacao.get(fichaRef.collection('tarefas').limit(100));
       tarefasFichaCancelamento = tarefasSnapshot.docs;
@@ -796,6 +818,12 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
       atualizacaoComanda.quantidadePedidosAbertos = Math.max(0, Number(comanda.quantidadePedidosAbertos || 0) - 1);
       atualizacaoComanda.totalCentavos = Math.max(0, Number(comanda.totalCentavos || 0) - totalPedido);
       atualizacaoComanda.valorCentavos = atualizacaoComanda.totalCentavos;
+      if (funcionarioGarcomCancelamentoDocumento?.exists) {
+        const funcionario = funcionarioGarcomCancelamentoDocumento.data() || {};
+        const carga = funcionario.cargaAtual || {};
+        const pedidosRestantes = Math.max(0, Number(carga.pedidosPendentes || 0) - 1);
+        transacao.update(funcionarioGarcomCancelamentoDocumento.ref, { cargaAtual: { mesasAtivas: Math.max(0, Number(carga.mesasAtivas || 0)), comandasAtivas: Math.max(0, Number(carga.comandasAtivas || 0)), pedidosPendentes: pedidosRestantes, tarefasAtivas: Math.max(0, Number(carga.tarefasAtivas || 0)) }, disponibilidadeAtendimento: pedidosRestantes > 0 || Number(carga.comandasAtivas || 0) > 0 ? 'em_atendimento' : 'disponivel', atualizadoPor: identidade.idUsuario, atualizadoEm: FieldValue.serverTimestamp(), versao: Number(funcionario.versao || 1) + 1 });
+      }
     }
     if (['rejeitado_garcom', 'cancelado'].includes(para) && fichaDocumento?.exists) {
       const ficha = fichaDocumento.data() || {};

@@ -196,6 +196,8 @@ function dtoEncaminhamentoCaixa(documento) {
     idComanda: dados.idComanda || '',
     idMesa: dados.idMesa || '',
     idGarcomResponsavel: dados.idGarcomResponsavel || null,
+    idFuncionarioGarcomResponsavel: dados.idFuncionarioGarcomResponsavel || resumo.idFuncionarioGarcomResponsavel || null,
+    idUsuarioGarcomResponsavel: dados.idUsuarioGarcomResponsavel || resumo.idUsuarioGarcomResponsavel || null,
     nomeMesa: resumo.nomeMesa || dados.nomeMesa || '',
     nomeGarcom: resumo.nomeGarcom || dados.nomeGarcom || '',
     totalCentavos: Number(resumo.totalCentavos ?? dados.totalCentavos ?? 0),

@@ -720,6 +720,8 @@ async function criarPedidoPublico(req, res, corpo) {
         mesa,
         funcionariosDocumentos: funcionariosDocumentos.docs,
         escalasDocumentos: escalasDocumentos.docs,
+        incrementoMesa: 1,
+        incrementoComanda: 1,
         incrementoPedido: 1,
         idAtor: `sessao:${contexto.sessaoDocumento.id}`,
       });
