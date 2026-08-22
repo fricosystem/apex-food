@@ -20,7 +20,7 @@ Cada ambiente deve possuir seu próprio conjunto de variáveis na Vercel. Nunca 
 
 | Variável | Development | Preview/Staging | Production |
 |---|---|---|---|
-| `APP_ENV` | `development` | `staging` | `production` |
+| `APP_ENV` | `development` | `preview` | `production` |
 | `FIREBASE_PROJECT_ID` | Projeto Dev | Projeto Staging | Projeto Production |
 | `APP_ORIGIN` | `http://localhost:4173` | Domínio Preview aprovado | Domínio oficial HTTPS |
 | `ALLOWED_ORIGINS` | localhost | Preview + domínio staging | Somente domínio oficial |
@@ -53,4 +53,4 @@ Cada ambiente deve possuir seu próprio conjunto de variáveis na Vercel. Nunca 
 
 ## Status
 
-A estrutura local e o contrato de variáveis foram criados. O projeto `apex-food-6c1cb` foi assumido somente como Development. O Preview poderá usar temporariamente o mesmo projeto Development com dados sintéticos e domínio gratuito `.vercel.app`; produção permanece desativada.
+A estrutura local e o contrato de variáveis foram criados. O projeto `apex-food-6c1cb` foi assumido somente como Development. O Preview poderá usar temporariamente o mesmo projeto Development com dados sintéticos e domínio gratuito `.vercel.app`; o valor oficial do ambiente no preflight é `APP_ENV=preview`; produção permanece desativada.

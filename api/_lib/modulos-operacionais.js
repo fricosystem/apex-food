@@ -80,6 +80,18 @@ function enumObrigatorio(valor, conjunto, campo) {
   return valor;
 }
 
+function documentoDoTenant(documento, idRestaurante) {
+  const dados = typeof documento?.data === 'function' ? documento.data() || {} : documento && typeof documento === 'object' ? documento : {};
+  return dados.idRestaurante === idRestaurante;
+}
+
+function exigirDocumentoDoTenant(identidade, documento) {
+  if (!documentoDoTenant(documento, identidade?.idRestaurante)) {
+    throw new ApiError(409, 'DADO_TENANT_INCONSISTENTE', 'O recurso não pertence ao estabelecimento ativo.');
+  }
+  return typeof documento?.data === 'function' ? documento.data() || {} : documento;
+}
+
 function timestampParaIso(valor) {
   if (!valor) return null;
   if (typeof valor.toDate === 'function') return valor.toDate().toISOString();
@@ -125,7 +137,7 @@ function queryString(req, nome) {
 
 async function listarColecao(idRestaurante, colecao, limite = 100) {
   const snapshot = await caminhoRestaurante(idRestaurante).collection(colecao).limit(limite).get();
-  return snapshot.docs;
+  return snapshot.docs.filter((documento) => documentoDoTenant(documento, idRestaurante));
 }
 
 async function registrarAuditoriaOperacional({ identidade, idRequisicao, acao, tipoRecurso, idRecurso, resultado = 'sucesso', codigoMotivo = null }) {
@@ -164,6 +176,8 @@ module.exports = {
   inteiroPositivo,
   enumObrigatorio,
   timestampParaIso,
+  documentoDoTenant,
+  exigirDocumentoDoTenant,
   dtoDocumento,
   dtoReserva,
   mascararContato,

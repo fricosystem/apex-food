@@ -2,6 +2,7 @@
 
 const { FieldValue } = require('firebase-admin/firestore');
 const { getAdminDb } = require('../../backend/firebase/admin');
+const { identificadorAuditoria, papeisAuditoria, resultadoAuditoria, textoAuditoria } = require('./auditoria-segura');
 
 async function registrarAuditoria({
   idRestaurante = null,
@@ -16,18 +17,18 @@ async function registrarAuditoria({
   codigoMotivo = null,
 }) {
   const registro = {
-    idRestaurante,
-    idAtor,
-    papeisDoAtor: Array.isArray(papeisDoAtor) ? papeisDoAtor.slice(0, 10) : [],
-    acao,
-    tipoRecurso,
-    idRecurso,
-    idOperacao,
-    idRequisicao,
-    resultado,
-    codigoMotivo,
+    idRestaurante: identificadorAuditoria(idRestaurante),
+    idAtor: identificadorAuditoria(idAtor) || 'sistema',
+    papeisDoAtor: papeisAuditoria(papeisDoAtor),
+    acao: textoAuditoria(acao, 120),
+    tipoRecurso: textoAuditoria(tipoRecurso, 120),
+    idRecurso: identificadorAuditoria(idRecurso),
+    idOperacao: identificadorAuditoria(idOperacao),
+    idRequisicao: identificadorAuditoria(idRequisicao),
+    resultado: resultadoAuditoria(resultado),
+    codigoMotivo: textoAuditoria(codigoMotivo, 120),
     criadoEm: FieldValue.serverTimestamp(),
-    versaoEstruturaAuditoria: '1.0.0',
+    versaoEstruturaAuditoria: '1.1.0',
     classeRetencao: 'padrao',
   };
   await getAdminDb().collection('registrosAuditoria').add(registro);

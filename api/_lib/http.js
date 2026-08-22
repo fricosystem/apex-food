@@ -39,7 +39,7 @@ function aplicarCors(req, res) {
   if (origem && permitidas.includes(origem)) {
     res.setHeader('Access-Control-Allow-Origin', origem);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token, X-Request-Id');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token, X-Request-Id, X-Firebase-AppCheck');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   }
   return !origem || permitidas.includes(origem);
@@ -50,6 +50,10 @@ function responder(res, status, corpo, headers = {}) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store, private');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   for (const [nome, valor] of Object.entries(headers)) {
     res.setHeader(nome, valor);
   }
