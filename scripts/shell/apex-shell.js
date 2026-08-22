@@ -1,7 +1,7 @@
 (() => {
   const paginas = {
     home: { titulo: 'Visão Geral', fragmento: 'paginas/home.html?v=etapa17-visao', href: '/', estilos: ['estilos/home/home.css?v=cards-uniformes'], scripts: ['scripts/home/dados-visao-geral.js?v=etapa17-visao', 'scripts/home/home.js?v=etapa17-visao'] },
-    mesa: { titulo: 'Atendimento da Mesa', fragmento: 'paginas/publico/mesa.html?v=etapa36-comanda-clean', href: '/mesa', estilos: ['estilos/publico/mesa.css?v=etapa36-comanda-clean'], scripts: ['scripts/publico/mesa.js?v=etapa36-comanda-clean'], compatibilidade: 'paginas/publico/mesa.html?v=etapa23-comanda-passos-mobile; estilos/publico/mesa.css?v=etapa23-comanda-passos-mobile; scripts/publico/mesa.js?v=etapa23-comanda-passos-mobile' },
+    mesa: { titulo: 'Atendimento da Mesa', fragmento: 'paginas/publico/mesa.html?v=etapa37-mesa-sem-flicker', href: '/mesa', estilos: ['estilos/publico/mesa.css?v=etapa37-mesa-sem-flicker'], scripts: ['scripts/publico/mesa.js?v=etapa37-mesa-sem-flicker'], compatibilidade: 'paginas/publico/mesa.html?v=etapa23-comanda-passos-mobile; estilos/publico/mesa.css?v=etapa23-comanda-passos-mobile; scripts/publico/mesa.js?v=etapa23-comanda-passos-mobile' },
     'novo-pedido': { titulo: 'Novo Pedido', fragmento: 'paginas/pedidos/novo-pedido.html?v=etapa20-cardapio-estoque', href: '/novo-pedido', estilos: ['estilos/pedidos/pedidos.css?v=etapa20-cardapio-estoque'], scripts: ['scripts/pedidos/dados-pedidos.js?v=etapa22-dados-reais-global', 'scripts/pedidos/novo-pedido.js?v=etapa20-cardapio-estoque'] },
     'pedidos-ativos': { titulo: 'Pedidos Ativos', fragmento: 'paginas/pedidos/pedidos-ativos.html?v=etapa28-detalhes-rastreabilidade', href: '/pedidos-ativos', estilos: ['estilos/pedidos/pedidos.css?v=etapa28-detalhes-rastreabilidade'], scripts: ['scripts/pedidos/dados-pedidos.js?v=etapa22-dados-reais-global', 'scripts/pedidos/pedidos-ativos.js?v=etapa28-detalhes-rastreabilidade'], compatibilidade: 'pedidos-ativos.html?v=etapa19-fluxo-operacional' },
     'atendimento-garcom': { titulo: 'Atendimento dos Garçons', fragmento: 'paginas/pedidos/atendimento-garcom.html?v=etapa28-detalhes-rastreabilidade', href: '/atendimento-garcom', estilos: ['estilos/pedidos/pedidos.css?v=etapa28-detalhes-rastreabilidade'], scripts: ['scripts/pedidos/dados-pedidos.js?v=etapa22-dados-reais-global', 'scripts/pedidos/atendimento-garcom.js?v=etapa28-detalhes-rastreabilidade'], compatibilidade: 'etapa26-garcom-distribuicao' },
@@ -133,7 +133,9 @@
   const atualizarNavegacao = chave => { document.querySelectorAll('[data-apex-rota]').forEach(link => { const ativo = Boolean(link.dataset.apexRota) && paginaPorHref(link.dataset.apexRota) === chave; link.classList.toggle('active', ativo); link.closest('.tree-item')?.classList.toggle('active', ativo); }); };
   async function carregar(chave) {
     const pagina = paginas[chave] || paginas.home;
-    document.body.classList.toggle('apex-publico-mesa', chave === 'mesa');
+    const publicoMesa = chave === 'mesa';
+    document.documentElement.classList.toggle('apex-preload-publico-mesa', publicoMesa);
+    document.body.classList.toggle('apex-publico-mesa', publicoMesa);
     const token = ++carregamentoAtual;
     const container = document.getElementById('conteudoPagina');
     if (!container) return;

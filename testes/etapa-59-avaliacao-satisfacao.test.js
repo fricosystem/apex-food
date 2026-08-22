@@ -73,8 +73,8 @@ test('Visão Geral e Avaliações dos Clientes já consomem nota e comentário p
 
 test('shell versiona a comanda pública e mantém o limite de funções serverless', () => {
   const shell = ler('scripts/shell/apex-shell.js');
-  assert.match(shell, /mesa\.html\?v=etapa36-comanda-clean/);
-  assert.match(shell, /mesa\.js\?v=etapa36-comanda-clean/);
+  assert.match(shell, /mesa\.html\?v=etapa37-mesa-sem-flicker/);
+  assert.match(shell, /mesa\.js\?v=etapa37-mesa-sem-flicker/);
   assert.match(shell, /mesa\.html\?v=etapa23-comanda-passos-mobile/);
   assert.equal(fs.readdirSync(path.join(raiz, 'api', 'v1')).filter(nome => nome.endsWith('.js')).length, 4);
   assert.equal(fs.existsSync(path.join(raiz, '.github', 'workflows')), false);

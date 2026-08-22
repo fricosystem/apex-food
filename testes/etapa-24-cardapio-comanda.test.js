@@ -104,26 +104,34 @@ test('Fluxo público mantém os assets da mesa e avança para a central da etapa
   const index = ler('index.html');
   const pagina = ler('paginas/publico/mesa.html');
   assert.match(pagina, /mesa-publica-logo w-28 h-28 sm:w-32 sm:h-32/);
-  assert.match(shell, /paginas\/publico\/mesa\.html\?v=etapa36-comanda-clean/);
-  assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa36-comanda-clean/);
-  assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa36-comanda-clean/);
-  assert.match(index, /apex-shell\.js\?v=etapa36-comanda-clean/);
+  assert.match(shell, /paginas\/publico\/mesa\.html\?v=etapa37-mesa-sem-flicker/);
+  assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa37-mesa-sem-flicker/);
+  assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa37-mesa-sem-flicker/);
+  assert.match(shell, /document\.documentElement\.classList\.toggle\('apex-preload-publico-mesa', publicoMesa\)/);
+  assert.match(index, /apex-shell\.js\?v=etapa37-mesa-sem-flicker/);
 });
 
 test('comanda pública oculta todo o shell administrativo e mantém somente o corpo do cliente', () => {
   const index = ler('index.html');
   const estilos = ler('estilos/publico/mesa.css');
   assert.match(index, /class="apex-mobile-header lg:hidden/);
+  assert.match(index, /apex-preload-publico-mesa/);
+  assert.match(index, /caminho === '\/mesa'/);
+  assert.match(index, /html\.apex-preload-publico-mesa \.apex-mobile-header/);
   assert.match(estilos, /body\.apex-publico-mesa > \.apex-mobile-header/);
   assert.match(estilos, /body\.apex-publico-mesa > main > header/);
   assert.match(estilos, /display: none !important/);
 });
 
 test('comanda pública mantém largura fluida e adapta o cardápio para telas móveis', () => {
+  const pagina = ler('paginas/publico/mesa.html');
   const estilos = ler('estilos/publico/mesa.css');
   assert.match(estilos, /body\.apex-publico-mesa\s*\{\s*overflow-x: hidden;/);
   assert.match(estilos, /\.mesa-publica-shell\s*\{[\s\S]*width: 100%;[\s\S]*min-width: 0;/);
-  assert.match(estilos, /\.mesa-publica-card\s*\{[\s\S]*width: 100%;[\s\S]*max-width: 64rem;[\s\S]*min-width: 0;/);
+  assert.match(pagina, /mesa-publica-conteudo w-full max-w-5xl/);
+  assert.doesNotMatch(pagina, /mesa-publica-card/);
+  assert.match(estilos, /\.mesa-publica-conteudo\s*\{[\s\S]*width: 100%;[\s\S]*max-width: 64rem;[\s\S]*min-width: 0;/);
+  assert.doesNotMatch(estilos, /\.mesa-publica-card\b/);
   assert.match(estilos, /overflow-wrap: anywhere;/);
   assert.match(estilos, /@media \(max-width: 639px\)/);
   assert.match(estilos, /#mesaPublicaCardapioProdutos\s*\{\s*grid-template-columns: minmax\(0, 1fr\);/);

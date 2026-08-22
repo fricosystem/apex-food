@@ -51,6 +51,15 @@
   .glow-orange { box-shadow: 0 0 30px rgba(234, 88, 12, 0.5), 0 0 60px rgba(234, 88, 12, 0.2); }
   .card-gradient { background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 50%, #080808 100%); }
 
+  /* A rota pública da mesa não deve exibir o shell nem durante o primeiro paint. */
+  html.apex-preload-publico-mesa .apex-mobile-header,
+  html.apex-preload-publico-mesa .sidebar-overlay,
+  html.apex-preload-publico-mesa #sidebarMobile,
+  html.apex-preload-publico-mesa .sidebar-desktop,
+  html.apex-preload-publico-mesa main > header {
+    display: none !important;
+  }
+
   /* Tree-style sidebar */
   .tree-group { position: relative; padding-left: 0; }
   .tree-item { position: relative; padding-left: 2.25rem; }
@@ -156,6 +165,12 @@
   }
 </style>
 <link href="estilos/compartilhados/tokens-apex.css?v=etapa32-bordas-completas" rel="stylesheet"/>
+<script>
+  (() => {
+    const caminho = window.location.pathname.replace(/\/+$/, '') || '/';
+    if (caminho === '/mesa') document.documentElement.classList.add('apex-preload-publico-mesa');
+  })();
+</script>
 <script src="scripts/auth/sessao-guard.js?v=etapa10-validacao" defer></script></head>
 <body class="min-h-screen">
 <!-- Mobile Header -->
@@ -317,6 +332,6 @@ const sidebarSections = [
     });
   };
 </script>
-<script src="scripts/compartilhados/ferramentas-interface.js?v=fase12"></script><script src="scripts/auth/api-client.js?v=etapa14-perfil"></script><script src="scripts/compartilhados/perfil-sidebar.js?v=etapa15-perfil"></script><script src="scripts/api/modulos-client.js?v=etapa22-dados-reais-global"></script><script src="scripts/compartilhados/notificacoes.js?v=etapa14-header-notificacoes"></script><script src="configuracoes/firebase-messaging-publico.js?v=etapa11-fcm"></script><script src="scripts/compartilhados/notificacoes-sistema.js?v=etapa11-fcm"></script><script src="scripts/shell/apex-shell.js?v=etapa36-comanda-clean"></script></body>
+<script src="scripts/compartilhados/ferramentas-interface.js?v=fase12"></script><script src="scripts/auth/api-client.js?v=etapa14-perfil"></script><script src="scripts/compartilhados/perfil-sidebar.js?v=etapa15-perfil"></script><script src="scripts/api/modulos-client.js?v=etapa22-dados-reais-global"></script><script src="scripts/compartilhados/notificacoes.js?v=etapa14-header-notificacoes"></script><script src="configuracoes/firebase-messaging-publico.js?v=etapa11-fcm"></script><script src="scripts/compartilhados/notificacoes-sistema.js?v=etapa11-fcm"></script><script src="scripts/shell/apex-shell.js?v=etapa37-mesa-sem-flicker"></script></body>
 </html>
 
