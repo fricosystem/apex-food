@@ -44,6 +44,7 @@ function logSeguro(evento) {
     status: evento.status,
     duracaoMs: evento.duracaoMs,
     codigoErro: evento.codigoErro,
+    detalheErro: evento.detalheErro,
   };
   console.log(JSON.stringify(permitido));
 }
@@ -54,6 +55,7 @@ async function executar(req, res, opcoes, handler) {
   const metodos = opcoes.metodos || ['GET'];
   let status = 200;
   let codigoErroInterno;
+  let detalheErroInterno;
   try {
     const corsOk = aplicarCors(req, res);
     if (!corsOk) throw new ApiError(403, 'ORIGEM_NAO_PERMITIDA', 'Origem não permitida.');
@@ -69,6 +71,7 @@ async function executar(req, res, opcoes, handler) {
   } catch (erro) {
     status = erro?.status || 500;
     codigoErroInterno = erro?.code || erro?.name || (erro instanceof Error ? 'Error' : 'ERRO_DESCONHECIDO');
+    detalheErroInterno = typeof erro?.message === 'string' ? erro.message.replace(/[\r\n]+/g, ' ').slice(0, 240) : undefined;
     responderErro(res, erro, idRequisicao);
   } finally {
     logSeguro({
@@ -79,6 +82,7 @@ async function executar(req, res, opcoes, handler) {
       status,
       duracaoMs: agoraMs() - inicio,
       codigoErro: codigoErroInterno,
+      detalheErro: detalheErroInterno,
     });
   }
 }
