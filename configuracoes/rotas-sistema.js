@@ -9,6 +9,7 @@ window.rotasApexFood = Object.freeze({
   pedidos: {
     novoPedido: '../pedidos/novo-pedido.html',
     pedidosAtivos: '../pedidos/pedidos-ativos.html',
+    atendimentoGarcom: '../pedidos/atendimento-garcom.html',
     historicoPedidos: '../pedidos/historico-pedidos.html',
     filaCozinha: '../pedidos/fila-cozinha.html'
   },

@@ -16,6 +16,7 @@ const { registrarAuditoria } = require('./auditoria');
 const { criarNotificacoesNaTransacao, TIPOS_NOTIFICACAO } = require('./notificacoes');
 const { enviarNotificacaoFcm } = require('./fcm-notificacoes');
 const { baixarEstoqueParaPedido } = require('./estoque-pedidos');
+const { atribuirGarcomResponsavel } = require('./pedidos-handler');
 
 const NOME_COOKIE_MESA = 'apex_mesa';
 const TTL_SESSAO_MESA_SEGUNDOS = 4 * 60 * 60;
@@ -288,15 +289,47 @@ async function abrirSessaoMesa({ token, nomeCompleto, chaveIdempotencia, req, re
 
     let comandaRef = mesa.idComandaAberta ? restauranteRef.collection('comandas').doc(String(mesa.idComandaAberta)) : null;
     let comandaDocumento = comandaRef ? await transacao.get(comandaRef) : null;
-    if (!comandaDocumento?.exists || !ESTADOS_COMANDA_ATIVA.has(comandaDocumento.data()?.statusComanda || comandaDocumento.data()?.status)) {
+    let comandaExistente = comandaDocumento?.exists && ESTADOS_COMANDA_ATIVA.has(comandaDocumento.data()?.statusComanda || comandaDocumento.data()?.status);
+    if (!comandaExistente) {
       comandaRef = restauranteRef.collection('comandas').doc();
       comandaDocumento = null;
+      comandaExistente = false;
+    }
+    let atribuicao = { status: 'aguardando_atribuicao', idGarcomResponsavel: null, idFuncionarioResponsavel: null, idUsuarioGarcomResponsavel: null, nomeGarcomResponsavel: '' };
+    const comandaAtual = comandaDocumento?.exists ? (comandaDocumento.data() || {}) : {};
+    if (!comandaAtual.idGarcomResponsavel) {
+      const [funcionariosDocumentos, escalasDocumentos] = await Promise.all([
+        transacao.get(restauranteRef.collection('funcionarios').limit(300)),
+        transacao.get(restauranteRef.collection('escalas').limit(1000)),
+      ]);
+      atribuicao = await atribuirGarcomResponsavel({
+        transacao,
+        restaurante: restauranteRef,
+        idRestaurante,
+        idComanda: comandaRef.id,
+        idMesa: mesaRef.id,
+        comanda: comandaAtual,
+        mesa,
+        funcionariosDocumentos: funcionariosDocumentos.docs,
+        escalasDocumentos: escalasDocumentos.docs,
+        incrementoMesa: 1,
+        incrementoComanda: 1,
+        idAtor: 'sessao-mesa',
+      });
+    } else {
+      atribuicao = { status: 'atribuido', idGarcomResponsavel: String(comandaAtual.idGarcomResponsavel), idFuncionarioResponsavel: String(comandaAtual.idFuncionarioResponsavel || ''), idUsuarioGarcomResponsavel: String(comandaAtual.idUsuarioGarcomResponsavel || ''), nomeGarcomResponsavel: String(comandaAtual.nomeGarcomResponsavel || comandaAtual.nomeGarcom || '') };
+    }
+    if (!comandaExistente) {
       transacao.set(comandaRef, {
         idRestaurante,
         idMesa: mesaRef.id,
         statusComanda: 'aberta',
         status: 'aberta',
-        idGarcomResponsavel: null,
+        idGarcomResponsavel: atribuicao.idGarcomResponsavel,
+        idFuncionarioResponsavel: atribuicao.idFuncionarioResponsavel || null,
+        idUsuarioGarcomResponsavel: atribuicao.idUsuarioGarcomResponsavel || null,
+        nomeGarcomResponsavel: atribuicao.nomeGarcomResponsavel,
+        statusDistribuicaoGarcom: atribuicao.status,
         participantesAtivos: 1,
         quantidadePedidosAbertos: 0,
         subtotalCentavos: 0,
@@ -353,13 +386,25 @@ async function abrirSessaoMesa({ token, nomeCompleto, chaveIdempotencia, req, re
     transacao.update(mesaRef, {
       estado: mesa.estado === 'ocupada' ? 'ocupada' : 'ocupada',
       estadoAtendimento: 'ocupada',
+      ...(atribuicao.status === 'aguardando_atribuicao' ? { estadoAtendimento: 'aguardando_atribuicao' } : {}),
       idComandaAberta: comandaRef.id,
+      idGarcomResponsavel: atribuicao.idGarcomResponsavel,
+      idFuncionarioResponsavel: atribuicao.idFuncionarioResponsavel || null,
+      idUsuarioGarcomResponsavel: atribuicao.idUsuarioGarcomResponsavel || null,
+      nomeGarcomResponsavel: atribuicao.nomeGarcomResponsavel,
       atualizadoEm: FieldValue.serverTimestamp(),
       versao: Number(mesa.versao || 1) + 1,
     });
     if (comandaDocumento?.exists) {
       const comanda = comandaDocumento.data() || {};
       transacao.update(comandaRef, {
+        ...(comanda.idGarcomResponsavel ? {} : {
+          idGarcomResponsavel: atribuicao.idGarcomResponsavel,
+          idFuncionarioResponsavel: atribuicao.idFuncionarioResponsavel || null,
+          idUsuarioGarcomResponsavel: atribuicao.idUsuarioGarcomResponsavel || null,
+          nomeGarcomResponsavel: atribuicao.nomeGarcomResponsavel,
+          statusDistribuicaoGarcom: atribuicao.status,
+        }),
         participantesAtivos: Number(comanda.participantesAtivos || 0) + 1,
         atualizadaEm: FieldValue.serverTimestamp(),
         versao: Number(comanda.versao || 1) + 1,
@@ -648,6 +693,33 @@ async function criarPedidoPublico(req, res, corpo) {
         estadoItem: 'ativo',
       };
     });
+    const comanda = comandaDocumento.data() || {};
+    const mesa = mesaDocumento.data() || {};
+    const participante = participanteDocumento.data() || {};
+    let atribuicaoGarcom = {
+      status: comanda.statusDistribuicaoGarcom || (comanda.idGarcomResponsavel ? 'atribuido' : 'aguardando_atribuicao'),
+      idGarcomResponsavel: comanda.idGarcomResponsavel || null,
+      nomeGarcomResponsavel: String(comanda.nomeGarcomResponsavel || comanda.nomeGarcom || ''),
+    };
+    if (!comanda.idGarcomResponsavel) {
+      const [funcionariosDocumentos, escalasDocumentos] = await Promise.all([
+        transacao.get(contexto.restauranteRef.collection('funcionarios').limit(300)),
+        transacao.get(contexto.restauranteRef.collection('escalas').limit(1000)),
+      ]);
+      atribuicaoGarcom = await atribuirGarcomResponsavel({
+        transacao,
+        restaurante: contexto.restauranteRef,
+        idRestaurante: contexto.cookie.idRestaurante,
+        idComanda: comandaRef.id,
+        idMesa: mesaRef.id,
+        comanda,
+        mesa,
+        funcionariosDocumentos: funcionariosDocumentos.docs,
+        escalasDocumentos: escalasDocumentos.docs,
+        incrementoPedido: 1,
+        idAtor: `sessao:${contexto.sessaoDocumento.id}`,
+      });
+    }
     await baixarEstoqueParaPedido({
       transacao,
       restauranteRef: contexto.restauranteRef,
@@ -660,9 +732,6 @@ async function criarPedidoPublico(req, res, corpo) {
     });
     const pedidoNumero = Number(`${Date.now()}${String(Math.floor(Math.random() * 100)).padStart(2, '0')}`);
     const statusPedido = 'aguardando_confirmacao_garcom';
-    const comanda = comandaDocumento.data() || {};
-    const mesa = mesaDocumento.data() || {};
-    const participante = participanteDocumento.data() || {};
     resultado = { idPedido: pedidoRef.id, numero: pedidoNumero, statusPedido, totalCentavos: subtotalCentavos };
     transacao.set(pedidoRef, {
       idRestaurante: contexto.cookie.idRestaurante,
@@ -675,10 +744,13 @@ async function criarPedidoPublico(req, res, corpo) {
       idParticipante: contexto.participanteDocumento.id,
       idSessaoMesa: contexto.sessaoDocumento.id,
       nomeCliente: String(participante.nomeExibicao || participante.nomeCompleto || 'Cliente'),
-      idGarcomResponsavel: comanda.idGarcomResponsavel || null,
-      idGarcom: comanda.idGarcomResponsavel || null,
+      idGarcomResponsavel: atribuicaoGarcom.idGarcomResponsavel,
+      idGarcom: atribuicaoGarcom.idGarcomResponsavel,
+      idFuncionarioResponsavel: atribuicaoGarcom.idFuncionarioResponsavel || null,
+      idUsuarioGarcomResponsavel: atribuicaoGarcom.idUsuarioGarcomResponsavel || null,
       nomeMesa: String(mesa.nome || mesa.numero || mesaRef.id),
-      nomeGarcom: '',
+      nomeGarcom: atribuicaoGarcom.nomeGarcomResponsavel,
+      statusDistribuicaoGarcom: atribuicaoGarcom.status,
       statusPedido,
       status: statusPedido,
       prioridade: 'normal',
@@ -711,6 +783,15 @@ async function criarPedidoPublico(req, res, corpo) {
       versaoEvento: 1,
     });
     transacao.update(comandaRef, {
+      ...(comanda.idGarcomResponsavel ? {} : {
+        idGarcomResponsavel: atribuicaoGarcom.idGarcomResponsavel,
+        idGarcom: atribuicaoGarcom.idGarcomResponsavel,
+        idFuncionarioResponsavel: atribuicaoGarcom.idFuncionarioResponsavel || null,
+        idUsuarioGarcomResponsavel: atribuicaoGarcom.idUsuarioGarcomResponsavel || null,
+        nomeGarcomResponsavel: atribuicaoGarcom.nomeGarcomResponsavel,
+        nomeGarcom: atribuicaoGarcom.nomeGarcomResponsavel,
+        statusDistribuicaoGarcom: atribuicaoGarcom.status,
+      }),
       statusComanda: 'em_consumo',
       status: 'em_consumo',
       quantidadePedidosAbertos: Number(comanda.quantidadePedidosAbertos || 0) + 1,
@@ -723,6 +804,8 @@ async function criarPedidoPublico(req, res, corpo) {
     transacao.update(mesaRef, {
       estado: 'ocupada',
       estadoAtendimento: 'aguardando_confirmacao',
+      ...(atribuicaoGarcom.status === 'aguardando_atribuicao' ? { estadoAtendimento: 'aguardando_atribuicao' } : {}),
+      ...(comanda.idGarcomResponsavel ? {} : { idGarcomResponsavel: atribuicaoGarcom.idGarcomResponsavel, idFuncionarioResponsavel: atribuicaoGarcom.idFuncionarioResponsavel || null, idUsuarioGarcomResponsavel: atribuicaoGarcom.idUsuarioGarcomResponsavel || null, nomeGarcomResponsavel: atribuicaoGarcom.nomeGarcomResponsavel }),
       atualizadoEm: FieldValue.serverTimestamp(),
       versao: Number(mesa.versao || 1) + 1,
     });
@@ -746,7 +829,7 @@ async function criarPedidoPublico(req, res, corpo) {
       idMesa: mesaRef.id,
       idComanda: comandaRef.id,
       idPedido: pedidoRef.id,
-      idGarcomResponsavel: comanda.idGarcomResponsavel || null,
+      idGarcomResponsavel: atribuicaoGarcom.idGarcomResponsavel,
     };
     criarNotificacoesNaTransacao(transacao, contexto.restauranteRef, eventoFcm);
   });

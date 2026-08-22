@@ -24,6 +24,10 @@ const STATUS_FUNCIONARIO = new Set(['ativo', 'ferias', 'inativo']);
 const STATUS_ESCALA = new Set(['agendado', 'presente', 'folga', 'falta', 'cancelado']);
 const TURNOS = new Set(['Almoço', 'Jantar', 'Integral']);
 const SETORES = new Set(['Salão', 'Cozinha', 'Bar', 'Gestão']);
+const PAPEIS_OPERACIONAIS = new Set(['garcom', 'cozinha', 'caixa', 'supervisor']);
+const DISPONIBILIDADES_ATENDIMENTO = new Set(['disponivel', 'em_atendimento', 'pausado', 'indisponivel']);
+const MAX_CAPACIDADE_OPERACIONAL = 1000;
+const MAX_PRIORIDADE_DISTRIBUICAO = 1000;
 
 function idDocumento(valor, campo = 'id') {
   if (typeof valor !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(valor)) {
@@ -92,6 +96,29 @@ function jornadasSobrepostas(primeira, segunda) {
   return intervalosPrimeira.some(([inicioA, fimA]) => intervalosSegunda.some(([inicioB, fimB]) => inicioA < fimB && fimA > inicioB));
 }
 
+function capacidadeOperacional(valor, campo, padrao = 1) {
+  if (valor === undefined || valor === null || valor === '') return padrao;
+  const numero = inteiroNaoNegativo(valor, campo, MAX_CAPACIDADE_OPERACIONAL);
+  if (numero < 1) throw new ApiError(400, 'PAYLOAD_INVALIDO', `${campo} deve ser um inteiro positivo.`);
+  return numero;
+}
+
+function prioridadeOperacional(valor) {
+  if (valor === undefined || valor === null || valor === '') return 0;
+  return inteiroNaoNegativo(valor, 'prioridadeDistribuicao', MAX_PRIORIDADE_DISTRIBUICAO);
+}
+
+function listaOperacional(valor, campo) {
+  if (valor === undefined || valor === null || valor === '') return [];
+  if (!Array.isArray(valor) || valor.length > 30) throw new ApiError(400, 'PAYLOAD_INVALIDO', `${campo} é inválido.`);
+  return valor.map((item) => textoObrigatorio(item, `${campo}[]`, 80));
+}
+
+function papelOperacional(valor) {
+  if (valor === undefined || valor === null || valor === '') return '';
+  return enumObrigatorio(valor, PAPEIS_OPERACIONAIS, 'papelOperacional');
+}
+
 function periodoComissao(valor) {
   if (valor === undefined || valor === null || valor === '') return '';
   if (typeof valor !== 'string') throw new ApiError(400, 'PERIODO_INVALIDO', 'Período de comissão inválido.');
@@ -118,6 +145,21 @@ function dtoFuncionario(documento) {
     pedidos: Number(dados.pedidos || 0),
     vendasMesCentavos: Number(dados.vendasMesCentavos || 0),
     cor: dados.cor || 'from-slate-400 to-slate-600',
+    papelOperacional: dados.papelOperacional || '',
+    disponibilidadeAtendimento: dados.disponibilidadeAtendimento || 'disponivel',
+    capacidadeMesas: Number(dados.capacidadeMesas || 1),
+    capacidadeComandas: Number(dados.capacidadeComandas || 1),
+    capacidadePedidos: Number(dados.capacidadePedidos || 1),
+    especialidadesCozinha: Array.isArray(dados.especialidadesCozinha) ? dados.especialidadesCozinha : [],
+    estacoesCozinha: Array.isArray(dados.estacoesCozinha) ? dados.estacoesCozinha : [],
+    cargaAtual: {
+      mesasAtivas: Number(dados.cargaAtual?.mesasAtivas || 0),
+      comandasAtivas: Number(dados.cargaAtual?.comandasAtivas || 0),
+      pedidosPendentes: Number(dados.cargaAtual?.pedidosPendentes || 0),
+      tarefasAtivas: Number(dados.cargaAtual?.tarefasAtivas || 0),
+    },
+    ultimaAtribuicaoEm: timestampParaIso(dados.ultimaAtribuicaoEm),
+    prioridadeDistribuicao: Number(dados.prioridadeDistribuicao || 0),
   };
 }
 
@@ -158,6 +200,7 @@ function dadosFuncionario(corpo) {
   const status = corpo.status === undefined ? 'ativo' : enumObrigatorio(corpo.status, STATUS_FUNCIONARIO, 'status');
   const percentualComissao = corpo.percentualComissao === undefined ? 0 : percentualSeguro(corpo.percentualComissao);
   const telefone = textoOpcional(corpo.telefone, 'telefone', 40);
+  const disponibilidadeAtendimento = corpo.disponibilidadeAtendimento === undefined ? 'disponivel' : enumObrigatorio(corpo.disponibilidadeAtendimento, DISPONIBILIDADES_ATENDIMENTO, 'disponibilidadeAtendimento');
   return {
     nome,
     iniciais: nomeInicial(nome),
@@ -169,6 +212,14 @@ function dadosFuncionario(corpo) {
     telefone,
     telefoneMascarado: mascararContato(telefone),
     cor: typeof corpo.cor === 'string' && /^from-[a-z0-9-]+ to-[a-z0-9-]+$/.test(corpo.cor) ? corpo.cor : 'from-slate-400 to-slate-600',
+    papelOperacional: papelOperacional(corpo.papelOperacional),
+    disponibilidadeAtendimento,
+    capacidadeMesas: capacidadeOperacional(corpo.capacidadeMesas, 'capacidadeMesas'),
+    capacidadeComandas: capacidadeOperacional(corpo.capacidadeComandas, 'capacidadeComandas'),
+    capacidadePedidos: capacidadeOperacional(corpo.capacidadePedidos, 'capacidadePedidos'),
+    especialidadesCozinha: listaOperacional(corpo.especialidadesCozinha, 'especialidadesCozinha'),
+    estacoesCozinha: listaOperacional(corpo.estacoesCozinha, 'estacoesCozinha'),
+    prioridadeDistribuicao: prioridadeOperacional(corpo.prioridadeDistribuicao),
   };
 }
 
@@ -214,6 +265,12 @@ module.exports = {
   STATUS_ESCALA,
   TURNOS,
   SETORES,
+  PAPEIS_OPERACIONAIS,
+  DISPONIBILIDADES_ATENDIMENTO,
+  MAX_CAPACIDADE_OPERACIONAL,
+  capacidadeOperacional,
+  prioridadeOperacional,
+  listaOperacional,
   idDocumento,
   nomeInicial,
   percentualSeguro,

@@ -41,8 +41,8 @@ function criarCardAtivo(pedido) {
   card.type = 'button';
   card.className = `pedido-card prioridade-${pedido.prioridade || 'normal'} w-full text-left rounded-xl bg-card border border-border p-4`;
   card.setAttribute('aria-label', `Abrir detalhes do pedido ${pedido.id}`);
+  card.dataset.pedidoId = String(pedido.id);
   card.innerHTML = `<div class="flex items-start justify-between gap-3"><div><div class="flex items-center gap-2"><span class="font-mono text-xs font-semibold">${escapeAtivo(pedido.id)}</span><span class="px-2 py-0.5 rounded-md ${status.classe} text-[10px] font-medium">${escapeAtivo(status.label)}</span></div><div class="flex items-center gap-2 mt-2 text-sm font-semibold"><i data-lucide="${iconeCanal}" class="w-4 h-4 text-muted"></i>${escapeAtivo(pedido.mesa)}</div></div><span class="flex items-center gap-1 text-[10px] text-muted"><i data-lucide="clock-3" class="w-3.5 h-3.5"></i>${escapeAtivo(pedido.tempo)}</span></div><div class="flex items-center justify-between gap-2 mt-4"><div class="min-w-0"><div class="text-sm truncate">${escapeAtivo(pedido.cliente)}</div><div class="text-xs text-muted mt-1">${escapeAtivo(pedido.garcom)} · ${escapeAtivo(pedido.horario)}</div></div><strong class="text-sm text-accent whitespace-nowrap">${moedaAtivo(pedido.valor)}</strong></div><div class="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-border2"><span class="text-[10px] text-muted">${pedido.itens.length} itens · Prioridade ${pedido.prioridade === 'alta' ? 'alta' : 'normal'}</span><span class="text-xs text-accent">Ver detalhes <i data-lucide="chevron-right" class="w-3 h-3 inline"></i></span></div>`;
-  card.addEventListener('click', () => abrirModalAtivo(pedido.id));
   return card;
 }
 function renderizarPainelAtivos() {
@@ -130,6 +130,12 @@ async function recusarPedidoAtivo() {
   finally { botao.disabled = false; }
 }
 
+elementosAtivos.painel.addEventListener('click', event => {
+  const card = event.target.closest('[data-pedido-id]');
+  if (!card || !elementosAtivos.painel.contains(card)) return;
+  event.preventDefault();
+  abrirModalAtivo(card.dataset.pedidoId);
+});
 elementosAtivos.busca.addEventListener('input', renderizarPainelAtivos);
 elementosAtivos.canal.addEventListener('change', renderizarPainelAtivos);
 document.getElementById('fecharModalPedido').addEventListener('click', fecharModalAtivo);

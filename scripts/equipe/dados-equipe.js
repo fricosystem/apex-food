@@ -25,6 +25,21 @@
       comissao: Number(funcionario.comissao || 0),
       avaliacao: Number(funcionario.avaliacao || 0),
       pedidos: Number(funcionario.pedidos || 0),
+      papelOperacional: funcionario.papelOperacional || '',
+      disponibilidadeAtendimento: funcionario.disponibilidadeAtendimento || 'disponivel',
+      capacidadeMesas: Math.max(1, Number(funcionario.capacidadeMesas || 1)),
+      capacidadeComandas: Math.max(1, Number(funcionario.capacidadeComandas || 1)),
+      capacidadePedidos: Math.max(1, Number(funcionario.capacidadePedidos || 1)),
+      especialidadesCozinha: Array.isArray(funcionario.especialidadesCozinha) ? funcionario.especialidadesCozinha : [],
+      estacoesCozinha: Array.isArray(funcionario.estacoesCozinha) ? funcionario.estacoesCozinha : [],
+      cargaAtual: {
+        mesasAtivas: Math.max(0, Number(funcionario.cargaAtual?.mesasAtivas || 0)),
+        comandasAtivas: Math.max(0, Number(funcionario.cargaAtual?.comandasAtivas || 0)),
+        pedidosPendentes: Math.max(0, Number(funcionario.cargaAtual?.pedidosPendentes || 0)),
+        tarefasAtivas: Math.max(0, Number(funcionario.cargaAtual?.tarefasAtivas || 0)),
+      },
+      ultimaAtribuicaoEm: funcionario.ultimaAtribuicaoEm || null,
+      prioridadeDistribuicao: Math.max(0, Number(funcionario.prioridadeDistribuicao || 0)),
     };
   }
 

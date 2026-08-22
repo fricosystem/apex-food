@@ -69,6 +69,147 @@ function statusPedidoOperacional(pedido) {
   return pedido?.statusPedido || pedido?.status || 'novo';
 }
 
+function timestampOperacionalMs(valor) {
+  if (!valor) return 0;
+  if (typeof valor.toDate === 'function') return valor.toDate().getTime();
+  if (valor instanceof Date) return valor.getTime();
+  const numero = Number(valor);
+  if (Number.isFinite(numero)) return numero;
+  const data = new Date(valor);
+  return Number.isNaN(data.getTime()) ? 0 : data.getTime();
+}
+
+function dataOperacionalAtual() {
+  const partes = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  const mapa = Object.fromEntries(partes.filter(parte => parte.type !== 'literal').map(parte => [parte.type, parte.value]));
+  return `${mapa.year}-${mapa.month}-${mapa.day}`;
+}
+
+function horaOperacionalAtual() {
+  const hora = Number(new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hour12: false }).format(new Date()));
+  if (hora >= 11 && hora < 16) return 'Almoço';
+  if (hora >= 17 && hora < 24) return 'Jantar';
+  return 'Integral';
+}
+
+function cargaFuncionario(dados) {
+  const carga = dados?.cargaAtual || {};
+  return {
+    mesasAtivas: Math.max(0, Number(carga.mesasAtivas || 0)),
+    comandasAtivas: Math.max(0, Number(carga.comandasAtivas || 0)),
+    pedidosPendentes: Math.max(0, Number(carga.pedidosPendentes || 0)),
+    tarefasAtivas: Math.max(0, Number(carga.tarefasAtivas || 0)),
+  };
+}
+
+function escalaCompativel(funcionarioId, escalasDocumentos, dataAtual = dataOperacionalAtual(), turnoAtual = horaOperacionalAtual()) {
+  const escalas = escalasDocumentos.filter(documento => String(documento.data()?.funcionarioId || '') === String(funcionarioId));
+  if (!escalas.length) return true;
+  return escalas.some(documento => {
+    const escala = documento.data() || {};
+    return ['agendado', 'presente'].includes(escala.status) && escala.data === dataAtual && (escala.turno === turnoAtual || escala.turno === 'Integral');
+  });
+}
+
+function pontuacaoGarcom(carga, capacidades) {
+  const ocupacaoMesas = carga.mesasAtivas / Math.max(1, capacidades.capacidadeMesas);
+  const ocupacaoComandas = carga.comandasAtivas / Math.max(1, capacidades.capacidadeComandas);
+  const ocupacaoPedidos = carga.pedidosPendentes / Math.max(1, capacidades.capacidadePedidos);
+  return (ocupacaoMesas * 0.45) + (ocupacaoComandas * 0.35) + (ocupacaoPedidos * 0.20);
+}
+
+function compararCandidatosGarcom(a, b) {
+  if (a.pontuacao !== b.pontuacao) return a.pontuacao - b.pontuacao;
+  if (a.prioridadeDistribuicao !== b.prioridadeDistribuicao) return a.prioridadeDistribuicao - b.prioridadeDistribuicao;
+  if (a.ultimaAtribuicaoMs !== b.ultimaAtribuicaoMs) return a.ultimaAtribuicaoMs - b.ultimaAtribuicaoMs;
+  return a.id.localeCompare(b.id, 'en');
+}
+
+function selecionarGarcomResponsavel({ funcionariosDocumentos, escalasDocumentos = [], incrementoMesa = 0, incrementoComanda = 0, incrementoPedido = 0 }) {
+  const candidatos = funcionariosDocumentos.map(documento => {
+    const dados = documento.data() || {};
+    const carga = cargaFuncionario(dados);
+    const capacidades = {
+      capacidadeMesas: Math.max(1, Number(dados.capacidadeMesas || 1)),
+      capacidadeComandas: Math.max(1, Number(dados.capacidadeComandas || 1)),
+      capacidadePedidos: Math.max(1, Number(dados.capacidadePedidos || 1)),
+    };
+    return {
+      id: documento.id,
+      nome: String(dados.nome || dados.nomeCompleto || documento.id),
+      dados,
+      carga,
+      capacidades,
+      pontuacao: pontuacaoGarcom(carga, capacidades),
+      prioridadeDistribuicao: Math.max(0, Number(dados.prioridadeDistribuicao || 0)),
+      ultimaAtribuicaoMs: timestampOperacionalMs(dados.ultimaAtribuicaoEm),
+    };
+  }).filter(candidato => {
+    const dados = candidato.dados;
+    if (dados.estado === 'excluido' || dados.status !== 'ativo' || dados.setor !== 'Salão' || dados.papelOperacional !== 'garcom') return false;
+    if (['pausado', 'indisponivel'].includes(dados.disponibilidadeAtendimento)) return false;
+    if (!escalaCompativel(candidato.id, escalasDocumentos)) return false;
+    return candidato.carga.mesasAtivas + incrementoMesa <= candidato.capacidades.capacidadeMesas
+      && candidato.carga.comandasAtivas + incrementoComanda <= candidato.capacidades.capacidadeComandas
+      && candidato.carga.pedidosPendentes + incrementoPedido <= candidato.capacidades.capacidadePedidos;
+  }).sort(compararCandidatosGarcom);
+  return candidatos[0] || null;
+}
+
+async function atribuirGarcomResponsavel({ transacao, restaurante, idRestaurante, idComanda, idMesa, comanda = {}, mesa = {}, funcionariosDocumentos, escalasDocumentos = [], incrementoMesa = 0, incrementoComanda = 0, incrementoPedido = 0, idAtor }) {
+  if (comanda.idGarcomResponsavel) {
+    return { status: 'atribuido', idGarcomResponsavel: String(comanda.idGarcomResponsavel), idFuncionarioResponsavel: String(comanda.idFuncionarioResponsavel || ''), idUsuarioGarcomResponsavel: String(comanda.idUsuarioGarcomResponsavel || ''), nomeGarcomResponsavel: String(comanda.nomeGarcomResponsavel || comanda.nomeGarcom || '') };
+  }
+  const candidato = selecionarGarcomResponsavel({ funcionariosDocumentos, escalasDocumentos, incrementoMesa, incrementoComanda, incrementoPedido });
+  const eventoRef = restaurante.collection('eventosMesas').doc();
+  if (!candidato) {
+    transacao.set(eventoRef, {
+      idRestaurante,
+      idMesa,
+      idComanda,
+      acao: 'garcom_aguardando_atribuicao',
+      estadoNovo: 'aguardando_atribuicao',
+      idFuncionario: null,
+      idAtor,
+      criadoEm: FieldValue.serverTimestamp(),
+    });
+    return { status: 'aguardando_atribuicao', idGarcomResponsavel: null, nomeGarcomResponsavel: '' };
+  }
+  const novaCarga = {
+    mesasAtivas: candidato.carga.mesasAtivas + incrementoMesa,
+    comandasAtivas: candidato.carga.comandasAtivas + incrementoComanda,
+    pedidosPendentes: candidato.carga.pedidosPendentes + incrementoPedido,
+    tarefasAtivas: candidato.carga.tarefasAtivas,
+  };
+  const funcionarioRef = restaurante.collection('funcionarios').doc(candidato.id);
+  const idGarcomResponsavel = String(candidato.dados.idUsuario || candidato.id);
+  const idUsuarioGarcomResponsavel = candidato.dados.idUsuario ? String(candidato.dados.idUsuario) : '';
+  transacao.update(funcionarioRef, {
+    cargaAtual: novaCarga,
+    disponibilidadeAtendimento: 'em_atendimento',
+    ultimaAtribuicaoEm: FieldValue.serverTimestamp(),
+    atualizadoPor: idAtor,
+    atualizadoEm: FieldValue.serverTimestamp(),
+    versao: Number(candidato.dados.versao || 1) + 1,
+  });
+  transacao.set(eventoRef, {
+    idRestaurante,
+    idMesa,
+    idComanda,
+    acao: 'garcom_atribuido',
+    estadoNovo: 'atribuido',
+    idFuncionario: candidato.id,
+    idUsuario: idUsuarioGarcomResponsavel || null,
+    nomeFuncionario: candidato.nome,
+    pontuacaoDistribuicao: candidato.pontuacao,
+    cargaAnterior: candidato.carga,
+    cargaNova: novaCarga,
+    idAtor,
+    criadoEm: FieldValue.serverTimestamp(),
+  });
+  return { status: 'atribuido', idGarcomResponsavel, idFuncionarioResponsavel: candidato.id, idUsuarioGarcomResponsavel, nomeGarcomResponsavel: candidato.nome, pontuacao: candidato.pontuacao, cargaNova: novaCarga };
+}
+
 function normalizarRecurso(valor) {
   if (valor === 'historico' || valor === 'cozinha' || valor === 'pedido') return 'pedidos';
   if (valor === 'historicoComanda' || valor === 'historico-comanda') return 'historicoComanda';
@@ -141,9 +282,15 @@ async function listarPedidos(identidade, req) {
   if (!['pedidos', 'comandas'].includes(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Recurso de pedidos inválido.');
   const limite = limitarInteiro(req.query?.limite, 200, 300);
   const documentos = await listarColecao(identidade.idRestaurante, recurso, limite);
+  const eGarcomSemSupervisao = identidade.papeis.includes('garcom') && !identidade.papeis.some(papel => ['proprietario', 'administrador', 'gerente'].includes(papel));
+  const visivelParaGarcom = item => {
+    if (!eGarcomSemSupervisao) return true;
+    return [item.idGarcomResponsavel, item.idUsuarioGarcomResponsavel, item.idFuncionarioResponsavel, item.idGarcom].filter(Boolean).map(String).includes(String(identidade.idUsuario));
+  };
   const itens = documentos
     .filter(documento => documento.data()?.estado !== 'excluido')
     .map(recurso === 'pedidos' ? dtoPedido : dtoDocumento)
+    .filter(item => visivelParaGarcom(item))
     .filter(item => recurso !== 'pedidos' || filtroPedido(item, req));
   return { corpo: { [recurso]: itens, meta: { idRestaurante: identidade.idRestaurante, limite, recurso } } };
 }
@@ -508,7 +655,9 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
     if (['confirmado_garcom', 'enviado_cozinha', 'em_preparo', 'pronto', 'servido'].includes(para) && ['encaminhada_caixa', 'encerrada', 'cancelada'].includes(comanda.statusComanda || comanda.status)) {
       throw new ApiError(409, 'COMANDA_ENCERRADA', 'A comanda não aceita novas alterações neste momento.');
     }
-    if (para === 'confirmado_garcom' && comanda.idGarcomResponsavel && comanda.idGarcomResponsavel !== identidade.idUsuario) {
+    const eSupervisor = identidade.papeis.some(papel => ['proprietario', 'administrador', 'gerente'].includes(papel));
+    const identificadoresResponsavel = new Set([comanda.idGarcomResponsavel, comanda.idFuncionarioResponsavel, comanda.idUsuarioGarcomResponsavel].filter(Boolean).map(String));
+    if (para === 'confirmado_garcom' && comanda.idGarcomResponsavel && !eSupervisor && !identificadoresResponsavel.has(String(identidade.idUsuario))) {
       throw new ApiError(409, 'GARCOM_JA_RESPONSAVEL', 'Outro garçom já confirmou o pedido desta mesa.');
     }
 
@@ -531,8 +680,10 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
     };
     if (camposTempo[para]) agora[camposTempo[para]] = FieldValue.serverTimestamp();
     if (para === 'confirmado_garcom') {
-      agora.idGarcomResponsavel = identidade.idUsuario;
-      agora.idGarcom = identidade.idUsuario;
+      if (comanda.idGarcomResponsavel) agora.idGarcomResponsavel = comanda.idGarcomResponsavel;
+      else agora.idGarcomResponsavel = identidade.idUsuario;
+      agora.idGarcom = agora.idGarcomResponsavel;
+      agora.idUsuarioGarcomResponsavel = comanda.idUsuarioGarcomResponsavel || identidade.idUsuario;
     }
     const papelAtor = identidade.papeis.find(papel => ['proprietario', 'administrador', 'gerente', 'garcom', 'cozinha'].includes(papel)) || 'operador';
     const evento = {
@@ -560,7 +711,9 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
     if (para === 'confirmado_garcom') {
       atualizacaoComanda.statusComanda = 'em_consumo';
       atualizacaoComanda.status = 'em_consumo';
-      atualizacaoComanda.idGarcomResponsavel = identidade.idUsuario;
+      atualizacaoComanda.idGarcomResponsavel = comanda.idGarcomResponsavel || identidade.idUsuario;
+      atualizacaoComanda.idUsuarioGarcomResponsavel = comanda.idUsuarioGarcomResponsavel || identidade.idUsuario;
+      atualizacaoComanda.statusDistribuicaoGarcom = 'atribuido';
     }
     if (['rejeitado_garcom', 'cancelado'].includes(para)) {
       if (pedido.estoqueBaixado === true && pedido.estoqueRestaurado !== true) {
@@ -752,3 +905,7 @@ module.exports = async function pedidos(req, res) {
     return atualizarStatusPedido(identidade, corpo, idRequisicao);
   });
 };
+
+module.exports.atribuirGarcomResponsavel = atribuirGarcomResponsavel;
+module.exports.selecionarGarcomResponsavel = selecionarGarcomResponsavel;
+module.exports.pontuacaoGarcom = pontuacaoGarcom;

@@ -90,6 +90,14 @@ function validarCamposParciaisFuncionario(corpo, existente) {
     status: existente.status || 'ativo',
     percentualComissao: Number(existente.percentualComissao || 0),
     telefone: '',
+    papelOperacional: existente.papelOperacional || '',
+    disponibilidadeAtendimento: existente.disponibilidadeAtendimento || 'disponivel',
+    capacidadeMesas: existente.capacidadeMesas === undefined ? 1 : existente.capacidadeMesas,
+    capacidadeComandas: existente.capacidadeComandas === undefined ? 1 : existente.capacidadeComandas,
+    capacidadePedidos: existente.capacidadePedidos === undefined ? 1 : existente.capacidadePedidos,
+    especialidadesCozinha: Array.isArray(existente.especialidadesCozinha) ? existente.especialidadesCozinha : [],
+    estacoesCozinha: Array.isArray(existente.estacoesCozinha) ? existente.estacoesCozinha : [],
+    prioridadeDistribuicao: existente.prioridadeDistribuicao === undefined ? 0 : existente.prioridadeDistribuicao,
   };
   if (corpo.nome !== undefined) base.nome = corpo.nome;
   if (corpo.cargo !== undefined) base.cargo = corpo.cargo;
@@ -98,6 +106,14 @@ function validarCamposParciaisFuncionario(corpo, existente) {
   if (corpo.status !== undefined) base.status = corpo.status;
   if (corpo.percentualComissao !== undefined) base.percentualComissao = corpo.percentualComissao;
   if (corpo.telefone !== undefined) base.telefone = corpo.telefone;
+  if (corpo.papelOperacional !== undefined) base.papelOperacional = corpo.papelOperacional;
+  if (corpo.disponibilidadeAtendimento !== undefined) base.disponibilidadeAtendimento = corpo.disponibilidadeAtendimento;
+  if (corpo.capacidadeMesas !== undefined) base.capacidadeMesas = corpo.capacidadeMesas;
+  if (corpo.capacidadeComandas !== undefined) base.capacidadeComandas = corpo.capacidadeComandas;
+  if (corpo.capacidadePedidos !== undefined) base.capacidadePedidos = corpo.capacidadePedidos;
+  if (corpo.especialidadesCozinha !== undefined) base.especialidadesCozinha = corpo.especialidadesCozinha;
+  if (corpo.estacoesCozinha !== undefined) base.estacoesCozinha = corpo.estacoesCozinha;
+  if (corpo.prioridadeDistribuicao !== undefined) base.prioridadeDistribuicao = corpo.prioridadeDistribuicao;
   const dados = dadosFuncionario(base);
   return dados;
 }
@@ -120,6 +136,16 @@ async function criarFuncionario(identidade, corpo, idRequisicao) {
     percentualComissao: dados.percentualComissao,
     telefoneMascarado: dados.telefoneMascarado,
     cor: dados.cor,
+    papelOperacional: dados.papelOperacional,
+    disponibilidadeAtendimento: dados.disponibilidadeAtendimento,
+    capacidadeMesas: dados.capacidadeMesas,
+    capacidadeComandas: dados.capacidadeComandas,
+    capacidadePedidos: dados.capacidadePedidos,
+    especialidadesCozinha: dados.especialidadesCozinha,
+    estacoesCozinha: dados.estacoesCozinha,
+    cargaAtual: { mesasAtivas: 0, comandasAtivas: 0, pedidosPendentes: 0, tarefasAtivas: 0 },
+    ultimaAtribuicaoEm: null,
+    prioridadeDistribuicao: dados.prioridadeDistribuicao,
     versao: 1,
     criadoPor: identidade.idUsuario,
     atualizadoPor: identidade.idUsuario,
@@ -160,6 +186,14 @@ async function atualizarFuncionario(identidade, corpo, idRequisicao) {
     percentualComissao: dados.percentualComissao,
     telefoneMascarado: dados.telefoneMascarado,
     cor: dados.cor,
+    papelOperacional: dados.papelOperacional,
+    disponibilidadeAtendimento: dados.disponibilidadeAtendimento,
+    capacidadeMesas: dados.capacidadeMesas,
+    capacidadeComandas: dados.capacidadeComandas,
+    capacidadePedidos: dados.capacidadePedidos,
+    especialidadesCozinha: dados.especialidadesCozinha,
+    estacoesCozinha: dados.estacoesCozinha,
+    prioridadeDistribuicao: dados.prioridadeDistribuicao,
     atualizadoPor: identidade.idUsuario,
     atualizadoEm: FieldValue.serverTimestamp(),
     versao: Number(documento.data()?.versao || 1) + 1,
