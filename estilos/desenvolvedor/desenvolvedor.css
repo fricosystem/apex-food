@@ -1,0 +1,20 @@
+.desenvolvedor-modal {
+  display: none;
+  background: rgba(0, 0, 0, 0.78);
+}
+
+.desenvolvedor-modal.aberto {
+  display: flex;
+}
+
+.desenvolvedor-modal-painel {
+  scrollbar-width: thin;
+  scrollbar-color: #343434 transparent;
+}
+
+@media (max-width: 640px) {
+  #paginaDashboardEstabelecimentos,
+  #paginaGerenciarEstabelecimentos {
+    padding-bottom: 5rem;
+  }
+}

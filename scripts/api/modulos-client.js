@@ -189,6 +189,30 @@
     return requisitar('/operacional?modulo=desenvolvedor');
   }
 
+  async function consultarDashboardEstabelecimentos() {
+    return requisitar('/operacional?modulo=desenvolvedor&acao=dashboard');
+  }
+
+  async function listarEstabelecimentosDesenvolvedor(parametros = {}) {
+    return requisitar(`/operacional${query({ modulo: 'desenvolvedor', acao: 'listar_estabelecimentos', ...parametros })}`);
+  }
+
+  async function alterarEstadoEstabelecimento(payload) {
+    return requisitar('/operacional?modulo=desenvolvedor', { method: 'PATCH', body: { acao: 'alterar_estado', ...payload } });
+  }
+
+  async function definirPlanoEstabelecimento(payload) {
+    return requisitar('/operacional?modulo=desenvolvedor', { method: 'PATCH', body: { acao: 'definir_plano', ...payload } });
+  }
+
+  async function definirLimiteEstabelecimento(payload) {
+    return requisitar('/operacional?modulo=desenvolvedor', { method: 'PATCH', body: { acao: 'definir_limite', ...payload } });
+  }
+
+  async function criarExcecaoEstabelecimento(payload) {
+    return requisitar('/operacional?modulo=desenvolvedor', { method: 'POST', body: { acao: 'criar_excecao', ...payload } });
+  }
+
   async function listarPapeis() {
     return requisitar('/operacional?modulo=papeis');
   }
@@ -314,6 +338,12 @@
     listarNotificacoes,
     listarPerfil,
     consultarAcessoDesenvolvedor,
+    consultarDashboardEstabelecimentos,
+    listarEstabelecimentosDesenvolvedor,
+    alterarEstadoEstabelecimento,
+    definirPlanoEstabelecimento,
+    definirLimiteEstabelecimento,
+    criarExcecaoEstabelecimento,
     listarPapeis,
     criarPapel,
     atualizarPapel,

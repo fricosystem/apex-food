@@ -19,6 +19,8 @@
     'configuracao-mesas': { titulo: 'Configuração de Mesas', fragmento: 'paginas/salao/configuracao-mesas.html?v=etapa21-salao-tempo-real', href: '/configuracao-mesas', estilos: ['estilos/salao/salao.css?v=etapa21-salao-tempo-real'], scripts: ['scripts/salao/dados-mesas.js?v=etapa21-salao-tempo-real', 'scripts/salao/configuracao-mesas.js?v=etapa21-salao-tempo-real'] },
     funcionarios: { titulo: 'Funcionários', fragmento: 'paginas/equipe/funcionarios.html?v=etapa31-especialidades', href: '/funcionarios', estilos: ['estilos/equipe/equipe.css?v=etapa22-dados-reais-global'], scripts: ['scripts/equipe/dados-equipe.js?v=etapa22-dados-reais-global', 'scripts/equipe/funcionarios.js?v=etapa31-especialidades'] },
     papeis: { titulo: 'Papéis e Permissões', fragmento: 'paginas/equipe/papeis.html?v=fase51-papeis-locais', href: '/papeis', estilos: ['estilos/equipe/papeis.css?v=fase51-papeis-locais'], scripts: ['scripts/equipe/papeis.js?v=fase51-papeis-locais'] },
+    'dashboard-estabelecimentos': { titulo: 'Dashboard de Estabelecimentos', fragmento: 'paginas/desenvolvedor/dashboard-estabelecimentos.html?v=fase61-dashboard-global', href: '/dashboard-estabelecimentos', estilos: ['estilos/desenvolvedor/desenvolvedor.css?v=fase61-dashboard-global'], scripts: ['scripts/desenvolvedor/dashboard-estabelecimentos.js?v=fase61-dashboard-global'] },
+    'gerenciar-estabelecimentos': { titulo: 'Gerenciar Estabelecimentos', fragmento: 'paginas/desenvolvedor/gerenciar-estabelecimentos.html?v=fase61-dashboard-global', href: '/gerenciar-estabelecimentos', estilos: ['estilos/desenvolvedor/desenvolvedor.css?v=fase61-dashboard-global'], scripts: ['scripts/desenvolvedor/gerenciar-estabelecimentos.js?v=fase61-dashboard-global'] },
     'escala-trabalho': { titulo: 'Escala de Trabalho', fragmento: 'paginas/equipe/escala-trabalho.html?v=etapa22-dados-reais-global', href: '/escala-trabalho', estilos: ['estilos/equipe/equipe.css?v=etapa22-dados-reais-global'], scripts: ['scripts/equipe/dados-equipe.js?v=etapa22-dados-reais-global', 'scripts/equipe/escala-trabalho.js?v=etapa22-dados-reais-global'] },
     comissoes: { titulo: 'Comissões', fragmento: 'paginas/equipe/comissoes.html?v=etapa22-dados-reais-global', href: '/comissoes', estilos: ['estilos/equipe/equipe.css?v=etapa22-dados-reais-global'], scripts: ['scripts/equipe/dados-equipe.js?v=etapa22-dados-reais-global', 'scripts/equipe/comissoes.js?v=etapa22-dados-reais-global'] },
     'fechamento-caixa': { titulo: 'Fechamento de Caixa', fragmento: 'paginas/financeiro/fechamento-caixa.html?v=etapa28-detalhes-rastreabilidade', href: '/fechamento-caixa', estilos: ['estilos/financeiro/financeiro.css?v=etapa28-detalhes-rastreabilidade'], scripts: ['scripts/financeiro/dados-financeiros.js?v=etapa22-dados-reais-global', 'scripts/financeiro/fechamento-caixa.js?v=etapa28-detalhes-rastreabilidade'], compatibilidade: 'fechamento-caixa.html?v=etapa19-fluxo-operacional' },
@@ -34,6 +36,7 @@
   };
 
   let carregamentoAtual = 0;
+  let chavePaginaAtual = 'home';
   const normalizar = valor => String(valor || '')
     .replace(/^https?:\/\/[^/]+/i, '')
     .split(/[?#]/, 1)[0]
@@ -124,6 +127,8 @@
     'avaliacoes-clientes': ['dadosRelatoriosPronto'],
     'performance-equipe': ['dadosEquipePronto', 'dadosRelatoriosPronto'],
     'configuracoes-perfil': ['dadosPerfilPronto'],
+    'dashboard-estabelecimentos': ['dadosDashboardEstabelecimentosPronto'],
+    'gerenciar-estabelecimentos': ['dadosGerenciarEstabelecimentosPronto'],
     mesa: ['dadosMesaPublicaPronto'],
   };
   const aguardarDadosPagina = chave => Promise.all((promessasPorPagina[chave] || []).map(nome => {
@@ -132,7 +137,9 @@
   }));
   const carregarScripts = scripts => scripts.reduce((fila, caminho) => fila.then(() => new Promise((resolve, reject) => { document.querySelectorAll(`script[data-apex-page-script="${caminho}"]`).forEach(script => script.remove()); const script = document.createElement('script'); script.src = caminho; script.dataset.apexPageScript = caminho; script.onload = resolve; script.onerror = () => reject(new Error(`Falha ao carregar ${caminho}`)); document.body.appendChild(script); })), Promise.resolve());
   const atualizarNavegacao = chave => { document.querySelectorAll('[data-apex-rota]').forEach(link => { const ativo = Boolean(link.dataset.apexRota) && paginaPorHref(link.dataset.apexRota) === chave; link.classList.toggle('active', ativo); link.closest('.tree-item')?.classList.toggle('active', ativo); }); };
+  const atualizarNavegacaoAtual = () => atualizarNavegacao(chavePaginaAtual);
   async function carregar(chave) {
+    chavePaginaAtual = paginas[chave] ? chave : 'home';
     const pagina = paginas[chave] || paginas.home;
     const publicoMesa = chave === 'mesa';
     document.documentElement.classList.toggle('apex-preload-publico-mesa', publicoMesa);
@@ -189,7 +196,7 @@
     }
     carregar(chave || 'home');
   }
-  window.apexShell = Object.freeze({ navegar, carregar, paginas });
+  window.apexShell = Object.freeze({ navegar, carregar, paginas, atualizarNavegacaoAtual });
   window.addEventListener('popstate', () => carregar(paginaPorUrl()));
   document.addEventListener('DOMContentLoaded', () => {
     const rotaLegada = migrarHashLegado();

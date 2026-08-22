@@ -13,9 +13,22 @@
     raiz.style.visibility = '';
   }
 
-  function informarSessaoAutenticada() {
+  function informarSessaoAutenticada(dados) {
     window.dispatchEvent(new CustomEvent('apex:sessao-autenticada', {
-      detail: { origem: 'restaurada' },
+      detail: {
+        origem: 'restaurada',
+        sessao: {
+          usuario: {
+            tipoConta: dados?.usuario?.tipoConta || null,
+            acessoGlobal: dados?.usuario?.acessoGlobal || 'nenhum',
+            papeisGlobais: Array.isArray(dados?.usuario?.papeisGlobais) ? dados.usuario.papeisGlobais.slice(0, 5) : [],
+          },
+          restauranteAtivo: dados?.restauranteAtivo ? {
+            idRestaurante: dados.restauranteAtivo.idRestaurante || null,
+            papeis: Array.isArray(dados.restauranteAtivo.papeis) ? dados.restauranteAtivo.papeis.slice(0, 20) : [],
+          } : null,
+        },
+      },
     }));
   }
 
@@ -38,6 +51,7 @@
       }
       const possuiRestauranteAtivo = typeof dados?.restauranteAtivo?.idRestaurante === 'string'
         && dados.restauranteAtivo.idRestaurante.length > 0;
+      const possuiAcessoGlobal = dados?.usuario?.acessoGlobal === 'desenvolvedor';
 
       if (paginaMesaPublica) {
         revelar();
@@ -45,6 +59,10 @@
       }
 
       if (paginaAutenticacao) {
+        if (resposta.ok && possuiAcessoGlobal) {
+          window.location.replace('/dashboard-estabelecimentos');
+          return;
+        }
         if (resposta.ok && possuiRestauranteAtivo) {
           window.location.replace('/');
           return;
@@ -53,11 +71,11 @@
         return;
       }
 
-      if (resposta.status === 401 || resposta.status === 403 || resposta.status === 503 || (resposta.ok && !possuiRestauranteAtivo)) {
+      if (resposta.status === 401 || resposta.status === 403 || resposta.status === 503 || (resposta.ok && !possuiRestauranteAtivo && !possuiAcessoGlobal)) {
         window.location.replace('/autenticacao');
         return;
       }
-      informarSessaoAutenticada();
+      informarSessaoAutenticada(dados);
       revelar();
     } catch {
       if (paginaMesaPublica) {

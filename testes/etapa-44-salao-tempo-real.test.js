@@ -86,6 +86,6 @@ test('shell e cliente global usam o versionamento da Etapa 21', () => {
   assert.match(shell, /mapa-mesas[^\n]*etapa21-salao-tempo-real/);
   assert.match(shell, /reservas[^\n]*etapa21-salao-tempo-real/);
   assert.match(shell, /configuracao-mesas[^\n]*etapa21-salao-tempo-real/);
-  assert.match(index, /apex-shell\.js\?v=fase51-papeis-locais/);
-  assert.match(index, /modulos-client\.js\?v=fase51-papeis-locais/);
+  assert.match(index, /apex-shell\.js\?v=fase61-desenvolvedor-global/);
+  assert.match(index, /modulos-client\.js\?v=fase61-desenvolvedor-global/);
 });

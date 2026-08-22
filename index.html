@@ -171,7 +171,7 @@
     if (caminho === '/mesa') document.documentElement.classList.add('apex-preload-publico-mesa');
   })();
 </script>
-<script src="scripts/auth/sessao-guard.js?v=etapa10-validacao" defer></script></head>
+<script src="scripts/auth/sessao-guard.js?v=fase61-desenvolvedor-global" defer></script></head>
 <body class="min-h-screen">
 <!-- Mobile Header -->
 <div class="apex-mobile-header lg:hidden flex items-center justify-between p-4 border-b border-border bg-panel sticky top-0 z-40">
@@ -238,7 +238,7 @@
 <div aria-live="polite" class="min-h-screen" id="conteudoPagina"></div>
 </main>
 <script>
-const sidebarSections = [
+  let sidebarSections = [
     { title: 'GERAL', icon: 'layout-dashboard', items: [{ label: 'Visão Geral', icon: 'home', href: '/', active: true, desc: 'Dashboard principal do restaurante' }] },
     { title: 'DASHBOARDS', icon: 'bar-chart-3', items: [{ label: 'Operacional', icon: 'activity', href: '/operacional', desc: 'Pedidos ativos, fila da cozinha, ocupação' }, { label: 'Financeiro', icon: 'dollar-sign', href: '/dashboard-financeiro', desc: 'Faturamento, ticket médio, metas' }, { label: 'Desempenho', icon: 'trending-up', href: '/dashboard-desempenho', desc: 'Tempo de preparo, avaliações' }] },
     { title: 'PEDIDOS', icon: 'receipt', items: [{ label: 'Novo Pedido', icon: 'plus-circle', href: '/novo-pedido', desc: 'Fluxo de abertura de comanda' }, { label: 'Pedidos Ativos', icon: 'shopping-bag', href: '/pedidos-ativos', desc: 'Pedidos em andamento por mesa' }, { label: 'Atendimento dos garçons', icon: 'concierge-bell', href: '/atendimento-garcom', desc: 'Mesas atribuídas e confirmação de pedidos' }, { label: 'Histórico de Pedidos', icon: 'history', href: '/historico-pedidos', desc: 'Pedidos finalizados com detalhes' }, { label: 'Fila da Cozinha', icon: 'chef-hat', href: '/fila-cozinha', desc: 'Pedidos aguardando preparo' }] },
@@ -248,6 +248,19 @@ const sidebarSections = [
     { title: 'FINANCEIRO', icon: 'wallet', items: [{ label: 'Fechamento de Caixa', icon: 'lock', href: '/fechamento-caixa', desc: 'Encerrar expediente com relatório' }, { label: 'Fluxo de Caixa', icon: 'arrow-left-right', href: '/fluxo-caixa', desc: 'Entradas e saídas do dia' }, { label: 'Contas a Pagar/Receber', icon: 'file-text', href: '/contas-pagar-receber', desc: 'Fornecedores e contas fixas' }, { label: 'Relatórios Financeiros', icon: 'pie-chart', href: '/relatorios-financeiros', desc: 'Extrato diário, semanal, mensal' }] },
     { title: 'RELATÓRIOS', icon: 'file-bar-chart', items: [{ label: 'Vendas por Período', icon: 'bar-chart-3', href: '/vendas-por-periodo', desc: 'Análise de vendas' }, { label: 'Produtos Mais Vendidos', icon: 'star', href: '/produtos-mais-vendidos', desc: 'Top produtos' }, { label: 'Horários de Pico', icon: 'clock', href: '/horarios-de-pico', desc: 'Melhores horários' }, { label: 'Avaliações dos Clientes', icon: 'message-square', href: '/avaliacoes-clientes', desc: 'Feedback dos clientes' }, { label: 'Performance da Equipe', icon: 'award', href: '/performance-equipe', desc: 'Desempenho dos funcionários' }] }
   ];
+
+  const sidebarSectionDesenvolvedor = { title: 'DESENVOLVEDOR', icon: 'shield-check', items: [{ label: 'Dashboard Estabelecimentos', icon: 'layout-dashboard', href: '/dashboard-estabelecimentos', desc: 'Métricas globais dos estabelecimentos' }, { label: 'Gerenciar Estabelecimentos', icon: 'building-2', href: '/gerenciar-estabelecimentos', desc: 'Planos, limites e status dos estabelecimentos' }] };
+
+  function habilitarNavegacaoDesenvolvedor(evento) {
+    if (evento?.detail?.sessao?.usuario?.acessoGlobal !== 'desenvolvedor') return;
+    if (sidebarSections.some((secao) => secao.title === sidebarSectionDesenvolvedor.title)) return;
+    sidebarSections = [...sidebarSections, sidebarSectionDesenvolvedor];
+    buildSidebar('sidebarContentDesktop');
+    buildSidebar('sidebarContentMobile');
+    window.apexShell?.atualizarNavegacaoAtual?.();
+  }
+
+  window.addEventListener('apex:sessao-autenticada', habilitarNavegacaoDesenvolvedor);
 
   function buildSidebar(containerId) {
     const container = document.getElementById(containerId);
@@ -332,6 +345,6 @@ const sidebarSections = [
     });
   };
 </script>
-<script src="scripts/compartilhados/ferramentas-interface.js?v=fase12"></script><script src="scripts/auth/api-client.js?v=etapa14-perfil"></script><script src="scripts/compartilhados/perfil-sidebar.js?v=etapa15-perfil"></script><script src="scripts/api/modulos-client.js?v=fase51-papeis-locais"></script><script src="scripts/compartilhados/notificacoes.js?v=etapa14-header-notificacoes"></script><script src="configuracoes/firebase-messaging-publico.js?v=etapa11-fcm"></script><script src="scripts/compartilhados/notificacoes-sistema.js?v=etapa11-fcm"></script><script src="scripts/shell/apex-shell.js?v=fase51-papeis-locais"></script></body>
+<script src="scripts/compartilhados/ferramentas-interface.js?v=fase12"></script><script src="scripts/auth/api-client.js?v=etapa14-perfil"></script><script src="scripts/compartilhados/perfil-sidebar.js?v=etapa15-perfil"></script><script src="scripts/api/modulos-client.js?v=fase61-desenvolvedor-global"></script><script src="scripts/compartilhados/notificacoes.js?v=etapa14-header-notificacoes"></script><script src="configuracoes/firebase-messaging-publico.js?v=etapa11-fcm"></script><script src="scripts/compartilhados/notificacoes-sistema.js?v=etapa11-fcm"></script><script src="scripts/shell/apex-shell.js?v=fase61-desenvolvedor-global"></script></body>
 </html>
 

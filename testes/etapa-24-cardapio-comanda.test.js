@@ -108,7 +108,7 @@ test('Fluxo público mantém os assets da mesa e avança para a central da etapa
   assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa37-mesa-sem-flicker/);
   assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa37-mesa-sem-flicker/);
   assert.match(shell, /document\.documentElement\.classList\.toggle\('apex-preload-publico-mesa', publicoMesa\)/);
-  assert.match(index, /apex-shell\.js\?v=fase51-papeis-locais/);
+  assert.match(index, /apex-shell\.js\?v=fase61-desenvolvedor-global/);
 });
 
 test('comanda pública oculta todo o shell administrativo e mantém somente o corpo do cliente', () => {

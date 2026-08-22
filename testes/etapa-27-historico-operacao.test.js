@@ -105,6 +105,6 @@ test('Etapa 7 versiona assets de histórico e mantém mesa pública na Etapa 4',
   assert.match(shell, /dashboard-financeiro[^\n]*etapa7-historico/);
   assert.match(shell, /fechamento-caixa[^\n]*etapa19-fluxo-operacional/);
   assert.match(shell, /mesa[^\\n]*etapa23-comanda-passos-mobile/);
-  assert.match(index, /apex-shell\.js\?v=fase51-papeis-locais/);
+  assert.match(index, /apex-shell\.js\?v=fase61-desenvolvedor-global/);
   assert.match(documento, /sem processar pagamentos|não processa pagamentos/i);
 });

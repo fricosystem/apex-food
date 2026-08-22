@@ -37,7 +37,7 @@ test('Vercel habilita URLs limpas, PWA na raiz e rewrites do shell', () => {
 
 test('links visíveis usam somente rotas públicas sem .html, /paginas/ ou hash', () => {
   const shell = extrairBlocoPagina('scripts/shell/apex-shell.js', 'const paginas = {', '  };');
-  const index = extrairBlocoPagina('index.html', 'const sidebarSections = [', '  ];');
+  const index = extrairBlocoPagina('index.html', 'let sidebarSections = [', '  ];');
   for (const [arquivo, bloco] of [['scripts/shell/apex-shell.js', shell], ['index.html', index]]) {
     const hrefs = [...bloco.matchAll(/href:\s*['"]([^'"]+)['"]/g)].map(match => match[1]);
     for (const href of hrefs) {
