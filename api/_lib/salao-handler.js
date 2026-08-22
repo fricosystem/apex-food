@@ -233,8 +233,6 @@ async function arquivarRecurso(identidade, recurso, id, idRequisicao) {
 
 async function atualizarReserva(identidade, corpo, idRequisicao) {
   const id = idDocumento(corpo.id, 'id');
-  const estado = corpo.estado;
-  if (typeof estado !== 'string' || !ESTADOS_RESERVA.has(estado)) throw new ApiError(400, 'ESTADO_INVALIDO', 'Estado da reserva inválido.');
   const referencia = caminhoRestaurante(identidade.idRestaurante).collection('reservas').doc(id);
   const restaurante = referencia.parent.parent;
   let mesaEvento = null;
@@ -243,6 +241,8 @@ async function atualizarReserva(identidade, corpo, idRequisicao) {
     if (!documento.exists || documento.data()?.estado === 'excluido') throw new ApiError(404, 'RESERVA_NAO_ENCONTRADA', 'Reserva não encontrada.');
     const reserva = documento.data() || {};
     const estadoAtual = reserva.estado || 'aguardando';
+    const estado = corpo.estado === undefined ? estadoAtual : corpo.estado;
+    if (typeof estado !== 'string' || !ESTADOS_RESERVA.has(estado)) throw new ApiError(400, 'ESTADO_INVALIDO', 'Estado da reserva inválido.');
     if (!TRANSICOES_RESERVA[estadoAtual]?.has(estado)) throw new ApiError(409, 'TRANSICAO_INVALIDA', 'A mudança de estado da reserva não é permitida.');
     const mesaRef = reserva.idMesa ? restaurante.collection('mesas').doc(String(reserva.idMesa)) : null;
     const mesaDocumento = mesaRef && ['confirmada', 'chegou', 'cancelada'].includes(estado) ? await transacao.get(mesaRef) : null;
@@ -257,14 +257,18 @@ async function atualizarReserva(identidade, corpo, idRequisicao) {
       if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime()) || fim <= inicio) throw new ApiError(409, 'HORARIO_INVALIDO', 'O horário da reserva não é válido.');
       await validarConflitoReserva(transacao, restaurante, String(reserva.idMesa), inicio, fim, id);
     }
-    transacao.update(referencia, {
+    const atualizacoes = {
       estado,
       atualizadoPor: identidade.idUsuario,
       atualizadoEm: FieldValue.serverTimestamp(),
       versao: Number(reserva.versao || 1) + 1,
       ...(estado === 'chegou' ? { chegouEm: FieldValue.serverTimestamp() } : {}),
       ...(estado === 'cancelada' ? { canceladaEm: FieldValue.serverTimestamp() } : {}),
-    });
+    };
+    if (corpo.nomeCliente !== undefined) atualizacoes.nomeCliente = textoObrigatorio(corpo.nomeCliente, 'nomeCliente', 160);
+    if (corpo.contatoCliente !== undefined) atualizacoes.contatoClienteMascarado = mascararContato(textoOpcional(corpo.contatoCliente, 'contatoCliente', 160));
+    if (corpo.observacoes !== undefined) atualizacoes.observacoes = textoOpcional(corpo.observacoes, 'observacoes', 1000);
+    transacao.update(referencia, atualizacoes);
     if (mesaRef && estado === 'chegou') {
       transacao.update(mesaRef, {
         estado: 'ocupada',
