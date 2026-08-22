@@ -51,6 +51,12 @@
     cardapioSecao: document.getElementById('mesaPublicaCardapioSecao'),
     carrinhoSecao: document.getElementById('mesaPublicaCarrinhoSecao'),
     comandaSecao: document.getElementById('mesaPublicaComandaSecao'),
+    avaliacao: document.getElementById('mesaPublicaAvaliacao'),
+    avaliacaoNotas: document.getElementById('mesaPublicaAvaliacaoNotas'),
+    avaliacaoComentario: document.getElementById('mesaPublicaAvaliacaoComentario'),
+    avaliacaoFeedback: document.getElementById('mesaPublicaAvaliacaoFeedback'),
+    enviarAvaliacao: document.getElementById('mesaPublicaEnviarAvaliacao'),
+    avaliacaoEnviada: document.getElementById('mesaPublicaAvaliacaoEnviada'),
   };
 
   const parametros = new URLSearchParams(window.location.search);
@@ -68,6 +74,9 @@
     pollingFalhas: 0,
     enviandoPedido: false,
     etapaMobile: 'escolher',
+    avaliacaoNota: 0,
+    avaliacaoEnviando: false,
+    atendimentoEncerrado: false,
   };
 
   function chaveIdempotencia(prefixo = 'mesa') {
@@ -187,7 +196,7 @@
     alternar(elementos.comandaSecao, estado.etapaMobile === 'acompanhar');
     alternar(elementos.mobileIrCarrinho, estado.etapaMobile === 'escolher');
     alternar(elementos.mobileVoltarCardapio, estado.etapaMobile === 'revisar');
-    alternar(elementos.mobileNovoPedido, estado.etapaMobile === 'acompanhar');
+    alternar(elementos.mobileNovoPedido, estado.etapaMobile === 'acompanhar' && !estado.atendimentoEncerrado);
 
     const ordem = { escolher: 1, revisar: 2, acompanhar: 3 };
     document.querySelectorAll('[data-mesa-mobile-passo]').forEach(item => {
@@ -263,6 +272,8 @@
   }
 
   function mostrarAtendimento(dados) {
+    estado.atendimentoEncerrado = false;
+    estado.avaliacaoNota = 0;
     mostrarCarregando(false);
     alternar(elementos.erro, false);
     alternar(elementos.formulario, false);
@@ -495,6 +506,63 @@
     });
   }
 
+  function renderizarAvaliacao(avaliacao, comanda) {
+    const encerrada = String(comanda?.status || '') === 'encerrada';
+    estado.atendimentoEncerrado = encerrada;
+    if (!elementos.avaliacao) return;
+    alternar(elementos.avaliacao, encerrada);
+    if (!encerrada) return;
+    if (avaliacao) {
+      alternar(elementos.avaliacaoNotas, false);
+      alternar(elementos.avaliacaoComentario, false);
+      alternar(elementos.enviarAvaliacao, false);
+      alternar(elementos.avaliacaoFeedback, false);
+      alternar(elementos.avaliacaoEnviada, true);
+      elementos.avaliacaoEnviada.textContent = `Obrigado pela sua avaliação: ${Number(avaliacao.nota || 0)} de 5.${avaliacao.comentario ? ` Comentário: ${avaliacao.comentario}` : ''}`;
+      return;
+    }
+    alternar(elementos.avaliacaoNotas, true);
+    alternar(elementos.avaliacaoComentario, true);
+    alternar(elementos.enviarAvaliacao, true);
+    alternar(elementos.avaliacaoEnviada, false);
+    elementos.avaliacaoNotas?.querySelectorAll('[data-mesa-avaliacao-nota]').forEach(botao => {
+      const nota = Number(botao.dataset.mesaAvaliacaoNota || 0);
+      const ativo = nota === estado.avaliacaoNota;
+      botao.classList.toggle('border-accent', ativo);
+      botao.classList.toggle('bg-accent/15', ativo);
+      botao.classList.toggle('text-orange-100', ativo);
+      botao.setAttribute('aria-checked', ativo ? 'true' : 'false');
+    });
+  }
+
+  async function enviarAvaliacao() {
+    if (estado.avaliacaoEnviando || !estado.atendimentoEncerrado || !estado.avaliacaoNota) {
+      if (!estado.avaliacaoNota) mostrarFeedback(elementos.avaliacaoFeedback, 'Selecione uma nota de 1 a 5.');
+      return;
+    }
+    estado.avaliacaoEnviando = true;
+    elementos.enviarAvaliacao.disabled = true;
+    elementos.enviarAvaliacao.textContent = 'Enviando avaliação...';
+    mostrarFeedback(elementos.avaliacaoFeedback, '');
+    try {
+      await requisitar('', { method: 'POST', body: { acao: 'avaliacao', nota: estado.avaliacaoNota, comentario: elementos.avaliacaoComentario?.value.trim() || '', chaveIdempotencia: chaveIdempotencia('avaliacao-mesa') } });
+      mostrarFeedback(elementos.avaliacaoFeedback, 'Avaliação enviada. Obrigado pelo retorno.', 'sucesso');
+      await atualizarComanda({ silencioso: true });
+    } catch (erro) {
+      if (erro.code === 'AVALIACAO_JA_ENVIADA') {
+        await atualizarComanda({ silencioso: true });
+        return;
+      }
+      mostrarFeedback(elementos.avaliacaoFeedback, mensagemErroAtendimento(erro, 'Não foi possível enviar a avaliação.'));
+    } finally {
+      estado.avaliacaoEnviando = false;
+      if (elementos.enviarAvaliacao) {
+        elementos.enviarAvaliacao.disabled = false;
+        elementos.enviarAvaliacao.textContent = 'Enviar avaliação';
+      }
+    }
+  }
+
   async function atualizarComanda({ silencioso = false, polling = false } = {}) {
     if (!silencioso) elementos.atualizarComanda.disabled = true;
     try {
@@ -503,6 +571,12 @@
       elementos.comandaStatus.textContent = rotuloStatus(dados.comanda?.status);
       elementos.comandaTotal.textContent = dados.comanda?.totalCentavos === null ? 'Não informado' : formatarMoeda(dados.comanda?.totalCentavos);
       renderizarPedidos(dados.pedidos);
+      renderizarAvaliacao(dados.avaliacao, dados.comanda);
+      if (String(dados.comanda?.status || '') === 'encerrada') {
+        estado.pollingAtivo = false;
+        pararPolling();
+        atualizarEtapaMobile('acompanhar');
+      }
       return true;
     } catch (erro) {
       if (erro.status === 401) {
@@ -637,6 +711,14 @@
   });
   elementos.atualizarComanda?.addEventListener('click', () => atualizarComanda());
   elementos.enviarPedido?.addEventListener('click', enviarPedido);
+  elementos.avaliacaoNotas?.querySelectorAll('[data-mesa-avaliacao-nota]').forEach(botao => {
+    botao.addEventListener('click', () => {
+      estado.avaliacaoNota = Number(botao.dataset.mesaAvaliacaoNota || 0);
+      renderizarAvaliacao(null, { status: estado.atendimentoEncerrado ? 'encerrada' : 'em_consumo' });
+      elementos.avaliacaoFeedback?.classList.add('hidden');
+    });
+  });
+  elementos.enviarAvaliacao?.addEventListener('click', enviarAvaliacao);
   elementos.mobileIrCarrinho?.addEventListener('click', () => {
     if (estado.carrinho.size) atualizarEtapaMobile('revisar');
   });

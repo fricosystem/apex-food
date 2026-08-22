@@ -10,9 +10,13 @@ const {
   consultarQrPublico,
   abrirSessaoMesa,
   obterContextoSessaoMesa,
+  obterContextoAvaliacaoPublica,
   consultarSessaoMesa,
   listarCardapioPublico,
   consultarComandaPublica,
+  consultarComandaPublicaEncerrada,
+  consultarAvaliacaoPublica,
+  criarAvaliacaoPublica,
   criarPedidoPublico,
   gerarQrMesa,
   consultarQrMesa,
@@ -34,6 +38,7 @@ async function limitarAcaoPublica(req, acao) {
     comanda: [60, 60_000],
     abrir: [10, 60_000],
     pedido: [20, 60_000],
+    avaliacao: [5, 300_000],
     administrativa: [60, 60_000],
   };
   const [limite, janela] = limites[acao] || limites.sessao;
@@ -96,8 +101,19 @@ module.exports = async function qrcodeMesa(req, res) {
       }
       if (acao === 'comanda') {
         await limitarAcaoPublica(req, 'comanda');
-        const contexto = await obterContextoSessaoMesa(req, res);
-        return { corpo: await consultarComandaPublica(contexto) };
+        try {
+          const contexto = await obterContextoSessaoMesa(req, res);
+          return { corpo: await consultarComandaPublica(contexto) };
+        } catch (erro) {
+          if (!['COMANDA_ENCERRADA', 'SESSAO_MESA_EXPIRADA'].includes(erro?.code)) throw erro;
+          const contexto = await obterContextoAvaliacaoPublica(req, res);
+          return { corpo: await consultarComandaPublicaEncerrada(contexto) };
+        }
+      }
+      if (acao === 'avaliacao') {
+        await limitarAcaoPublica(req, 'avaliacao');
+        const contexto = await obterContextoAvaliacaoPublica(req, res);
+        return { corpo: { avaliacao: await consultarAvaliacaoPublica(contexto), comanda: { id: contexto.comandaDocumento.id, status: 'encerrada' } } };
       }
       throw new ApiError(400, 'ACAO_INVALIDA', 'Ação pública inválida.');
     }
@@ -118,6 +134,10 @@ module.exports = async function qrcodeMesa(req, res) {
     if (corpo.acao === 'pedido') {
       await limitarAcaoPublica(req, 'pedido');
       return { corpo: await criarPedidoPublico(req, res, corpo) };
+    }
+    if (corpo.acao === 'avaliacao') {
+      await limitarAcaoPublica(req, 'avaliacao');
+      return { corpo: await criarAvaliacaoPublica(req, res, corpo) };
     }
     await limitarAcaoPublica(req, 'administrativa');
     return { corpo: await executarAcaoAdministrativa(corpo, req, idRequisicao) };

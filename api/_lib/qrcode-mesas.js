@@ -493,6 +493,28 @@ async function obterContextoSessaoMesa(req, res) {
   };
 }
 
+async function obterContextoAvaliacaoPublica(req, res) {
+  const cookie = lerSessaoMesaCookie(req);
+  if (!cookie) throw new ApiError(401, 'SESSAO_MESA_NAO_ENCONTRADA', 'A sessão da mesa não foi encontrada.');
+  const restauranteRef = caminhoRestaurante(cookie.idRestaurante);
+  const sessaoRef = restauranteRef.collection('sessoesMesa').doc(cookie.idSessaoMesa);
+  const sessaoDocumento = await sessaoRef.get();
+  if (!sessaoDocumento.exists) throw new ApiError(401, 'SESSAO_MESA_EXPIRADA', 'A sessão da mesa não está mais disponível.');
+  const sessao = sessaoDocumento.data() || {};
+  const [mesaDocumento, comandaDocumento, participanteDocumento] = await Promise.all([
+    restauranteRef.collection('mesas').doc(String(sessao.idMesa)).get(),
+    restauranteRef.collection('comandas').doc(String(sessao.idComanda)).get(),
+    restauranteRef.collection('comandas').doc(String(sessao.idComanda)).collection('participantes').doc(String(sessao.idParticipante)).get(),
+  ]);
+  if (!mesaDocumento.exists || !comandaDocumento.exists || !participanteDocumento.exists) throw new ApiError(409, 'ATENDIMENTO_NAO_DISPONIVEL', 'O atendimento desta mesa não está mais disponível.');
+  const comanda = comandaDocumento.data() || {};
+  const statusComanda = String(comanda.statusComanda || comanda.status || '');
+  if (statusComanda !== 'encerrada') throw new ApiError(409, 'AVALIACAO_AGUARDANDO_CAIXA', 'A avaliação será liberada após a conclusão operacional do caixa.');
+  const encerradaEmMs = timestampParaMs(comanda.encerradaEm || sessao.encerradaEm);
+  if (encerradaEmMs && Date.now() - encerradaEmMs > 7 * 24 * 60 * 60 * 1000) throw new ApiError(410, 'AVALIACAO_EXPIRADA', 'O prazo para avaliar este atendimento foi encerrado.');
+  return { cookie, restauranteRef, sessaoRef, sessaoDocumento, sessao, mesaDocumento, comandaDocumento, participanteDocumento };
+}
+
 async function consultarSessaoMesa(req, res) {
   const contexto = await obterContextoSessaoMesa(req, res);
   await contexto.sessaoDocumento.ref.update({ ultimoAcessoEm: FieldValue.serverTimestamp() });
@@ -611,8 +633,115 @@ async function consultarComandaPublica(contexto) {
       nomeExibicao: String(contexto.participanteDocumento.data()?.nomeExibicao || contexto.sessao.nomeExibicao || ''),
     },
     pedidos,
+    avaliacao: await consultarAvaliacaoPublica(contexto),
     configuracao: { exibirPrecos: configuracao.exibirPrecos, aceitarPedidos: configuracao.aceitarPedidos },
   };
+}
+
+async function consultarComandaPublicaEncerrada(contexto) {
+  const configuracao = await lerConfiguracaoCardapio(contexto.restauranteRef);
+  const pedidosConsulta = await contexto.restauranteRef.collection('pedidos').where('idComanda', '==', contexto.comandaDocumento.id).limit(200).get();
+  const pedidos = pedidosConsulta.docs
+    .filter(documento => String(documento.data()?.idParticipante || '') === contexto.participanteDocumento.id && documento.data()?.estado !== 'excluido')
+    .sort((a, b) => timestampParaMs(b.data()?.criadoEm) - timestampParaMs(a.data()?.criadoEm))
+    .map(documento => pedidoPublico(documento, configuracao.exibirPrecos));
+  const comanda = contexto.comandaDocumento.data() || {};
+  return {
+    comanda: { id: contexto.comandaDocumento.id, status: String(comanda.statusComanda || comanda.status || 'encerrada'), totalCentavos: configuracao.exibirPrecos ? Number(comanda.totalCentavos || 0) : null, quantidadePedidosAbertos: 0 },
+    participante: { id: contexto.participanteDocumento.id, nomeExibicao: String(contexto.participanteDocumento.data()?.nomeExibicao || contexto.sessao.nomeExibicao || '') },
+    pedidos,
+    avaliacao: await consultarAvaliacaoPublica(contexto),
+    configuracao: { exibirPrecos: configuracao.exibirPrecos, aceitarPedidos: false },
+  };
+}
+
+function dtoAvaliacaoPublica(documento) {
+  if (!documento?.exists) return null;
+  const dados = documento.data() || {};
+  const timestamp = dados.criadoEm || dados.enviadaEm || null;
+  return {
+    id: documento.id,
+    nota: Number(dados.nota || 0),
+    comentario: String(dados.comentario || ''),
+    nomeCliente: String(dados.nomeCliente || 'Cliente'),
+    enviadaEm: timestampParaMs(timestamp) ? new Date(timestampParaMs(timestamp)).toISOString() : null,
+    respondida: dados.respondida === true,
+  };
+}
+
+function idAvaliacaoComanda(idComanda, idParticipante) {
+  return `qrcode-${hashSha256(`${idComanda}:${idParticipante}`).slice(0, 40)}`;
+}
+
+async function consultarAvaliacaoPublica(contexto) {
+  const idAvaliacao = idAvaliacaoComanda(contexto.comandaDocumento.id, contexto.participanteDocumento.id);
+  const documento = await contexto.restauranteRef.collection('avaliacoes').doc(idAvaliacao).get();
+  return dtoAvaliacaoPublica(documento);
+}
+
+async function criarAvaliacaoPublica(req, res, corpo) {
+  const contexto = await obterContextoAvaliacaoPublica(req, res);
+  const nota = Number(corpo.nota);
+  if (!Number.isInteger(nota) || nota < 1 || nota > 5) throw new ApiError(400, 'NOTA_INVALIDA', 'Informe uma nota de 1 a 5.');
+  const comentario = textoOpcional(corpo.comentario || corpo.observacao, 'comentario', 1000);
+  const chave = validarChaveIdempotencia(corpo.chaveIdempotencia);
+  const idAvaliacao = idAvaliacaoComanda(contexto.comandaDocumento.id, contexto.participanteDocumento.id);
+  const avaliacaoRef = contexto.restauranteRef.collection('avaliacoes').doc(idAvaliacao);
+  const idOperacao = hashSha256(`${contexto.cookie.idRestaurante}:avaliacao:${idAvaliacao}:${chave}`).slice(0, 40);
+  const idempotenciaRef = contexto.restauranteRef.collection('chavesIdempotencia').doc(idOperacao);
+  const hashPayload = hashSha256(JSON.stringify({ idAvaliacao, nota, comentario }));
+  let resultado;
+  let repeticaoIdempotente = false;
+  await contexto.restauranteRef.firestore.runTransaction(async transacao => {
+    const [idempotenciaDocumento, avaliacaoDocumento, comandaDocumento, participanteDocumento, mesaDocumento] = await Promise.all([
+      transacao.get(idempotenciaRef),
+      transacao.get(avaliacaoRef),
+      transacao.get(contexto.comandaDocumento.ref),
+      transacao.get(contexto.participanteDocumento.ref),
+      transacao.get(contexto.mesaDocumento.ref),
+    ]);
+    if (idempotenciaDocumento.exists) {
+      const anterior = idempotenciaDocumento.data() || {};
+      if (anterior.hashPayload !== hashPayload) throw new ApiError(409, 'IDEMPOTENCIA_REUTILIZADA', 'A chave da avaliação já foi utilizada com outros dados.');
+      resultado = anterior.resultado;
+      repeticaoIdempotente = true;
+      return;
+    }
+    if (!comandaDocumento.exists || String(comandaDocumento.data()?.statusComanda || comandaDocumento.data()?.status) !== 'encerrada') throw new ApiError(409, 'AVALIACAO_AGUARDANDO_CAIXA', 'A avaliação será liberada após a conclusão operacional do caixa.');
+    if (!participanteDocumento.exists || !mesaDocumento.exists) throw new ApiError(409, 'ATENDIMENTO_NAO_DISPONIVEL', 'Os dados deste atendimento não estão mais disponíveis.');
+    if (avaliacaoDocumento.exists) throw new ApiError(409, 'AVALIACAO_JA_ENVIADA', 'Este atendimento já foi avaliado.');
+    const comanda = comandaDocumento.data() || {};
+    const participante = participanteDocumento.data() || {};
+    const mesa = mesaDocumento.data() || {};
+    const dadosAvaliacao = {
+      idRestaurante: contexto.cookie.idRestaurante,
+      idAvaliacao,
+      idComanda: contexto.comandaDocumento.id,
+      idMesa: contexto.mesaDocumento.id,
+      idParticipante: contexto.participanteDocumento.id,
+      idGarcomResponsavel: comanda.idGarcomResponsavelFinal || comanda.idGarcomResponsavel || null,
+      idFuncionarioGarcomResponsavel: comanda.idFuncionarioResponsavelFinal || comanda.idFuncionarioResponsavel || null,
+      nomeCliente: String(participante.nomeExibicao || participante.nomeCompleto || 'Cliente'),
+      nomeMesa: String(mesa.nome || mesa.numero || contexto.mesaDocumento.id),
+      nota,
+      comentario,
+      categoria: 'atendimento',
+      canal: 'qrcode',
+      origem: 'comandaPublica',
+      respondida: false,
+      criadoEm: FieldValue.serverTimestamp(),
+      atualizadoEm: FieldValue.serverTimestamp(),
+      versao: 1,
+    };
+    transacao.create(avaliacaoRef, dadosAvaliacao);
+    transacao.set(contexto.comandaDocumento.ref.collection('eventos').doc(), { idRestaurante: contexto.cookie.idRestaurante, idComanda: contexto.comandaDocumento.id, idMesa: contexto.mesaDocumento.id, idAvaliacao, acao: 'avaliacao_cliente', nota, idParticipante: contexto.participanteDocumento.id, criadoEm: FieldValue.serverTimestamp() });
+    resultado = { recurso: 'avaliacao', id: idAvaliacao, idComanda: contexto.comandaDocumento.id, idMesa: contexto.mesaDocumento.id, nota, comentario, enviado: true };
+    transacao.create(idempotenciaRef, { idRestaurante: contexto.cookie.idRestaurante, idAvaliacao, idAtor: contexto.participanteDocumento.id, endpoint: '/api/v1/qrcode-mesa', tipoOperacao: 'avaliacao_publica', resultado, hashPayload, criadaEm: FieldValue.serverTimestamp(), expiraEm: new Date(Date.now() + 24 * 60 * 60 * 1000), versao: 1 });
+  });
+  if (!repeticaoIdempotente) {
+    await registrarAuditoria({ idRestaurante: contexto.cookie.idRestaurante, acao: 'avaliacao.publica.criada', tipoRecurso: 'avaliacao', idRecurso: idAvaliacao, idAtor: contexto.participanteDocumento.id });
+  }
+  return { ...resultado, idempotente: repeticaoIdempotente };
 }
 
 function validarItensPedidoPublico(itens) {
@@ -1041,9 +1170,13 @@ module.exports = {
   consultarQrPublico,
   abrirSessaoMesa,
   obterContextoSessaoMesa,
+  obterContextoAvaliacaoPublica,
   consultarSessaoMesa,
   listarCardapioPublico,
   consultarComandaPublica,
+  consultarComandaPublicaEncerrada,
+  consultarAvaliacaoPublica,
+  criarAvaliacaoPublica,
   validarItensPedidoPublico,
   criarPedidoPublico,
   gerarQrMesa,
