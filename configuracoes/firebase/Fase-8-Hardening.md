@@ -12,7 +12,7 @@ O Firestore está documentado como `deny-by-default`, sem acesso direto previsto
 
 A auditoria operacional atual registra ação, recurso, ator, resultado, motivo, requisição e timestamps server-side, mas ainda não possui uma varredura padronizada de inconsistências nem uma política implementada de retenção e consulta de relatórios de migração. A auditoria global do Desenvolvedor já está separada em `registrosAuditoriaGlobais` e não deve ser misturada aos registros operacionais.
 
-O preflight de Preview/Staging já bloqueia placeholders, origens inseguras, wildcard de CORS, projeto Development reutilizado, segredos curtos e rate limit sem HTTPS. Foi identificada uma inconsistência documental a ser corrigida: o script exige `APP_ENV=preview`, enquanto a matriz de ambientes descreve Preview/Staging com `APP_ENV=staging`. A Fase 8 deve escolher um único valor e manter script, documentação e testes alinhados.
+O preflight de Preview/Staging bloqueia placeholders, origens inseguras, wildcard de CORS, projeto Development reutilizado, segredos curtos e rate limit sem HTTPS. A documentação foi alinhada ao script e o valor oficial para Preview/Staging passou a ser `APP_ENV=preview`, mantendo script, matriz e testes coerentes.
 
 A configuração documental do Firebase informa região `nam5`, zero índices compostos versionados, backups programados desativados e produção ainda não configurada. Esses itens não serão alterados automaticamente nesta fase, pois qualquer mudança de projeto, região, backup ou ambiente exige decisão operacional explícita e pode ter impacto de custo, retenção ou disponibilidade.
 
@@ -45,7 +45,7 @@ A próxima subfase implementará o relatório de integridade e migração em mod
 
 ## 5. Pendências que dependem de decisão externa
 
-A criação de um projeto Firebase Staging separado, a configuração de backups, a definição de retenção, a adoção de `APP_ENV=staging` ou `preview` como valor oficial, a ativação de App Check em `enforce` e qualquer promoção para Production continuam dependentes de configuração no Firebase/Vercel e aprovação operacional. O código desta fase não deve presumir que essas ações já foram realizadas.
+A criação de um projeto Firebase Staging separado, a configuração de backups, a definição de retenção, a ativação de App Check em `enforce` e qualquer promoção para Production continuam dependentes de configuração no Firebase/Vercel e aprovação operacional. O código desta fase não deve presumir que essas ações já foram realizadas.
 
 ## 6. Relatório de integridade implementado
 
@@ -54,10 +54,10 @@ O script `scripts/migracao/gerar-relatorio-integridade.js` foi criado com modo p
 A execução autorizada, quando houver credenciais apropriadas no ambiente correto, deverá ser feita explicitamente, por exemplo:
 
 ```bash
-node scripts/migracao/gerar-relatorio-integridade.js --limite=500 --saida=/caminho/seguro/relatorio-integridade.json
+node scripts/migracao/gerar-relatorio-integridade.js --somente-leitura --limite=500 --saida=/caminho/seguro/relatorio-integridade.json
 ```
 
-O arquivo de saída é criado com permissão restrita e contém o modo `somente_leitura`, contagens, códigos de problema, severidade, recurso e identificadores opacos mínimos. O relatório não deve ser publicado em URL, frontend, logs públicos ou commit; deve ser tratado como artefato operacional restrito.
+O preflight exige ambiente configurado, projeto compatível, segredos não-placeholder, App Check adequado e a flag explícita `--somente-leitura`. O arquivo de saída é criado com permissão restrita e contém o modo `somente_leitura`, contagens, códigos de problema, severidade, recurso e identificadores opacos mínimos. O relatório não deve ser publicado em URL, frontend, logs públicos ou commit; deve ser tratado como artefato operacional restrito.
 
 Os testes da Fase 8 comprovam tenants coerentes sem problemas, detecção de inconsistências críticas, ausência de membro ativo, índice fiscal ausente, limites de varredura e ausência de escritas Firestore no script. A execução contra o projeto real permanece deliberadamente pendente de autorização operacional e não foi realizada nesta fase.
 

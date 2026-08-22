@@ -4,6 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const { PAPEIS_NATIVOS_POR_CODIGO, PERMISSOES_VALIDAS } = require('../../api/_lib/permissoes-locais');
+const { validarPreflight } = require('./preflight-migracao');
 
 const ESTADOS_RESTAURANTE = new Set(['rascunho', 'em_teste', 'ativo', 'suspenso', 'desativado', 'encerrado']);
 const ESTADOS_MEMBRO = new Set(['convite_pendente', 'ativo', 'suspenso', 'removido']);
@@ -203,6 +204,8 @@ async function salvarRelatorio(relatorio, saida) {
 
 async function executarCli() {
   const argumentos = process.argv.slice(2);
+  const preflight = validarPreflight({ argumentos });
+  if (!preflight.valido) throw new Error(`preflight inválido: ${preflight.erros.join(',')}`);
   const obterArgumento = (nome) => argumentos.find((item) => item.startsWith(`${nome}=`))?.slice(nome.length + 1);
   const limite = inteiroSeguro(obterArgumento('--limite'), LIMITE_PADRAO);
   const saida = obterArgumento('--saida');
