@@ -1,25 +1,94 @@
 {
   "ambiente": "development",
   "projeto": "apex-food-6c1cb",
-  "versaoEstrutura": "1.0.0",
-  "status": "documental-sem-dados-criados",
+  "versaoEstrutura": "2.0.0",
+  "status": "contrato-documental-sem-dados-criados",
+  "acessoFirestore": "api-server-side-admin-sdk",
   "colecoesRaiz": [
     "usuarios",
     "restaurantes",
-    "registrosAuditoria"
+    "indicesDocumentosEstabelecimentos",
+    "provisionamentosEstabelecimentos",
+    "resumosEstabelecimentos",
+    "registrosAuditoria",
+    "registrosAuditoriaGlobais"
   ],
-  "papeis": [
+  "subcolecoesRestaurante": [
+    "membros",
+    "papeis",
+    "catalogoPermissoes",
+    "planos",
+    "excecoesLimites",
+    "metricasDiarias",
+    "historicoAdministrativo",
+    "convites"
+  ],
+  "papeisNativos": [
+    "desenvolvedor",
+    "diretor",
     "proprietario",
     "administrador",
     "gerente",
-    "financeiro",
-    "caixa",
-    "cozinha",
+    "porteiro",
     "garcom",
+    "cozinheiro",
+    "cozinha",
+    "caixa",
+    "financeiro",
     "analista",
     "auditor"
   ],
-  "subcolecaoMembros": "membros",
+  "tiposConta": [
+    "desenvolvedor",
+    "diretor",
+    "colaborador",
+    "sistema"
+  ],
+  "estadosUsuario": [
+    "ativo",
+    "pendente_verificacao",
+    "suspenso",
+    "desativado",
+    "excluido"
+  ],
+  "estadosRestaurante": [
+    "rascunho",
+    "em_teste",
+    "ativo",
+    "suspenso",
+    "desativado",
+    "encerrado"
+  ],
+  "estadosProvisionamento": [
+    "rascunho",
+    "em_processamento",
+    "concluido",
+    "erro_reconciliacao",
+    "cancelado",
+    "expirado"
+  ],
+  "estadosMembro": [
+    "convite_pendente",
+    "ativo",
+    "suspenso",
+    "removido"
+  ],
+  "estadosPlano": [
+    "agendado",
+    "ativo",
+    "expirado",
+    "cancelado"
+  ],
+  "estadosExcecaoLimite": [
+    "agendada",
+    "ativa",
+    "expirada",
+    "revogada"
+  ],
+  "tiposDocumentoEstabelecimento": [
+    "cnpj",
+    "cpf"
+  ],
   "camposControle": [
     "idRestaurante",
     "criadoEm",
@@ -29,10 +98,20 @@
     "versao",
     "estado"
   ],
+  "regrasInvariantes": [
+    "senha nunca pertence ao Firestore",
+    "idRestaurante e idUsuario são imutáveis no vínculo",
+    "documentoNormalizado é único por tipoDocumento",
+    "dados pessoais completos não entram em logs ou claims",
+    "acessoGlobal de desenvolvedor é validado por UID server-side",
+    "todas as mutações são idempotentes e auditáveis",
+    "pedidos históricos não são reescritos na migração"
+  ],
   "datasSomenteServidor": true,
   "auditoriaSomenteAcrescimo": true,
   "regrasFirestoreAbertas": false,
   "dadosOperacionaisCriados": false,
+  "dadosMultiestabelecimentoCriados": false,
   "frontendAlterado": false,
-  "observacao": "Contrato documental da Etapa 6. A API server-side, os membros reais, os testes e os dados descartáveis serão implementados em etapas posteriores."
+  "observacao": "Contrato documental da Fase 2. A implementação de identidade global, provisionamento do Diretor, papéis, permissões, telas e migração ocorrerá somente após aprovação das fases correspondentes."
 }
