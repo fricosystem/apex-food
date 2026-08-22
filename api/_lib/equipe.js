@@ -16,15 +16,15 @@ const {
   registrarAuditoriaOperacional,
 } = require('./modulos-operacionais');
 
-const PAPEIS_LEITURA_EQUIPE = ['proprietario', 'administrador', 'gerente', 'financeiro', 'analista', 'auditor'];
-const PAPEIS_MUTACAO_EQUIPE = ['proprietario', 'administrador'];
-const PAPEIS_ESCALA = ['proprietario', 'administrador', 'gerente'];
+const PAPEIS_LEITURA_EQUIPE = ['diretor', 'proprietario', 'administrador', 'gerente', 'financeiro', 'analista', 'auditor'];
+const PAPEIS_MUTACAO_EQUIPE = ['diretor', 'proprietario', 'administrador'];
+const PAPEIS_ESCALA = ['diretor', 'proprietario', 'administrador', 'gerente'];
 const PAPEIS_COMISSAO = ['proprietario', 'administrador', 'gerente', 'financeiro', 'analista', 'auditor'];
 const STATUS_FUNCIONARIO = new Set(['ativo', 'ferias', 'inativo']);
 const STATUS_ESCALA = new Set(['agendado', 'presente', 'folga', 'falta', 'cancelado']);
 const TURNOS = new Set(['Almoço', 'Jantar', 'Integral']);
 const SETORES = new Set(['Salão', 'Cozinha', 'Bar', 'Gestão']);
-const PAPEIS_OPERACIONAIS = new Set(['garcom', 'cozinha', 'caixa', 'supervisor']);
+const PAPEIS_OPERACIONAIS = new Set(['porteiro', 'garcom', 'cozinheiro', 'cozinha', 'caixa', 'supervisor']);
 const DISPONIBILIDADES_ATENDIMENTO = new Set(['disponivel', 'em_atendimento', 'pausado', 'indisponivel']);
 const MAX_CAPACIDADE_OPERACIONAL = 1000;
 const MAX_PRIORIDADE_DISTRIBUICAO = 1000;

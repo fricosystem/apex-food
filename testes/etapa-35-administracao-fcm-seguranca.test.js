@@ -11,7 +11,7 @@ const ler = relativo => fs.readFileSync(path.join(raiz, relativo), 'utf8');
 test('teste controlado FCM é restrito à identidade autenticada e ao restaurante ativo', () => {
   const handler = ler('api/_lib/notificacoes-handler.js');
   const emissor = ler('api/_lib/fcm-notificacoes.js');
-  assert.match(handler, /obterIdentidadeOperacional\(req, PAPEIS_NOTIFICACOES_LEITURA\)/);
+  assert.match(handler, /obterIdentidadeOperacional\(req, PAPEIS_NOTIFICACOES_LEITURA(?:,\s*\[[^\]]+\])?\)/);
   assert.match(handler, /idUsuario: identidade\.idUsuario/);
   assert.match(emissor, /!idUsuario \|\| dados\.idUsuario === idUsuario/);
   assert.match(emissor, /caminhoRestaurante\(idRestaurante\)/);

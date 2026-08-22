@@ -171,7 +171,7 @@
     if (caminho === '/mesa') document.documentElement.classList.add('apex-preload-publico-mesa');
   })();
 </script>
-<script src="scripts/auth/sessao-guard.js?v=fase61-desenvolvedor-global" defer></script></head>
+<script src="scripts/auth/sessao-guard.js?v=fase71-permissoes-locais" defer></script></head>
 <body class="min-h-screen">
 <!-- Mobile Header -->
 <div class="apex-mobile-header lg:hidden flex items-center justify-between p-4 border-b border-border bg-panel sticky top-0 z-40">
@@ -250,11 +250,51 @@
   ];
 
   const sidebarSectionDesenvolvedor = { title: 'DESENVOLVEDOR', icon: 'shield-check', items: [{ label: 'Dashboard Estabelecimentos', icon: 'layout-dashboard', href: '/dashboard-estabelecimentos', desc: 'Métricas globais dos estabelecimentos' }, { label: 'Gerenciar Estabelecimentos', icon: 'building-2', href: '/gerenciar-estabelecimentos', desc: 'Planos, limites e status dos estabelecimentos' }] };
+  let permissoesNavegacao = null;
+  const PERMISSOES_POR_ROTA = Object.freeze({
+    '/': 'relatorios.visualizar',
+    '/operacional': 'relatorios.visualizar',
+    '/dashboard-financeiro': 'financeiro.visualizar',
+    '/dashboard-desempenho': 'relatorios.visualizar',
+    '/novo-pedido': 'pedidos.operar',
+    '/pedidos-ativos': 'pedidos.visualizar',
+    '/atendimento-garcom': 'pedidos.operar',
+    '/historico-pedidos': 'pedidos.visualizar',
+    '/fila-cozinha': 'cozinha.operar',
+    '/categorias': 'cardapio.visualizar',
+    '/produtos': 'cardapio.visualizar',
+    '/promocoes': 'cardapio.visualizar',
+    '/cardapio-digital': 'cardapio.visualizar',
+    '/mapa-mesas': 'salao.visualizar',
+    '/reservas': 'salao.visualizar',
+    '/configuracao-mesas': 'salao.visualizar',
+    '/funcionarios': 'equipe.visualizar',
+    '/papeis': 'papeis.visualizar',
+    '/escala-trabalho': 'equipe.visualizar',
+    '/comissoes': 'equipe.visualizar',
+    '/fechamento-caixa': 'financeiro.operar',
+    '/fluxo-caixa': 'financeiro.operar',
+    '/contas-pagar-receber': 'financeiro.visualizar',
+    '/relatorios-financeiros': 'financeiro.visualizar',
+    '/vendas-por-periodo': 'relatorios.visualizar',
+    '/produtos-mais-vendidos': 'relatorios.visualizar',
+    '/horarios-de-pico': 'relatorios.visualizar',
+    '/avaliacoes-clientes': 'relatorios.visualizar',
+    '/performance-equipe': 'relatorios.visualizar',
+  });
+
+  function itemPodeSerExibido(item) {
+    const permissao = PERMISSOES_POR_ROTA[item.href || ''];
+    return !permissoesNavegacao || !permissao || permissoesNavegacao.includes(permissao);
+  }
 
   function habilitarNavegacaoDesenvolvedor(evento) {
-    if (evento?.detail?.sessao?.usuario?.acessoGlobal !== 'desenvolvedor') return;
-    if (sidebarSections.some((secao) => secao.title === sidebarSectionDesenvolvedor.title)) return;
-    sidebarSections = [...sidebarSections, sidebarSectionDesenvolvedor];
+    const restauranteAtivo = evento?.detail?.sessao?.restauranteAtivo;
+    const acessoGlobal = evento?.detail?.sessao?.usuario?.acessoGlobal === 'desenvolvedor';
+    permissoesNavegacao = Array.isArray(restauranteAtivo?.permissoes) ? [...new Set(restauranteAtivo.permissoes)].slice(0, 40) : (acessoGlobal ? [] : null);
+    if (acessoGlobal && !sidebarSections.some((secao) => secao.title === sidebarSectionDesenvolvedor.title)) {
+      sidebarSections = [...sidebarSections, sidebarSectionDesenvolvedor];
+    }
     buildSidebar('sidebarContentDesktop');
     buildSidebar('sidebarContentMobile');
     window.apexShell?.atualizarNavegacaoAtual?.();
@@ -267,6 +307,8 @@
     if (!container) return;
     container.innerHTML = '';
     sidebarSections.forEach((section, sIdx) => {
+      const itensVisiveis = section.items.filter(itemPodeSerExibido);
+      if (!itensVisiveis.length) return;
       const sectionDiv = document.createElement('div');
       sectionDiv.className = 'p-4' + (sIdx > 0 ? ' border-t border-border' : '');
       const header = document.createElement('div');
@@ -275,7 +317,7 @@
       sectionDiv.appendChild(header);
       const nav = document.createElement('nav');
       nav.className = 'tree-group space-y-1';
-      section.items.forEach((item, iIdx) => {
+      itensVisiveis.forEach((item, iIdx) => {
         const treeItem = document.createElement('div');
         treeItem.className = 'tree-item' + (item.active ? ' active' : '');
         const link = document.createElement('a');

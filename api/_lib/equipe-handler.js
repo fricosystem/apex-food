@@ -295,7 +295,7 @@ module.exports = async function equipe(req, res) {
     const recursoQuery = queryString(req, 'recurso');
     const recurso = recursoCorpo || normalizarRecurso(recursoQuery);
     const papeis = recurso === 'comissoes' ? PAPEIS_COMISSAO : recurso === 'escalas' ? (mutacao ? PAPEIS_ESCALA : PAPEIS_LEITURA_EQUIPE) : mutacao ? (recurso === 'escalas' ? PAPEIS_ESCALA : PAPEIS_MUTACAO_EQUIPE) : PAPEIS_LEITURA_EQUIPE;
-    const identidade = await obterIdentidadeOperacional(req, papeis);
+    const identidade = await obterIdentidadeOperacional(req, papeis, [mutacao ? 'equipe.gerenciar' : 'equipe.visualizar']);
     if (metodo === 'GET') return listarEquipe(identidade, req);
     if (!RECURSOS_MUTACAO.has(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Mutação de equipe inválida ou não disponível.');
     if (metodo === 'POST') return recurso === 'funcionarios' ? criarFuncionario(identidade, corpo, idRequisicao) : criarEscala(identidade, corpo, idRequisicao);

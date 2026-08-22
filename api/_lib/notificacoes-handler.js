@@ -27,7 +27,7 @@ const {
 } = require('./dispositivos-notificacao');
 const { enviarNotificacaoFcm, listarRegistrosEntrega } = require('./fcm-notificacoes');
 
-const PAPEIS_GESTAO = ['proprietario', 'administrador', 'gerente'];
+const PAPEIS_GESTAO = ['diretor', 'proprietario', 'administrador', 'gerente'];
 const PAPEIS_NOTIFICACOES_LEITURA = [...new Set([...PAPEIS_LEITURA, 'caixa'])];
 const ID_VALIDO = /^[A-Za-z0-9_-]{1,128}$/;
 
@@ -44,17 +44,29 @@ function chaveIdempotencia(valor, fallback) {
   return chave.trim();
 }
 
+function possuiPermissao(identidade, permissao) {
+  return Array.isArray(identidade.permissoes) && identidade.permissoes.includes(permissao);
+}
+
+function ehGestao(identidade) {
+  return identidade.papeis.some(papel => PAPEIS_GESTAO.includes(papel));
+}
+
 function papeisVisiveis(identidade, papelSolicitado) {
-  if (identidade.papeis.some(papel => PAPEIS_GESTAO.includes(papel)) && !papelSolicitado) return [...PAPEIS_NOTIFICACAO];
+  if (ehGestao(identidade) && !papelSolicitado) return [...PAPEIS_NOTIFICACAO];
   if (papelSolicitado) {
     if (!PAPEIS_NOTIFICACAO.includes(papelSolicitado)) throw new ApiError(400, 'PAPEL_INVALIDO', 'Papel de notificação inválido.');
-    if (!identidade.papeis.includes(papelSolicitado) && !identidade.papeis.some(papel => PAPEIS_GESTAO.includes(papel))) {
+    const permissaoDestino = papelSolicitado === 'garcom' ? 'pedidos.operar' : papelSolicitado === 'cozinha' ? 'cozinha.operar' : papelSolicitado === 'caixa' ? 'caixa.operar' : null;
+    if (!identidade.papeis.includes(papelSolicitado) && !ehGestao(identidade) && !(permissaoDestino && possuiPermissao(identidade, permissaoDestino))) {
       throw new ApiError(403, 'PAPEL_INSUFICIENTE', 'Você não pode consultar esta fila de notificações.');
     }
     return [papelSolicitado];
   }
-  const papeis = identidade.papeis.filter(papel => PAPEIS_NOTIFICACAO.includes(papel));
-  if (papeis.length) return papeis;
+  const papeis = new Set(identidade.papeis.filter(papel => PAPEIS_NOTIFICACAO.includes(papel)));
+  if (possuiPermissao(identidade, 'pedidos.operar')) papeis.add('garcom');
+  if (possuiPermissao(identidade, 'cozinha.operar')) papeis.add('cozinha');
+  if (possuiPermissao(identidade, 'caixa.operar')) papeis.add('caixa');
+  if (papeis.size) return [...papeis];
   exigirPapel(identidade, PAPEIS_NOTIFICACOES_LEITURA);
   return [];
 }
@@ -65,9 +77,10 @@ async function consultarPorPapel(restaurante, papel, limite) {
 }
 
 function podeAtualizar(identidade, dados) {
-  const gestao = identidade.papeis.some(papel => PAPEIS_GESTAO.includes(papel));
-  if (gestao) return true;
-  if (!PAPEIS_NOTIFICACAO.includes(dados.papelDestino) || !identidade.papeis.includes(dados.papelDestino)) return false;
+  if (ehGestao(identidade)) return true;
+  const permissaoDestino = dados.permissaoDestino || (dados.papelDestino === 'garcom' ? 'pedidos.operar' : dados.papelDestino === 'cozinha' ? 'cozinha.operar' : dados.papelDestino === 'caixa' ? 'caixa.operar' : null);
+  const possuiDestino = PAPEIS_NOTIFICACAO.includes(dados.papelDestino) && identidade.papeis.includes(dados.papelDestino);
+  if (!possuiDestino && !(permissaoDestino && possuiPermissao(identidade, permissaoDestino))) return false;
   return !dados.idUsuarioDestino || dados.idUsuarioDestino === identidade.idUsuario;
 }
 
@@ -89,7 +102,7 @@ async function listarNotificacoes(identidade, req) {
   const notificacoes = Array.from(unicos.values())
     .filter(documento => {
       const dados = documento.data() || {};
-      const gestao = identidade.papeis.some(papel => PAPEIS_GESTAO.includes(papel));
+      const gestao = ehGestao(identidade);
       const visivel = gestao
         ? PAPEIS_NOTIFICACAO.includes(dados.papelDestino)
         : visivelParaIdentidade(dados, identidade);
@@ -158,7 +171,7 @@ async function operarDispositivos(identidade, req, metodo, idRequisicao) {
     identidade,
     corpo,
     idRequisicao,
-    podeGerenciar: identidade.papeis.some(papel => PAPEIS_GESTAO.includes(papel)),
+    podeGerenciar: ehGestao(identidade),
     registrarAuditoria: registrarAuditoriaOperacional,
   });
 }
@@ -220,7 +233,7 @@ module.exports = async function notificacoes(req, res) {
   const mutacao = ['POST', 'PATCH'].includes(metodo);
   const recurso = queryString(req, 'recurso');
   return executar(req, res, { metodos: ['GET', 'POST', 'PATCH'], mutacao, appCheck: true }, async ({ idRequisicao }) => {
-    const identidade = await obterIdentidadeOperacional(req, PAPEIS_NOTIFICACOES_LEITURA);
+    const identidade = await obterIdentidadeOperacional(req, PAPEIS_NOTIFICACOES_LEITURA, ['notificacoes.visualizar', 'pedidos.visualizar', 'pedidos.operar', 'cozinha.operar', 'caixa.operar']);
     if (recurso === 'dispositivos') return operarDispositivos(identidade, req, metodo, idRequisicao);
     if (metodo === 'GET') return listarNotificacoes(identidade, req);
     const corpo = await lerCorpoJson(req);

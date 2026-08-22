@@ -1,6 +1,6 @@
 # Modelo Firestore Multiestabelecimentos — APEX Food
 
-**Versão do contrato:** 2.0.0  
+**Versão do contrato:** 2.2.0
 **Ambiente:** development  
 **Projeto Firebase:** `apex-food-6c1cb`  
 **Status:** contrato documental; nenhuma coleção ou documento novo foi criado nesta fase.  
@@ -57,6 +57,14 @@ As subcoleções operacionais existentes — como `categoriasCardapio`, `produto
 O catálogo inicial deverá manter compatibilidade com `proprietario`, `administrador`, `gerente`, `financeiro`, `caixa`, `cozinha`, `garcom`, `analista` e `auditor`, além de introduzir a apresentação profissional `diretor`, `porteiro` e `cozinheiro`. O código legado `cozinha` continuará aceito durante a migração para não quebrar a distribuição de tarefas e especialidades.
 
 O papel global `desenvolvedor` não será armazenado como simples papel de membro de um restaurante. Ele será uma autorização global separada, validada pelo UID Firebase configurado no backend. O Diretor poderá criar papéis locais e atribuir permissões do catálogo, mas não poderá criar, editar ou atribuir `desenvolvedor`.
+
+### 4.1 Resolução de autorização operacional
+
+A identidade operacional server-side calcula `permissoes` efetivas a partir de três fontes controladas: permissões do papel nativo, permissões dos documentos ativos em `restaurantes/{idRestaurante}/papeis` e `permissoesDiretas` do vínculo do membro. Apenas códigos presentes no catálogo fechado são aceitos. O cálculo é feito depois da validação do membro ativo e sempre usa a subcoleção do restaurante selecionado no contexto assinado, sem consultas cross-tenant.
+
+Os módulos usam permissões funcionais como `cardapio.gerenciar`, `equipe.gerenciar`, `pedidos.operar`, `cozinha.operar`, `caixa.operar`, `financeiro.operar`, `salao.operar` e `relatorios.visualizar`. Os guards por papel permanecem como fallback de compatibilidade para dados legados. Os aliases `cozinha` e `cozinheiro` continuam aptos à operação de cozinha; `garcom` mantém o atendimento; `caixa` mantém a fila operacional; e `porteiro` permanece limitado à visualização de estabelecimento, pedidos e salão, salvo concessão explícita de outra permissão pelo Diretor.
+
+As notificações operacionais preservam `papelDestino` para documentos históricos e acrescentam `permissaoDestino` para que uma categoria personalizada receba apenas a fila funcional que lhe foi concedida. A emissão continua dentro do tenant do evento e a leitura filtra a identidade autenticada, o destino funcional, o usuário nominal quando houver e a expiração.
 
 ## 5. Estados e invariantes
 

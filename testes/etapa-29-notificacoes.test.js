@@ -39,8 +39,8 @@ test('emissão cria uma notificação por fila de destino com chave determiníst
     idComanda: 'comanda-1',
     idPedido: 'pedido-1',
   });
-  assert.equal(transacao.operacoes.length, 4);
-  assert.equal(new Set(transacao.operacoes.map(item => item.id)).size, 4);
+  assert.equal(transacao.operacoes.length, 5);
+  assert.equal(new Set(transacao.operacoes.map(item => item.id)).size, 5);
   assert.ok(transacao.operacoes.every(item => item.dados.statusNotificacao === 'nova'));
   assert.ok(transacao.operacoes.every(item => item.dados.expiraEm instanceof Date));
 });
@@ -66,7 +66,7 @@ test('handler autenticado usa GET/POST/PATCH, CSRF em mutação e endpoint opera
   const dispatcher = ler('api/v1/operacional.js');
   assert.match(handler, /metodos: \['GET', 'POST', 'PATCH'\]/);
   assert.match(handler, /mutacao, appCheck: true/);
-  assert.match(handler, /obterIdentidadeOperacional\(req, PAPEIS_NOTIFICACOES_LEITURA\)/);
+  assert.match(handler, /obterIdentidadeOperacional\(req, PAPEIS_NOTIFICACOES_LEITURA(?:,\s*\[[^\]]+\])?\)/);
   assert.match(handler, /runTransaction/);
   assert.match(handler, /chavesIdempotencia/);
   assert.match(dispatcher, /notificacoes: require\('\.\.\/_lib\/notificacoes-handler'\)/);

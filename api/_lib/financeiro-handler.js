@@ -29,6 +29,7 @@ const {
   validarFechamento,
   caminhoRestaurante,
   obterIdentidadeOperacional,
+  exigirPermissao,
   limitarInteiro,
   textoOpcional,
   textoObrigatorio,
@@ -276,10 +277,8 @@ async function atualizarMovimentacao(identidade, corpo, idRequisicao) {
   return { corpo: { recurso: 'movimentacao', id, atualizado: true } };
 }
 
-function exigirPapelCaixa(identidade, papeis) {
-  if (!Array.isArray(identidade.papeis) || !identidade.papeis.some(papel => papeis.includes(papel))) {
-    throw new ApiError(403, 'PAPEL_NAO_AUTORIZADO', 'Seu perfil não possui permissão para operar a fila do caixa.');
-  }
+function exigirPapelCaixa(identidade) {
+  exigirPermissao(identidade, ['caixa.operar']);
 }
 
 function statusEncaminhamentoAtual(documento) {
@@ -315,8 +314,7 @@ async function atualizarEncaminhamentoCaixa(identidade, req, corpo, idRequisicao
     const de = statusEncaminhamentoAtual(encaminhamentoDocumento);
     const permitido = de === 'encaminhada' && ['recebida', 'cancelada'].includes(para) || de === 'recebida' && para === 'concluida';
     if (!permitido) throw new ApiError(409, 'TRANSICAO_CAIXA_INVALIDA', `Não é permitido alterar o encaminhamento de ${de} para ${para}.`);
-    if (para === 'concluida') exigirPapelCaixa(identidade, PAPEIS_MUTACAO_CAIXA);
-    else exigirPapelCaixa(identidade, PAPEIS_MUTACAO_CAIXA);
+    exigirPapelCaixa(identidade);
 
     const comandaRef = restaurante.collection('comandas').doc(String(encaminhamento.idComanda || ''));
     const mesaRef = restaurante.collection('mesas').doc(String(encaminhamento.idMesa || ''));
@@ -505,12 +503,21 @@ module.exports = async function financeiro(req, res) {
     const recursoBruto = corpo?.recurso || queryString(req, 'recurso');
     const recurso = mutacao && recursoBruto === 'movimentacao' ? 'movimentacao' : normalizarRecurso(recursoBruto);
     let papeis = PAPEIS_LEITURA_FINANCEIRO;
-    if (recurso === 'fechamento' || recurso === 'fechamentos') papeis = PAPEIS_FECHAMENTO;
-    else     if (recurso === 'encaminhamentos' || recurso === 'encaminhamentosCaixa' || recurso === 'detalhesComanda') papeis = PAPEIS_LEITURA_CAIXA;
-
-    else if (recurso === 'encaminhamentoCaixa') papeis = PAPEIS_MUTACAO_CAIXA;
-    else if (mutacao) papeis = PAPEIS_MUTACAO_FINANCEIRO;
-    const identidade = await obterIdentidadeOperacional(req, papeis);
+    let permissoes = ['financeiro.visualizar'];
+    if (recurso === 'fechamento' || recurso === 'fechamentos') {
+      papeis = PAPEIS_FECHAMENTO;
+      permissoes = ['financeiro.operar'];
+    } else if (recurso === 'encaminhamentos' || recurso === 'encaminhamentosCaixa' || recurso === 'detalhesComanda') {
+      papeis = PAPEIS_LEITURA_CAIXA;
+      permissoes = ['caixa.operar'];
+    } else if (recurso === 'encaminhamentoCaixa') {
+      papeis = PAPEIS_MUTACAO_CAIXA;
+      permissoes = ['caixa.operar'];
+    } else if (mutacao) {
+      papeis = PAPEIS_MUTACAO_FINANCEIRO;
+      permissoes = ['financeiro.operar'];
+    }
+    const identidade = await obterIdentidadeOperacional(req, papeis, permissoes);
     if (metodo === 'GET') return listarFinanceiro(identidade, req);
     if (!RECURSOS_MUTACAO.has(recurso)) throw new ApiError(400, 'RECURSO_INVALIDO', 'Mutação financeira inválida ou não disponível.');
     if (metodo === 'POST') {

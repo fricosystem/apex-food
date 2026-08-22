@@ -13,7 +13,7 @@ test('Visão Geral usa agregador tenant-aware e filtros server-side', () => {
   const handler = ler('api/_lib/visao-geral-handler.js');
   const cliente = ler('scripts/api/modulos-client.js');
   assert.match(operacional, /'visao-geral': require\('\.\.\/\_lib\/visao-geral-handler'\)/);
-  assert.match(handler, /obterIdentidadeOperacional\(req, PAPEIS_LEITURA\)/);
+  assert.match(handler, /obterIdentidadeOperacional\(req, PAPEIS_LEITURA(?:,\s*\[[^\]]+\])?\)/);
   assert.match(handler, /queryString\(req, 'periodo'\)/);
   assert.match(handler, /queryString\(req, 'inicio'\)/);
   assert.match(handler, /queryString\(req, 'fim'\)/);

@@ -628,7 +628,7 @@ async function listarVisaoGeral(identidade, req) {
 
 async function visaoGeral(req, res) {
   return executar(req, res, { metodos: ['GET'], mutacao: false, appCheck: true }, async () => {
-    const identidade = await obterIdentidadeOperacional(req, PAPEIS_LEITURA);
+    const identidade = await obterIdentidadeOperacional(req, PAPEIS_LEITURA, ['relatorios.visualizar']);
     return listarVisaoGeral(identidade, req);
   });
 }

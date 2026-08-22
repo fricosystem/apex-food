@@ -60,7 +60,7 @@ test('endpoint operacional preserva origem, método, CSRF e App Check administra
   assert.match(middleware, /validarTokenCsrf/);
   assert.match(middleware, /verificarAppCheck/);
   assert.match(middleware, /exigirMetodo/);
-  assert.match(notificacoes, /obterIdentidadeOperacional\(req, PAPEIS_NOTIFICACOES_LEITURA\)/);
+  assert.match(notificacoes, /obterIdentidadeOperacional\(req, PAPEIS_NOTIFICACOES_LEITURA(?:,\s*\[[^\]]+\])?\)/);
 });
 
 test('rate limit e sessão pública continuam separados das operações administrativas', () => {

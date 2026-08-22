@@ -1,7 +1,7 @@
 {
   "ambiente": "development",
   "projeto": "apex-food-6c1cb",
-  "versaoEstrutura": "2.1.0",
+  "versaoEstrutura": "2.2.0",
   "status": "contrato-documental-sem-dados-criados",
   "acessoFirestore": "api-server-side-admin-sdk",
   "colecoesRaiz": [
@@ -37,6 +37,26 @@
     "financeiro",
     "analista",
     "auditor"
+  ],
+  "permissoesFuncionais": [
+    "estabelecimento.visualizar",
+    "estabelecimento.configurar",
+    "equipe.visualizar",
+    "equipe.gerenciar",
+    "papeis.visualizar",
+    "papeis.gerenciar",
+    "cardapio.visualizar",
+    "cardapio.gerenciar",
+    "pedidos.visualizar",
+    "pedidos.operar",
+    "salao.visualizar",
+    "salao.operar",
+    "notificacoes.visualizar",
+    "cozinha.operar",
+    "caixa.operar",
+    "financeiro.visualizar",
+    "financeiro.operar",
+    "relatorios.visualizar"
   ],
   "tiposConta": [
     "desenvolvedor",
@@ -114,6 +134,9 @@
     "dados pessoais completos não entram em logs ou claims",
     "acessoGlobal de desenvolvedor é validado por UID server-side",
     "todas as mutações são idempotentes e auditáveis",
+    "permissoes efetivas são calculadas server-side a partir de papéis nativos, papéis locais ativos e permissoesDiretas válidas",
+    "desenvolvedor nunca é aceito em papeis locais ou permissoes locais",
+    "permissões de notificações respeitam papelDestino, permissaoDestino e idUsuarioDestino",
     "pedidos históricos não são reescritos na migração"
   ],
   "datasSomenteServidor": true,
@@ -123,5 +146,5 @@
   "frontendAlterado": true,
   "provisionamentoImplementado": true,
   "dadosMultiestabelecimentoCriados": false,
-  "observacao": "Contrato e fluxo de provisionamento implementados na Fase 4. A criação real depende da configuração segura do UID do Desenvolvedor na Vercel e de homologação autorizada; nenhum dado real foi criado por esta alteração."
+  "observacao": "Contrato e fluxo de provisionamento implementados nas fases anteriores. A autorização funcional local foi centralizada na Fase 7; a criação real de dados continua dependendo da configuração segura do UID do Desenvolvedor na Vercel e de homologação autorizada."
 }

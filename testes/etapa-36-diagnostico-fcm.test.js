@@ -48,5 +48,5 @@ test('teste controlado informa resultado FCM e atualiza diagnóstico sem mudar o
   assert.match(handler, /enviados/);
   assert.match(emissor, /atualizarDiagnostico/);
   assert.match(emissor, /diagnostico\.batch\.commit/);
-  assert.doesNotMatch(handler, /pedidos|comandas|fichasCozinha|mesas/);
+  assert.doesNotMatch(handler, /\.collection\(['"](?:pedidos|comandas|fichasCozinha|mesas)['"]\)/);
 });

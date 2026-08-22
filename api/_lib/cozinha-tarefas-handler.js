@@ -3,11 +3,11 @@
 const crypto = require('node:crypto');
 const { FieldValue } = require('firebase-admin/firestore');
 const { ApiError } = require('./http');
-const { caminhoRestaurante, exigirPapel, textoObrigatorio, textoOpcional, enumObrigatorio, registrarAuditoriaOperacional } = require('./modulos-operacionais');
+const { caminhoRestaurante, exigirPapel, exigirPermissao, textoObrigatorio, textoOpcional, enumObrigatorio, registrarAuditoriaOperacional } = require('./modulos-operacionais');
 const { criarNotificacoesNaTransacao, TIPOS_NOTIFICACAO } = require('./notificacoes');
 const { enviarNotificacaoFcm } = require('./fcm-notificacoes');
 
-const PAPEIS_COZINHA = ['proprietario', 'administrador', 'gerente', 'cozinha'];
+const PAPEIS_COZINHA = ['diretor', 'proprietario', 'administrador', 'gerente', 'cozinheiro', 'cozinha'];
 const ESTADOS_TAREFA = new Set(['aguardando_preparo', 'em_preparo', 'pronto', 'cancelada']);
 const TRANSICOES_TAREFA = Object.freeze({
   aguardando_preparo: new Set(['em_preparo', 'cancelada']),
@@ -72,7 +72,7 @@ function tarefaPublica(documento) {
 }
 
 async function atualizarTarefaCozinha(identidade, corpo, idRequisicao) {
-  exigirPapel(identidade, PAPEIS_COZINHA);
+  exigirPermissao(identidade, ['cozinha.operar']);
   const idFicha = idSeguro(String(corpo.idFicha || ''), 'idFicha');
   const idTarefa = idSeguro(String(corpo.idTarefa || ''), 'idTarefa');
   const para = enumObrigatorio(corpo.statusTarefa, ESTADOS_TAREFA, 'statusTarefa');
@@ -84,7 +84,7 @@ async function atualizarTarefaCozinha(identidade, corpo, idRequisicao) {
   const idOperacao = hashOperacao(`${identidade.idRestaurante}:${identidade.idUsuario}:tarefa-cozinha:${idFicha}:${idTarefa}:${chave}`);
   const idempotenciaRef = restaurante.collection('chavesIdempotencia').doc(idOperacao);
   const hashPayload = hashOperacao(JSON.stringify({ idFicha, idTarefa, para, motivo }));
-  const eSupervisor = identidade.papeis.some(papel => ['proprietario', 'administrador', 'gerente'].includes(papel));
+  const eSupervisor = identidade.papeis.some(papel => ['diretor', 'proprietario', 'administrador', 'gerente'].includes(papel));
   let resultado;
   let eventoFcm = null;
   let repeticaoIdempotente = false;

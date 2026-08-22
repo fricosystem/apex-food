@@ -9,6 +9,7 @@ const {
   caminhoRestaurante,
   obterIdentidadeOperacional,
   exigirPapel,
+  exigirPermissao,
   limitarInteiro,
   textoObrigatorio,
   textoOpcional,
@@ -477,7 +478,7 @@ async function criarPedido(identidade, corpo, idRequisicao) {
 }
 
 function exigirPapelEncaminhamentoCaixa(identidade) {
-  exigirPapel(identidade, PAPEIS_GARCOM);
+  exigirPermissao(identidade, ['pedidos.operar']);
 }
 
 async function encaminharComandaCaixa(identidade, corpo, idRequisicao) {
@@ -644,14 +645,14 @@ async function encaminharComandaCaixa(identidade, corpo, idRequisicao) {
 
 function exigirPapelTransicaoQr(identidade, para) {
   if (['confirmado_garcom', 'rejeitado_garcom', 'enviado_cozinha', 'servido'].includes(para)) {
-    exigirPapel(identidade, PAPEIS_GARCOM);
+    exigirPermissao(identidade, ['pedidos.operar']);
     return;
   }
   if (['em_preparo', 'pronto'].includes(para)) {
-    exigirPapel(identidade, PAPEIS_COZINHA);
+    exigirPermissao(identidade, ['cozinha.operar']);
     return;
   }
-  exigirPapel(identidade, PAPEIS_PEDIDOS);
+  exigirPermissao(identidade, ['pedidos.operar']);
 }
 
 async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
@@ -1014,7 +1015,7 @@ module.exports = async function pedidos(req, res) {
   return executar(req, res, { metodos: ['GET', 'POST', 'PATCH'], mutacao: ['POST', 'PATCH'].includes(String(req.method || '').toUpperCase()), appCheck: true }, async ({ idRequisicao }) => {
     const metodo = String(req.method || '').toUpperCase();
     const mutacao = ['POST', 'PATCH'].includes(metodo);
-    const identidade = await obterIdentidadeOperacional(req, mutacao ? PAPEIS_PEDIDOS : PAPEIS_LEITURA);
+    const identidade = await obterIdentidadeOperacional(req, mutacao ? PAPEIS_PEDIDOS : PAPEIS_LEITURA, [mutacao ? 'pedidos.operar' : 'pedidos.visualizar']);
     if (metodo === 'GET') return listarPedidos(identidade, req);
     const corpo = await lerCorpoJson(req);
     if (metodo === 'POST') {

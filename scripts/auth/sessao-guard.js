@@ -23,9 +23,10 @@
             acessoGlobal: dados?.usuario?.acessoGlobal || 'nenhum',
             papeisGlobais: Array.isArray(dados?.usuario?.papeisGlobais) ? dados.usuario.papeisGlobais.slice(0, 5) : [],
           },
-          restauranteAtivo: dados?.restauranteAtivo ? {
+            restauranteAtivo: dados?.restauranteAtivo ? {
             idRestaurante: dados.restauranteAtivo.idRestaurante || null,
             papeis: Array.isArray(dados.restauranteAtivo.papeis) ? dados.restauranteAtivo.papeis.slice(0, 20) : [],
+            permissoes: Array.isArray(dados.restauranteAtivo.permissoes) ? dados.restauranteAtivo.permissoes.slice(0, 40) : [],
           } : null,
         },
       },

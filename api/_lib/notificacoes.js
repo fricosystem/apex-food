@@ -3,7 +3,9 @@
 const crypto = require('node:crypto');
 const { FieldValue } = require('firebase-admin/firestore');
 
-const PAPEIS_NOTIFICACAO = Object.freeze(['proprietario', 'administrador', 'gerente', 'garcom', 'cozinha', 'caixa']);
+const PAPEIS_NOTIFICACAO = Object.freeze(['diretor', 'proprietario', 'administrador', 'gerente', 'garcom', 'cozinha', 'caixa']);
+const PERMISSOES_NOTIFICACAO = Object.freeze(['pedidos.operar', 'cozinha.operar', 'caixa.operar']);
+const PERMISSAO_POR_DESTINO = Object.freeze({ garcom: 'pedidos.operar', cozinha: 'cozinha.operar', caixa: 'caixa.operar' });
 const TIPOS_NOTIFICACAO = Object.freeze({
   novoPedidoGarcom: 'novo_pedido_garcom',
   pedidoEnviadoCozinha: 'pedido_enviado_cozinha',
@@ -28,35 +30,39 @@ function texto(valor, fallback = '', maximo = 240) {
   return resultado.slice(0, maximo);
 }
 
+function destino(papelDestino, idUsuarioDestino = null) {
+  return { papelDestino, idUsuarioDestino };
+}
+
 function destinatariosParaEvento(tipo, idGarcomResponsavel = null) {
-  const gerencia = ['gerente', 'administrador', 'proprietario'];
-  if (tipo === TIPOS_NOTIFICACAO.novoPedidoGarcom) return ['garcom', ...gerencia].map(papel => ({ papelDestino: papel, idUsuarioDestino: null }));
-  if (tipo === TIPOS_NOTIFICACAO.pedidoEnviadoCozinha) return ['cozinha', ...gerencia].map(papel => ({ papelDestino: papel, idUsuarioDestino: null }));
+  const gerencia = ['diretor', 'gerente', 'administrador', 'proprietario'];
+  if (tipo === TIPOS_NOTIFICACAO.novoPedidoGarcom) return ['garcom', ...gerencia].map(papel => destino(papel));
+  if (tipo === TIPOS_NOTIFICACAO.pedidoEnviadoCozinha) return ['cozinha', ...gerencia].map(papel => destino(papel));
   if (tipo === TIPOS_NOTIFICACAO.pedidoPronto) {
-    const destinos = gerencia.map(papel => ({ papelDestino: papel, idUsuarioDestino: null }));
-    if (idGarcomResponsavel) destinos.unshift({ papelDestino: 'garcom', idUsuarioDestino: String(idGarcomResponsavel) });
+    const destinos = gerencia.map(papel => destino(papel));
+    if (idGarcomResponsavel) destinos.unshift(destino('garcom', String(idGarcomResponsavel)));
     return destinos;
   }
   if ([TIPOS_NOTIFICACAO.pedidoRejeitado, TIPOS_NOTIFICACAO.pedidoCancelado].includes(tipo)) {
-    const destinos = gerencia.map(papel => ({ papelDestino: papel, idUsuarioDestino: null }));
-    if (idGarcomResponsavel) destinos.unshift({ papelDestino: 'garcom', idUsuarioDestino: String(idGarcomResponsavel) });
+    const destinos = gerencia.map(papel => destino(papel));
+    if (idGarcomResponsavel) destinos.unshift(destino('garcom', String(idGarcomResponsavel)));
     return destinos;
   }
-  if (tipo === TIPOS_NOTIFICACAO.comandaEncaminhadaCaixa) return ['caixa', ...gerencia].map(papel => ({ papelDestino: papel, idUsuarioDestino: null }));
-  if (tipo === TIPOS_NOTIFICACAO.comandaRecebidaCaixa) return gerencia.map(papel => ({ papelDestino: papel, idUsuarioDestino: null }));
+  if (tipo === TIPOS_NOTIFICACAO.comandaEncaminhadaCaixa) return ['caixa', ...gerencia].map(papel => destino(papel));
+  if (tipo === TIPOS_NOTIFICACAO.comandaRecebidaCaixa) return gerencia.map(papel => destino(papel));
   if (tipo === TIPOS_NOTIFICACAO.atendimentoEncerrado) {
-    const destinos = gerencia.map(papel => ({ papelDestino: papel, idUsuarioDestino: null }));
-    if (idGarcomResponsavel) destinos.unshift({ papelDestino: 'garcom', idUsuarioDestino: String(idGarcomResponsavel) });
+    const destinos = gerencia.map(papel => destino(papel));
+    if (idGarcomResponsavel) destinos.unshift(destino('garcom', String(idGarcomResponsavel)));
     return destinos;
   }
-  return gerencia.map(papel => ({ papelDestino: papel, idUsuarioDestino: null }));
+  return gerencia.map(papel => destino(papel));
 }
 
 function chaveNotificacao(eventoOrigem, papelDestino, idUsuarioDestino = null) {
   return hash(`${eventoOrigem}:${papelDestino}:${idUsuarioDestino || 'fila'}`);
 }
 
-function dadosNotificacao({ tipoNotificacao, titulo, mensagem, prioridade = 'normal', eventoOrigem, idMesa = null, idComanda = null, idPedido = null, idEncaminhamento = null, idUsuarioDestino = null, papelDestino }) {
+function dadosNotificacao({ tipoNotificacao, titulo, mensagem, prioridade = 'normal', eventoOrigem, idMesa = null, idComanda = null, idPedido = null, idEncaminhamento = null, idUsuarioDestino = null, papelDestino, permissaoDestino = null }) {
   const agora = Date.now();
   return {
     tipoNotificacao,
@@ -65,6 +71,7 @@ function dadosNotificacao({ tipoNotificacao, titulo, mensagem, prioridade = 'nor
     prioridade: PRIORIDADES_NOTIFICACAO.includes(prioridade) ? prioridade : 'normal',
     papelDestino,
     idUsuarioDestino: idUsuarioDestino || null,
+    permissaoDestino: PERMISSOES_NOTIFICACAO.includes(permissaoDestino) ? permissaoDestino : null,
     idMesa: idMesa ? String(idMesa) : null,
     idComanda: idComanda ? String(idComanda) : null,
     idPedido: idPedido ? String(idPedido) : null,
@@ -85,7 +92,7 @@ function criarNotificacoesNaTransacao(transacao, restauranteRef, evento) {
   for (const destino of destinos) {
     const id = chaveNotificacao(evento.eventoOrigem, destino.papelDestino, destino.idUsuarioDestino);
     const referencia = restauranteRef.collection('notificacoes').doc(id);
-    transacao.set(referencia, dadosNotificacao({ ...evento, ...destino }), { merge: false });
+    transacao.set(referencia, dadosNotificacao({ ...evento, ...destino, permissaoDestino: PERMISSAO_POR_DESTINO[destino.papelDestino] || null }), { merge: false });
   }
 }
 
@@ -106,6 +113,7 @@ function dtoNotificacao(documento) {
     prioridade: dados.prioridade || 'normal',
     papelDestino: dados.papelDestino || null,
     idUsuarioDestino: dados.idUsuarioDestino || null,
+    permissaoDestino: dados.permissaoDestino || null,
     idMesa: dados.idMesa || null,
     idComanda: dados.idComanda || null,
     idPedido: dados.idPedido || null,
@@ -123,7 +131,8 @@ function dtoNotificacao(documento) {
 function visivelParaIdentidade(dados, identidade) {
   if (!PAPEIS_NOTIFICACAO.includes(dados.papelDestino)) return false;
   const temPapel = Array.isArray(identidade.papeis) && identidade.papeis.includes(dados.papelDestino);
-  if (!temPapel) return false;
+  const temPermissao = PERMISSOES_NOTIFICACAO.includes(dados.permissaoDestino) && Array.isArray(identidade.permissoes) && identidade.permissoes.includes(dados.permissaoDestino);
+  if (!temPapel && !temPermissao) return false;
   if (dados.idUsuarioDestino && dados.idUsuarioDestino !== identidade.idUsuario) return false;
   const expiraEm = dados.expiraEm?.toDate ? dados.expiraEm.toDate().getTime() : new Date(dados.expiraEm || 0).getTime();
   return Number.isFinite(expiraEm) && expiraEm > Date.now();
@@ -131,6 +140,8 @@ function visivelParaIdentidade(dados, identidade) {
 
 module.exports = Object.freeze({
   PAPEIS_NOTIFICACAO,
+  PERMISSOES_NOTIFICACAO,
+  PERMISSAO_POR_DESTINO,
   TIPOS_NOTIFICACAO,
   STATUS_NOTIFICACAO,
   PRIORIDADES_NOTIFICACAO,

@@ -3,13 +3,13 @@
 const { ApiError } = require('./http');
 const { exigirSessao } = require('./sessao');
 const { lerContexto } = require('./contexto');
-const { resolverIdentidadeSessao, exigirPapel } = require('./autorizacao');
+const { resolverIdentidadeSessao, exigirPapel, exigirPermissao } = require('./autorizacao');
 const { registrarAuditoria } = require('./auditoria');
 const { getAdminDb } = require('../../backend/firebase/admin');
 
-const PAPEIS_LEITURA = ['proprietario', 'administrador', 'gerente', 'garcom', 'cozinha', 'analista', 'auditor'];
-const PAPEIS_CARDAPIO = ['proprietario', 'administrador', 'gerente'];
-const PAPEIS_SALAO = ['proprietario', 'administrador', 'gerente', 'garcom'];
+const PAPEIS_LEITURA = ['diretor', 'proprietario', 'administrador', 'gerente', 'porteiro', 'garcom', 'cozinheiro', 'cozinha', 'caixa', 'financeiro', 'analista', 'auditor'];
+const PAPEIS_CARDAPIO = ['diretor', 'proprietario', 'administrador', 'gerente'];
+const PAPEIS_SALAO = ['diretor', 'proprietario', 'administrador', 'gerente', 'porteiro', 'garcom'];
 const ESTADOS_RESERVA = new Set(['aguardando', 'confirmada', 'chegou', 'cancelada']);
 const ESTADOS_MESA = new Set(['disponivel', 'ocupada', 'indisponivel']);
 
@@ -20,14 +20,15 @@ function caminhoRestaurante(idRestaurante) {
   return getAdminDb().collection('restaurantes').doc(idRestaurante);
 }
 
-async function obterIdentidadeOperacional(req, papeisPermitidos = PAPEIS_LEITURA) {
+async function obterIdentidadeOperacional(req, papeisPermitidos = PAPEIS_LEITURA, permissoesPermitidas = []) {
   const sessao = await exigirSessao(req);
   const contexto = lerContexto(req);
   const identidade = await resolverIdentidadeSessao({
     sessao,
     idRestaurante: contexto?.idRestaurante,
   });
-  exigirPapel(identidade, papeisPermitidos);
+  if (Array.isArray(permissoesPermitidas) && permissoesPermitidas.length) exigirPermissao(identidade, permissoesPermitidas);
+  else exigirPapel(identidade, papeisPermitidos);
   return identidade;
 }
 
@@ -155,6 +156,7 @@ module.exports = {
   caminhoRestaurante,
   obterIdentidadeOperacional,
   exigirPapel,
+  exigirPermissao,
   limitarInteiro,
   textoObrigatorio,
   textoOpcional,

@@ -101,7 +101,7 @@ test('contrato server-side consulta relatórios e não aceita restaurante pelo f
   const ponte = ler('scripts/home/dados-visao-geral.js');
   assert.match(handler, /relatoriosFinanceiros/);
   assert.match(handler, /caminhoRestaurante\(identidade\.idRestaurante\)/);
-  assert.match(handler, /obterIdentidadeOperacional\(req, PAPEIS_LEITURA\)/);
+  assert.match(handler, /obterIdentidadeOperacional\(req, PAPEIS_LEITURA(?:,\s*\[[^\]]+\])?\)/);
   assert.match(home, /reserva\.dataIso \|\| dataBRParaISO/);
   assert.match(home, /aguardando_confirmacao_garcom/);
   assert.match(ponte, /listarVisaoGeral\((?:parametros|ultimosParametros)\)/);
