@@ -690,7 +690,7 @@ async function atualizarStatusPedidoQr(identidade, corpo, idRequisicao) {
 
     const comandaRef = pedido.idComanda ? restaurante.collection('comandas').doc(String(pedido.idComanda)) : null;
     const mesaRef = pedido.idMesa ? restaurante.collection('mesas').doc(String(pedido.idMesa)) : null;
-    const fichaRef = pedido.id ? restaurante.collection('fichasCozinha').doc(String(pedido.id)) : null;
+    const fichaRef = restaurante.collection('fichasCozinha').doc(pedidoRef.id);
     const deveDevolverEstoque = ['rejeitado_garcom', 'cancelado'].includes(para) && pedido.estoqueBaixado === true && pedido.estoqueRestaurado !== true;
     const itensParaDevolucao = Array.isArray(pedido.itens) ? pedido.itens : Array.isArray(pedido.itensResumo) ? pedido.itensResumo : [];
     const produtoRefsDevolucao = deveDevolverEstoque ? itensParaDevolucao.map(item => restaurante.collection('produtosCardapio').doc(String(item?.idProduto || ''))) : [];

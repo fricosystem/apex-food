@@ -79,6 +79,7 @@ test('ficha e tarefa usam coleções em português e status agregados', () => {
   const distribuidor = ler('api/_lib/cozinha-distribuicao.js');
   const tarefas = ler('api/_lib/cozinha-tarefas-handler.js');
   assert.match(pedidos, /collection\('fichasCozinha'\)/);
+  assert.match(pedidos, /const fichaRef = restaurante\.collection\('fichasCozinha'\)\.doc\(pedidoRef\.id\)/);
   assert.match(pedidos, /recurso === 'fichas' \? 'fichasCozinha'/);
   assert.match(pedidos, /statusDistribuicaoCozinha/);
   assert.match(distribuidor, /collection\('tarefas'\)/);
