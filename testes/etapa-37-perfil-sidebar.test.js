@@ -15,6 +15,7 @@ test('shell mantém o perfil fixo no rodapé dos sidebars desktop e mobile', () 
   assert.match(index, /flex-shrink-0 border-t border-border p-3/);
   assert.equal((index.match(/id="sidebarContentDesktop"/g) || []).length, 1);
   assert.equal((index.match(/id="sidebarContentMobile"/g) || []).length, 1);
+  assert.doesNotMatch(index, /<button aria-label="Perfil"/);
 });
 
 test('controller cria menu de perfil acessível com notificações e Sair', () => {

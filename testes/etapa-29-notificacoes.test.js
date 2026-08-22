@@ -93,6 +93,7 @@ test('cliente same-origin e central não usam Firebase client, storage local ou 
   assert.match(cliente, /atualizarNotificacao/);
   assert.match(controller, /apexModulosApi\.listarNotificacoes/);
   assert.match(controller, /apexModulosApi\.atualizarNotificacao/);
+  assert.match(controller, /button\[aria-label\^="Notificações"\]/);
   assert.doesNotMatch(controller, /localStorage|sessionStorage|firebase|FIREBASE_PRIVATE_KEY|idToken/i);
 });
 

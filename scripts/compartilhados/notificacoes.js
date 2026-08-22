@@ -61,7 +61,7 @@
   }
 
   function obterBotoes() {
-    return [...document.querySelectorAll('button[aria-label="Notificações"]')];
+    return [...document.querySelectorAll('button[aria-label^="Notificações"]')];
   }
 
   function atualizarBadge() {
