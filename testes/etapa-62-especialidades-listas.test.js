@@ -25,6 +25,23 @@ test('modais de funcionários e produtos usam listas dinâmicas de habilidades',
   assert.match(controllerProdutos, /lerListaRequisitoProduto\('especialidade'\)/);
 });
 
+test('listas de habilidades mantêm layout responsivo nos modais', () => {
+  const funcionarios = ler('paginas/equipe/funcionarios.html');
+  const produtos = ler('paginas/cardapio/produtos.html');
+  const controllerFuncionarios = ler('scripts/equipe/funcionarios.js');
+  const controllerProdutos = ler('scripts/cardapio/produtos.js');
+  for (const fragmento of [funcionarios, produtos]) {
+    assert.match(fragmento, /sm:col-span-2 min-w-0 rounded-xl/);
+    assert.match(fragmento, /flex min-w-0 flex-col .*sm:flex-row/);
+    assert.match(fragmento, /w-full shrink-0 .*sm:w-auto/);
+  }
+  for (const controller of [controllerFuncionarios, controllerProdutos]) {
+    assert.match(controller, /flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center/);
+    assert.match(controller, /min-w-0 w-full flex-1/);
+    assert.match(controller, /w-full shrink-0 whitespace-nowrap .*sm:w-auto/);
+  }
+});
+
 test('backend normaliza listas antigas e novas sem duplicidade de caixa', () => {
   const dados = equipe.dadosFuncionario({ nome: 'Cozinheiro Teste', cargo: 'Cozinheiro', setor: 'Cozinha', turno: 'Integral', especialidadesCozinha: 'Massas, massas, Chapa', estacoesCozinha: ['Forno', 'forno', 'Bancada fria'] });
   assert.deepEqual(dados.especialidadesCozinha, ['Massas', 'Chapa']);
