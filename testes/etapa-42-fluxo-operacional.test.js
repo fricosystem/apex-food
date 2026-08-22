@@ -53,7 +53,7 @@ test('versionamento operacional evita cache antigo no shell e no bridge financei
   assert.match(shell, /pedidos-ativos\.html\?v=etapa19-fluxo-operacional/);
   assert.match(shell, /fila-cozinha\.html\?v=etapa19-fluxo-operacional/);
   assert.match(shell, /fechamento-caixa\.html\?v=etapa19-fluxo-operacional/);
-  assert.match(index, /apex-shell\.js\?v=etapa37-mesa-sem-flicker/);
-  assert.match(index, /modulos-client\.js\?v=etapa22-dados-reais-global/);
+  assert.match(index, /apex-shell\.js\?v=fase51-papeis-locais/);
+  assert.match(index, /modulos-client\.js\?v=fase51-papeis-locais/);
   assert.match(financeiro, /modulos-client\.js\?v=etapa22-dados-reais-global/);
 });

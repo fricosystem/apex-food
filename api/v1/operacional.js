@@ -11,6 +11,7 @@ const handlers = Object.freeze({
   perfil: require('../_lib/perfil-handler'),
   desenvolvedor: require('../_lib/desenvolvedor-handler'),
   provisionamento: require('../_lib/provisionamento-handler'),
+  papeis: require('../_lib/papeis-handler'),
 });
 
 function moduloDaRequisicao(req) {
@@ -25,6 +26,7 @@ function moduloDaRequisicao(req) {
   if (url.includes('/perfil')) return 'perfil';
   if (url.includes('/desenvolvedor')) return 'desenvolvedor';
   if (url.includes('/provisionamento')) return 'provisionamento';
+  if (url.includes('/papeis')) return 'papeis';
   return '';
 }
 

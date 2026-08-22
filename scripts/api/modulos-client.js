@@ -189,6 +189,22 @@
     return requisitar('/operacional?modulo=desenvolvedor');
   }
 
+  async function listarPapeis() {
+    return requisitar('/operacional?modulo=papeis');
+  }
+
+  async function criarPapel(payload) {
+    return requisitar('/operacional?modulo=papeis', { method: 'POST', body: { recurso: 'papel', ...payload } });
+  }
+
+  async function atualizarPapel(payload) {
+    return requisitar('/operacional?modulo=papeis', { method: 'PATCH', body: { recurso: 'papel', ...payload } });
+  }
+
+  async function arquivarPapel(payload) {
+    return requisitar('/operacional?modulo=papeis', { method: 'DELETE', body: { recurso: 'papel', ...payload } });
+  }
+
   async function atualizarPerfil(payload) {
     return requisitar('/operacional?modulo=perfil', { method: 'PATCH', body: { acao: 'atualizar_perfil', ...payload } });
   }
@@ -298,6 +314,10 @@
     listarNotificacoes,
     listarPerfil,
     consultarAcessoDesenvolvedor,
+    listarPapeis,
+    criarPapel,
+    atualizarPapel,
+    arquivarPapel,
     atualizarPerfil,
     atualizarPreferenciasPerfil,
     alterarSenhaPerfil,

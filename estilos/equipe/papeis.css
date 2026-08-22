@@ -1,0 +1,73 @@
+.papeis-modal {
+  display: none;
+  background: rgba(0, 0, 0, 0.78);
+}
+
+.papeis-modal.aberto {
+  display: flex;
+}
+
+.papeis-modal-painel {
+  scrollbar-width: thin;
+  scrollbar-color: #343434 transparent;
+}
+
+.papeis-permissao-option {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.7rem;
+  border: 1px solid var(--border, #262626);
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.015);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.papeis-permissao-option:hover {
+  border-color: #414141;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.papeis-permissao-option:has(input:checked) {
+  border-color: rgba(234, 88, 12, 0.5);
+  background: rgba(234, 88, 12, 0.08);
+}
+
+.papeis-permissao-option input {
+  width: 0.95rem;
+  height: 0.95rem;
+  margin-top: 0.15rem;
+  flex: 0 0 auto;
+  accent-color: #ea580c;
+}
+
+.papeis-permissao-option span {
+  display: block;
+  min-width: 0;
+}
+
+.papeis-permissao-option strong,
+.papeis-permissao-option small {
+  display: block;
+}
+
+.papeis-permissao-option strong {
+  color: #e5e5e5;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.papeis-permissao-option small {
+  margin-top: 0.2rem;
+  color: #747474;
+  font-size: 0.66rem;
+}
+
+@media (max-width: 640px) {
+  #paginaPapeis {
+    padding-bottom: 5rem;
+  }
+}

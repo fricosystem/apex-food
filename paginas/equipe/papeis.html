@@ -1,0 +1,45 @@
+<section class="p-4 sm:p-6 lg:p-8 space-y-5 max-w-[1400px] mx-auto" id="paginaPapeis">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <p class="text-xs uppercase tracking-[0.16em] text-accent font-semibold">Equipe e acesso</p>
+      <h2 class="text-2xl sm:text-3xl font-bold tracking-tight mt-2">Papéis e permissões</h2>
+      <p class="text-sm text-muted mt-2 max-w-2xl">Defina categorias de acesso para este estabelecimento usando somente permissões disponíveis no catálogo seguro do APEX Food.</p>
+    </div>
+    <button class="btn-press inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-accent hover:bg-accentHover text-white text-sm font-semibold" id="novoPapel" type="button">
+      <i class="w-4 h-4" data-lucide="plus"></i><span>Nova categoria</span>
+    </button>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <article class="rounded-xl bg-card border border-border p-4"><span class="text-xs text-muted">Papéis disponíveis</span><div class="text-2xl font-bold mt-2" id="totalPapeis">0</div></article>
+    <article class="rounded-xl bg-card border border-border p-4"><span class="text-xs text-muted">Papéis do sistema</span><div class="text-2xl font-bold mt-2" id="totalPapeisNativos">0</div></article>
+    <article class="rounded-xl bg-card border border-border p-4"><span class="text-xs text-muted">Categorias personalizadas</span><div class="text-2xl font-bold text-accent mt-2" id="totalPapeisPersonalizados">0</div></article>
+    <article class="rounded-xl bg-card border border-border p-4"><span class="text-xs text-muted">Permissões no catálogo</span><div class="text-2xl font-bold mt-2" id="totalPermissoesPapeis">0</div></article>
+  </div>
+
+  <section class="rounded-xl bg-card border border-border p-4 sm:p-5">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+      <div><h3 class="text-base font-semibold">Categorias deste estabelecimento</h3><p class="text-xs text-muted mt-1" id="resultadoPapeis">Carregando categorias...</p></div>
+      <div class="relative w-full sm:w-72"><i class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" data-lucide="search"></i><input class="w-full bg-card2 border border-border2 rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-accent/60" id="buscaPapel" type="search" placeholder="Buscar categoria" autocomplete="off"></div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="listaPapeis"></div>
+  </section>
+</section>
+
+<div aria-hidden="true" aria-labelledby="tituloModalPapel" aria-modal="true" class="papeis-modal fixed inset-0 z-50 flex items-center justify-center p-4" id="modalPapel" role="dialog">
+  <div class="absolute inset-0 bg-black/80" id="backdropPapel"></div>
+  <div class="papeis-modal-painel relative bg-card border border-border rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="p-5 sm:p-6">
+      <div class="flex items-start justify-between gap-4 mb-5"><div><h2 class="text-lg font-bold" id="tituloModalPapel">Nova categoria</h2><p class="text-xs text-muted mt-1">Papéis nativos não podem ser alterados ou arquivados.</p></div><button aria-label="Fechar" class="p-2 rounded-lg hover:bg-card2 text-muted" id="fecharModalPapel" type="button"><i class="w-4 h-4" data-lucide="x"></i></button></div>
+      <form class="space-y-4" id="formPapel">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label class="block"><span class="block text-xs text-muted mb-1.5">Nome da categoria</span><input class="w-full bg-card2 border border-border2 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-accent/60" id="nomePapel" maxlength="80" placeholder="Ex.: Recepção" required><span class="text-xs text-red-300 mt-1 hidden" data-error-for="nomePapel"></span></label>
+          <label class="block"><span class="block text-xs text-muted mb-1.5">Código interno <span class="text-[10px]">opcional</span></span><input class="w-full bg-card2 border border-border2 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-accent/60" id="codigoPapel" maxlength="40" placeholder="Ex.: recepcao" autocomplete="off"><span class="text-xs text-red-300 mt-1 hidden" data-error-for="codigoPapel"></span></label>
+        </div>
+        <label class="block"><span class="block text-xs text-muted mb-1.5">Descrição <span class="text-[10px]">opcional</span></span><textarea class="w-full resize-none bg-card2 border border-border2 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-accent/60" id="descricaoPapel" maxlength="240" placeholder="Explique a responsabilidade desta categoria..." rows="3"></textarea></label>
+        <fieldset><legend class="text-sm font-semibold mb-2">Permissões da categoria</legend><p class="text-xs text-muted mb-3">Escolha apenas as ações necessárias. O acesso global de Desenvolvedor nunca aparece neste catálogo.</p><div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="listaPermissoesPapel"></div></fieldset>
+        <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2"><button class="btn-press px-4 py-2.5 rounded-lg bg-card2 border border-border2 text-sm font-medium" id="cancelarPapel" type="button">Cancelar</button><button class="btn-press px-4 py-2.5 rounded-lg bg-accent hover:bg-accentHover text-white text-sm font-medium" id="salvarPapel" type="submit">Salvar categoria</button></div>
+      </form>
+    </div>
+  </div>
+</div>
