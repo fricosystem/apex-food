@@ -76,6 +76,9 @@ test('interface pública apresenta cardápio, carrinho, comanda e polling sem ar
   assert.match(pagina, /mesaPublicaPedidos/);
   assert.match(pagina, /mesaPublicaMobilePassos/);
   assert.match(pagina, /mesaPublicaMobileIrCarrinho/);
+  assert.match(pagina, /mesaPublicaMobileCarrinhoResumo/);
+  assert.match(pagina, /mesaPublicaMobileCarrinhoQuantidade/);
+  assert.match(pagina, /mesaPublicaMobileCarrinhoTotal/);
   assert.match(pagina, /mesaPublicaMobileVoltarCardapio/);
   assert.match(pagina, /mesaPublicaMobileNovoPedido/);
   assert.match(pagina, /data-mesa-mobile-passo="escolher"/);
@@ -84,6 +87,9 @@ test('interface pública apresenta cardápio, carrinho, comanda e polling sem ar
   assert.match(script, /etapaMobile: 'escolher'/);
   assert.match(script, /atualizarEtapaMobile\('revisar'\)|atualizarEtapaMobile\('acompanhar'\)/);
   assert.match(script, /atualizarEtapaMobile\('acompanhar'\)/);
+  assert.match(script, /mobileCarrinhoQuantidade/);
+  assert.match(script, /mobileCarrinhoTotal/);
+  assert.match(script, /alterarQuantidade/);
   assert.match(script, /matchMedia\('\(max-width: 639px\)'\)/);
   assert.match(script, /acao=cardapio/);
   assert.match(script, /acao=\?comanda|acao=comanda/);
@@ -98,10 +104,10 @@ test('Fluxo público mantém os assets da mesa e avança para a central da etapa
   const index = ler('index.html');
   const pagina = ler('paginas/publico/mesa.html');
   assert.match(pagina, /mesa-publica-logo w-28 h-28 sm:w-32 sm:h-32/);
-  assert.match(shell, /paginas\/publico\/mesa\.html\?v=etapa34-logo-mesa/);
-  assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa34-logo-mesa/);
-  assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa34-logo-mesa/);
-  assert.match(index, /apex-shell\.js\?v=etapa31-especialidades/);
+  assert.match(shell, /paginas\/publico\/mesa\.html\?v=etapa36-comanda-clean/);
+  assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa36-comanda-clean/);
+  assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa36-comanda-clean/);
+  assert.match(index, /apex-shell\.js\?v=etapa36-comanda-clean/);
 });
 
 test('comanda pública oculta todo o shell administrativo e mantém somente o corpo do cliente', () => {
@@ -124,6 +130,10 @@ test('comanda pública mantém largura fluida e adapta o cardápio para telas m�
   assert.match(estilos, /\.mesa-publica-passos/);
   assert.match(estilos, /\.mesa-publica-etapas/);
   assert.match(estilos, /\.mesa-publica-mobile-controles/);
+  assert.match(estilos, /\.mesa-publica-carrinho-fixo-resumo/);
+  assert.match(estilos, /position: fixed;/);
+  assert.match(estilos, /\.mesa-publica-produto-card/);
+  assert.match(estilos, /\.mesa-publica-produto-descricao/);
   assert.match(estilos, /\.mesa-publica-passos\.hidden/);
 });
 

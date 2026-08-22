@@ -103,7 +103,7 @@ test('cliente same-origin e central não usam Firebase client, storage local ou 
 
 test('shell versiona os assets e preserva o shell único', () => {
   const index = ler('index.html');
-  assert.match(index, /apex-shell\.js\?v=etapa31-especialidades/);
+  assert.match(index, /apex-shell\.js\?v=etapa36-comanda-clean/);
   assert.match(index, /scripts\/api\/modulos-client\.js\?v=etapa22-dados-reais-global/);
   assert.match(index, /scripts\/compartilhados\/notificacoes\.js\?v=etapa14-header-notificacoes/);
   assert.equal((index.match(/id="sidebarContentDesktop"/g) || []).length, 1);

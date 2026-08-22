@@ -44,6 +44,9 @@
     mobileEtapaDescricao: document.getElementById('mesaPublicaMobileEtapaDescricao'),
     mobileEtapaContagem: document.getElementById('mesaPublicaMobileEtapaContagem'),
     mobileResumo: document.getElementById('mesaPublicaMobileResumo'),
+    mobileCarrinhoQuantidade: document.getElementById('mesaPublicaMobileCarrinhoQuantidade'),
+    mobileCarrinhoTotal: document.getElementById('mesaPublicaMobileCarrinhoTotal'),
+    mobileCarrinhoResumo: document.getElementById('mesaPublicaMobileCarrinhoResumo'),
     mobileControles: document.getElementById('mesaPublicaMobileControles'),
     mobileIrCarrinho: document.getElementById('mesaPublicaMobileIrCarrinho'),
     mobileVoltarCardapio: document.getElementById('mesaPublicaMobileVoltarCardapio'),
@@ -163,8 +166,10 @@
     const quantidade = itens.reduce((total, item) => total + Number(item.quantidade || 0), 0);
     if (!quantidade) {
       elementos.mobileResumo.textContent = 'Nenhum item selecionado.';
+      if (elementos.mobileCarrinhoQuantidade) elementos.mobileCarrinhoQuantidade.textContent = '0 itens';
+      if (elementos.mobileCarrinhoTotal) elementos.mobileCarrinhoTotal.textContent = '—';
       if (elementos.mobileIrCarrinho) {
-        elementos.mobileIrCarrinho.textContent = 'Revisar pedido (0 itens)';
+        elementos.mobileIrCarrinho.textContent = 'Revisar pedido';
         elementos.mobileIrCarrinho.disabled = true;
       }
       return;
@@ -173,8 +178,10 @@
       ? itens.reduce((soma, item) => soma + Number(item.produto.precoCentavos || 0) * Number(item.quantidade || 0), 0)
       : null;
     elementos.mobileResumo.textContent = `${quantidade} ${quantidade === 1 ? 'item selecionado' : 'itens selecionados'}${total === null ? '' : ` · ${formatarMoeda(total)}`}`;
+    if (elementos.mobileCarrinhoQuantidade) elementos.mobileCarrinhoQuantidade.textContent = `${quantidade} ${quantidade === 1 ? 'item' : 'itens'}`;
+    if (elementos.mobileCarrinhoTotal) elementos.mobileCarrinhoTotal.textContent = total === null ? '—' : formatarMoeda(total);
     if (elementos.mobileIrCarrinho) {
-      elementos.mobileIrCarrinho.textContent = `Revisar pedido (${quantidade} ${quantidade === 1 ? 'item' : 'itens'})`;
+      elementos.mobileIrCarrinho.textContent = 'Revisar pedido';
       elementos.mobileIrCarrinho.disabled = false;
     }
   }
@@ -193,15 +200,16 @@
     }
 
     const configuracao = {
-      escolher: { titulo: 'Escolher itens', descricao: 'Escolha os produtos que deseja consumir.', contagem: '1 de 3' },
-      revisar: { titulo: 'Revisar pedido', descricao: 'Confira os itens e envie a solicitação ao garçom.', contagem: '2 de 3' },
-      acompanhar: { titulo: 'Acompanhar atendimento', descricao: 'Veja o status dos seus pedidos nesta comanda.', contagem: '3 de 3' },
+      escolher: { titulo: 'Escolher itens', descricao: 'Adicione seus itens ao pedido.', contagem: '1 de 3' },
+      revisar: { titulo: 'Revisar pedido', descricao: 'Confira os itens antes de enviar.', contagem: '2 de 3' },
+      acompanhar: { titulo: 'Acompanhar pedido', descricao: 'Veja o andamento nesta comanda.', contagem: '3 de 3' },
     }[estado.etapaMobile];
     elementos.mobileEtapaTitulo.textContent = configuracao.titulo;
     elementos.mobileEtapaDescricao.textContent = configuracao.descricao;
     elementos.mobileEtapaContagem.textContent = configuracao.contagem;
     alternar(elementos.mobilePassos, true);
     alternar(elementos.mobileControles, true);
+    alternar(elementos.mobileCarrinhoResumo, estado.etapaMobile !== 'acompanhar');
     alternar(elementos.cardapioSecao, estado.etapaMobile === 'escolher');
     alternar(elementos.carrinhoSecao, estado.etapaMobile === 'revisar');
     alternar(elementos.comandaSecao, estado.etapaMobile === 'acompanhar');
@@ -463,22 +471,43 @@
     alternar(elementos.cardapioVazio, false);
     alternar(elementos.cardapioProdutos, true);
     produtos.forEach(produto => {
-      const card = criarElemento('article', 'rounded-xl border border-border bg-card p-4 flex flex-col gap-3');
+      const card = criarElemento('article', 'mesa-publica-produto-card rounded-xl border border-border bg-card p-4 flex flex-col gap-3');
       const topo = criarElemento('div', 'flex items-start justify-between gap-3');
-      const texto = criarElemento('div', 'min-w-0');
+      const texto = criarElemento('div', 'min-w-0 flex-1');
       texto.appendChild(criarElemento('h3', 'text-sm font-semibold text-white', produto.nome));
-      if (produto.descricao) texto.appendChild(criarElemento('p', 'text-xs text-muted mt-1', produto.descricao));
+      if (produto.descricao) texto.appendChild(criarElemento('p', 'mesa-publica-produto-descricao text-xs text-muted mt-1', produto.descricao));
       topo.appendChild(texto);
-      if (produto.tempoPreparo > 0) topo.appendChild(criarElemento('span', 'shrink-0 text-[10px] text-muted', `${produto.tempoPreparo} min`));
+      if (produto.tempoPreparo > 0) {
+        const preparo = criarElemento('span', 'shrink-0 rounded-full border border-border px-2 py-1 text-[10px] text-muted', `${produto.tempoPreparo} min`);
+        preparo.setAttribute('aria-label', `Tempo de preparo: ${produto.tempoPreparo} minutos`);
+        topo.appendChild(preparo);
+      }
       card.appendChild(topo);
       const rodape = criarElemento('div', 'mt-auto flex items-center justify-between gap-3 pt-2');
-      rodape.appendChild(criarElemento('strong', 'text-sm text-white', produto.precoCentavos === null ? 'Consulte o atendimento' : formatarMoeda(produto.precoCentavos)));
+      rodape.appendChild(criarElemento('strong', 'text-sm font-semibold text-white', produto.precoCentavos === null ? 'Consulte o atendimento' : formatarMoeda(produto.precoCentavos)));
       const noCarrinho = estado.carrinho.get(produto.id);
-      const botao = criarElemento('button', `rounded-lg px-3 py-2 text-[11px] font-semibold ${produto.disponibilidade ? 'bg-accent text-white hover:bg-accentHover' : 'border border-border text-muted cursor-not-allowed'}`, produto.disponibilidade ? (noCarrinho ? `Adicionar mais (${noCarrinho.quantidade})` : 'Adicionar') : 'Indisponível');
-      botao.type = 'button';
-      botao.disabled = !produto.disponibilidade;
-      botao.addEventListener('click', () => iniciarAdicaoProduto(produto));
-      rodape.appendChild(botao);
+      if (noCarrinho && produto.disponibilidade) {
+        const quantidade = criarElemento('div', 'mesa-publica-quantidade inline-flex items-center rounded-lg border border-accent/40 bg-accent/10');
+        const menos = criarElemento('button', 'mesa-publica-quantidade-botao px-3 py-2 text-sm font-semibold text-orange-100 hover:bg-accent/20', '−');
+        menos.type = 'button';
+        menos.setAttribute('aria-label', `Remover uma unidade de ${produto.nome}`);
+        menos.addEventListener('click', () => alterarQuantidade(produto.id, -1));
+        const numero = criarElemento('span', 'min-w-8 px-1 text-center text-xs font-semibold text-white', String(noCarrinho.quantidade));
+        numero.setAttribute('aria-live', 'polite');
+        const mais = criarElemento('button', 'mesa-publica-quantidade-botao px-3 py-2 text-sm font-semibold text-orange-100 hover:bg-accent/20', '+');
+        mais.type = 'button';
+        mais.setAttribute('aria-label', `Adicionar uma unidade de ${produto.nome}`);
+        mais.addEventListener('click', () => iniciarAdicaoProduto(produto));
+        quantidade.append(menos, numero, mais);
+        rodape.appendChild(quantidade);
+      } else {
+        const botao = criarElemento('button', `mesa-publica-adicionar rounded-lg px-3 py-2 text-[11px] font-semibold ${produto.disponibilidade ? 'bg-accent text-white hover:bg-accentHover' : 'border border-border text-muted cursor-not-allowed'}`, produto.disponibilidade ? 'Adicionar' : 'Indisponível');
+        botao.type = 'button';
+        botao.disabled = !produto.disponibilidade;
+        botao.setAttribute('aria-label', produto.disponibilidade ? `Adicionar ${produto.nome} ao pedido` : `${produto.nome} indisponível`);
+        botao.addEventListener('click', () => iniciarAdicaoProduto(produto));
+        rodape.appendChild(botao);
+      }
       card.appendChild(rodape);
       elementos.cardapioProdutos.appendChild(card);
     });
@@ -564,7 +593,7 @@
         alternar(elementos.cardapioCategorias, true);
       }
       elementos.cardapioAtualizado.textContent = `Atualizado às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-      elementos.cardapioDescricao.textContent = estado.cardapio.configuracao?.aceitarPedidos === true ? 'Os itens selecionados ficam no carrinho até o envio do pedido.' : 'O restaurante está exibindo o cardápio, mas não está aceitando pedidos neste momento.';
+      elementos.cardapioDescricao.textContent = estado.cardapio.configuracao?.aceitarPedidos === true ? 'Escolha os itens e revise antes de enviar.' : 'Cardápio disponível; pedidos pausados no momento.';
       renderizarCarrinho();
     } catch (erro) {
       estado.cardapio = null;
