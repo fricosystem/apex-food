@@ -57,6 +57,23 @@
       </div>
     </div>
 
+    <div id="mesaPublicaMobilePassos" class="mesa-publica-passos hidden" aria-label="Etapas do pedido">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="text-[11px] uppercase tracking-[0.16em] text-accent">Pedido pelo QR Code</p>
+          <p id="mesaPublicaMobileEtapaTitulo" class="text-sm font-semibold text-white mt-1">Escolher itens</p>
+          <p id="mesaPublicaMobileEtapaDescricao" class="text-xs text-muted mt-1">Escolha os produtos que deseja consumir.</p>
+        </div>
+        <span id="mesaPublicaMobileEtapaContagem" class="mesa-publica-etapa-contagem shrink-0 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted">1 de 3</span>
+      </div>
+      <ol class="mesa-publica-etapas mt-4" aria-label="Progresso do pedido">
+        <li data-mesa-mobile-passo="escolher" class="mesa-publica-etapa-item is-atual"><span class="mesa-publica-etapa-numero">1</span><span>Escolher</span></li>
+        <li data-mesa-mobile-passo="revisar" class="mesa-publica-etapa-item"><span class="mesa-publica-etapa-numero">2</span><span>Revisar</span></li>
+        <li data-mesa-mobile-passo="acompanhar" class="mesa-publica-etapa-item"><span class="mesa-publica-etapa-numero">3</span><span>Acompanhar</span></li>
+      </ol>
+      <p id="mesaPublicaMobileResumo" class="mesa-publica-etapa-resumo mt-3">Nenhum item selecionado.</p>
+    </div>
+
     <div id="mesaPublicaConteudo" class="hidden mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
       <section id="mesaPublicaCardapioSecao" class="rounded-xl border border-border2 bg-card2 p-4 sm:p-5" aria-labelledby="mesaPublicaCardapioTitulo">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -130,6 +147,12 @@
           <div id="mesaPublicaPedidos" class="hidden mt-4 space-y-3"></div>
         </section>
       </div>
+    </div>
+
+    <div id="mesaPublicaMobileControles" class="mesa-publica-mobile-controles hidden" aria-live="polite">
+      <button id="mesaPublicaMobileIrCarrinho" type="button" class="btn-press w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-accent/20 disabled:cursor-not-allowed disabled:opacity-60">Revisar pedido (0 itens)</button>
+      <button id="mesaPublicaMobileVoltarCardapio" type="button" class="btn-press hidden w-full rounded-lg border border-border bg-card px-4 py-3 text-sm font-semibold text-white hover:border-accent/50">Voltar ao cardápio</button>
+      <button id="mesaPublicaMobileNovoPedido" type="button" class="btn-press hidden w-full rounded-lg border border-border bg-card px-4 py-3 text-sm font-semibold text-white hover:border-accent/50">Fazer novo pedido</button>
     </div>
   </section>
 </div>

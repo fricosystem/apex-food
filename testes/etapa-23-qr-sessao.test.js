@@ -67,7 +67,7 @@ test('rota pública mesa usa shell único, guard explícito e URLs limpas', () =
   const vercel = JSON.parse(ler('vercel.json'));
   const rota = vercel.routes.find(item => String(item.src || '').includes('mesa|novo-pedido'));
   assert.match(shell, /href: '\/mesa'/);
-  assert.match(shell, /paginas\/publico\/mesa\.html\?v=etapa20-cardapio-estoque/);
+  assert.match(shell, /paginas\/publico\/mesa\.html\?v=etapa23-comanda-passos-mobile/);
   assert.match(guard, /paginaMesaPublica/);
   assert.match(guard, /caminhoAtual === '\/mesa'/);
   assert.ok(rota);

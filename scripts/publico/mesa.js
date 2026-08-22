@@ -39,6 +39,18 @@
     comandaVazia: document.getElementById('mesaPublicaComandaVazia'),
     pedidos: document.getElementById('mesaPublicaPedidos'),
     atualizarComanda: document.getElementById('mesaPublicaAtualizarComanda'),
+    mobilePassos: document.getElementById('mesaPublicaMobilePassos'),
+    mobileEtapaTitulo: document.getElementById('mesaPublicaMobileEtapaTitulo'),
+    mobileEtapaDescricao: document.getElementById('mesaPublicaMobileEtapaDescricao'),
+    mobileEtapaContagem: document.getElementById('mesaPublicaMobileEtapaContagem'),
+    mobileResumo: document.getElementById('mesaPublicaMobileResumo'),
+    mobileControles: document.getElementById('mesaPublicaMobileControles'),
+    mobileIrCarrinho: document.getElementById('mesaPublicaMobileIrCarrinho'),
+    mobileVoltarCardapio: document.getElementById('mesaPublicaMobileVoltarCardapio'),
+    mobileNovoPedido: document.getElementById('mesaPublicaMobileNovoPedido'),
+    cardapioSecao: document.getElementById('mesaPublicaCardapioSecao'),
+    carrinhoSecao: document.getElementById('mesaPublicaCarrinhoSecao'),
+    comandaSecao: document.getElementById('mesaPublicaComandaSecao'),
   };
 
   const parametros = new URLSearchParams(window.location.search);
@@ -55,6 +67,7 @@
     pollingAtivo: false,
     pollingFalhas: 0,
     enviandoPedido: false,
+    etapaMobile: 'escolher',
   };
 
   function chaveIdempotencia(prefixo = 'mesa') {
@@ -120,6 +133,70 @@
     elemento?.classList.toggle('hidden', !visivel);
   }
 
+  function ehViewportMobile() {
+    return typeof window.matchMedia === 'function' ? window.matchMedia('(max-width: 639px)').matches : window.innerWidth <= 639;
+  }
+
+  function atualizarResumoMobile() {
+    if (!elementos.mobileResumo) return;
+    const itens = [...estado.carrinho.values()];
+    const quantidade = itens.reduce((total, item) => total + Number(item.quantidade || 0), 0);
+    if (!quantidade) {
+      elementos.mobileResumo.textContent = 'Nenhum item selecionado.';
+      if (elementos.mobileIrCarrinho) {
+        elementos.mobileIrCarrinho.textContent = 'Revisar pedido (0 itens)';
+        elementos.mobileIrCarrinho.disabled = true;
+      }
+      return;
+    }
+    const total = itens.every(item => item.produto.precoCentavos !== null)
+      ? itens.reduce((soma, item) => soma + Number(item.produto.precoCentavos || 0) * Number(item.quantidade || 0), 0)
+      : null;
+    elementos.mobileResumo.textContent = `${quantidade} ${quantidade === 1 ? 'item selecionado' : 'itens selecionados'}${total === null ? '' : ` · ${formatarMoeda(total)}`}`;
+    if (elementos.mobileIrCarrinho) {
+      elementos.mobileIrCarrinho.textContent = `Revisar pedido (${quantidade} ${quantidade === 1 ? 'item' : 'itens'})`;
+      elementos.mobileIrCarrinho.disabled = false;
+    }
+  }
+
+  function atualizarEtapaMobile(etapa = estado.etapaMobile) {
+    estado.etapaMobile = ['escolher', 'revisar', 'acompanhar'].includes(etapa) ? etapa : 'escolher';
+    atualizarResumoMobile();
+    if (!elementos.mobilePassos || !elementos.mobileControles) return;
+    if (elementos.conteudo?.classList.contains('hidden') || !ehViewportMobile()) {
+      alternar(elementos.mobilePassos, false);
+      alternar(elementos.mobileControles, false);
+      alternar(elementos.cardapioSecao, true);
+      alternar(elementos.carrinhoSecao, true);
+      alternar(elementos.comandaSecao, true);
+      return;
+    }
+
+    const configuracao = {
+      escolher: { titulo: 'Escolher itens', descricao: 'Escolha os produtos que deseja consumir.', contagem: '1 de 3' },
+      revisar: { titulo: 'Revisar pedido', descricao: 'Confira os itens e envie a solicitação ao garçom.', contagem: '2 de 3' },
+      acompanhar: { titulo: 'Acompanhar atendimento', descricao: 'Veja o status dos seus pedidos nesta comanda.', contagem: '3 de 3' },
+    }[estado.etapaMobile];
+    elementos.mobileEtapaTitulo.textContent = configuracao.titulo;
+    elementos.mobileEtapaDescricao.textContent = configuracao.descricao;
+    elementos.mobileEtapaContagem.textContent = configuracao.contagem;
+    alternar(elementos.mobilePassos, true);
+    alternar(elementos.mobileControles, true);
+    alternar(elementos.cardapioSecao, estado.etapaMobile === 'escolher');
+    alternar(elementos.carrinhoSecao, estado.etapaMobile === 'revisar');
+    alternar(elementos.comandaSecao, estado.etapaMobile === 'acompanhar');
+    alternar(elementos.mobileIrCarrinho, estado.etapaMobile === 'escolher');
+    alternar(elementos.mobileVoltarCardapio, estado.etapaMobile === 'revisar');
+    alternar(elementos.mobileNovoPedido, estado.etapaMobile === 'acompanhar');
+
+    const ordem = { escolher: 1, revisar: 2, acompanhar: 3 };
+    document.querySelectorAll('[data-mesa-mobile-passo]').forEach(item => {
+      const itemEtapa = item.dataset.mesaMobilePasso;
+      item.classList.toggle('is-atual', itemEtapa === estado.etapaMobile);
+      item.classList.toggle('is-concluido', ordem[itemEtapa] < ordem[estado.etapaMobile]);
+    });
+  }
+
   function mostrarCarregando(visivel) {
     alternar(elementos.carregando, visivel);
     if (visivel) {
@@ -127,6 +204,8 @@
       alternar(elementos.formulario, false);
       alternar(elementos.atendimento, false);
       alternar(elementos.conteudo, false);
+      alternar(elementos.mobilePassos, false);
+      alternar(elementos.mobileControles, false);
     }
   }
 
@@ -152,6 +231,8 @@
     alternar(elementos.formulario, false);
     alternar(elementos.atendimento, false);
     alternar(elementos.conteudo, false);
+    alternar(elementos.mobilePassos, false);
+    alternar(elementos.mobileControles, false);
     elementos.erroTexto.textContent = mensagem || 'Verifique o QR Code e tente novamente.';
     alternar(elementos.erro, true);
     window.lucide?.createIcons();
@@ -163,6 +244,8 @@
     alternar(elementos.erro, false);
     alternar(elementos.atendimento, false);
     alternar(elementos.conteudo, false);
+    alternar(elementos.mobilePassos, false);
+    alternar(elementos.mobileControles, false);
     alternar(elementos.formulario, true);
     elementos.nome?.focus();
     window.lucide?.createIcons();
@@ -185,6 +268,7 @@
     alternar(elementos.formulario, false);
     alternar(elementos.atendimento, true);
     alternar(elementos.conteudo, true);
+    atualizarEtapaMobile('escolher');
     const mesa = dados?.mesa?.nome || (dados?.mesa?.numero ? `Mesa ${dados.mesa.numero}` : 'sua mesa');
     const nome = dados?.participante?.nomeExibicao || dados?.participante?.nomeCompleto || 'cliente';
     elementos.atendimentoTexto.textContent = `${nome} está identificado no atendimento da ${mesa}.`;
@@ -349,6 +433,7 @@
       linha.appendChild(controles);
       elementos.carrinhoLista.appendChild(linha);
     });
+    atualizarResumoMobile();
   }
 
   async function carregarCardapio() {
@@ -471,6 +556,7 @@
       renderizarCarrinho();
       mostrarFeedback(elementos.pedidoFeedback, dados.pedido?.numero ? `Pedido #${dados.pedido.numero} enviado ao garçom.` : 'Pedido enviado ao garçom.', 'sucesso');
       await atualizarComanda({ silencioso: true });
+      atualizarEtapaMobile('acompanhar');
     } catch (erro) {
       if (erro.status === 401) {
         mostrarErro(erro.message || 'A sessão da mesa não está mais disponível.');
@@ -551,6 +637,12 @@
   });
   elementos.atualizarComanda?.addEventListener('click', () => atualizarComanda());
   elementos.enviarPedido?.addEventListener('click', enviarPedido);
+  elementos.mobileIrCarrinho?.addEventListener('click', () => {
+    if (estado.carrinho.size) atualizarEtapaMobile('revisar');
+  });
+  elementos.mobileVoltarCardapio?.addEventListener('click', () => atualizarEtapaMobile('escolher'));
+  elementos.mobileNovoPedido?.addEventListener('click', () => atualizarEtapaMobile('escolher'));
+  window.addEventListener('resize', () => atualizarEtapaMobile());
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       pararPolling();

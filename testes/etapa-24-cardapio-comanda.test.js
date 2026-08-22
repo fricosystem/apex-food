@@ -74,6 +74,17 @@ test('interface pública apresenta cardápio, carrinho, comanda e polling sem ar
   assert.match(pagina, /mesaPublicaCarrinhoLista/);
   assert.match(pagina, /mesaPublicaEnviarPedido/);
   assert.match(pagina, /mesaPublicaPedidos/);
+  assert.match(pagina, /mesaPublicaMobilePassos/);
+  assert.match(pagina, /mesaPublicaMobileIrCarrinho/);
+  assert.match(pagina, /mesaPublicaMobileVoltarCardapio/);
+  assert.match(pagina, /mesaPublicaMobileNovoPedido/);
+  assert.match(pagina, /data-mesa-mobile-passo="escolher"/);
+  assert.match(pagina, /data-mesa-mobile-passo="revisar"/);
+  assert.match(pagina, /data-mesa-mobile-passo="acompanhar"/);
+  assert.match(script, /etapaMobile: 'escolher'/);
+  assert.match(script, /atualizarEtapaMobile\('revisar'\)|atualizarEtapaMobile\('acompanhar'\)/);
+  assert.match(script, /atualizarEtapaMobile\('acompanhar'\)/);
+  assert.match(script, /matchMedia\('\(max-width: 639px\)'\)/);
   assert.match(script, /acao=cardapio/);
   assert.match(script, /acao=\?comanda|acao=comanda/);
   assert.match(script, /acao: 'pedido'/);
@@ -85,9 +96,9 @@ test('interface pública apresenta cardápio, carrinho, comanda e polling sem ar
 test('Fluxo público mantém os assets da mesa e avança para a central da etapa9', () => {
   const shell = ler('scripts/shell/apex-shell.js');
   const index = ler('index.html');
-  assert.match(shell, /mesaPublico|paginas\/publico\/mesa\.html\?v=etapa20-cardapio-estoque/);
-  assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa22-responsivo-comanda/);
-  assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa20-cardapio-estoque/);
+  assert.match(shell, /mesaPublico|paginas\/publico\/mesa\.html\?v=etapa23-comanda-passos-mobile/);
+  assert.match(shell, /estilos\/publico\/mesa\.css\?v=etapa23-comanda-passos-mobile/);
+  assert.match(shell, /scripts\/publico\/mesa\.js\?v=etapa23-comanda-passos-mobile/);
   assert.match(index, /apex-shell\.js\?v=etapa22-responsivo-comanda/);
 });
 
@@ -99,6 +110,10 @@ test('comanda pública mantém largura fluida e adapta o cardápio para telas m�
   assert.match(estilos, /overflow-wrap: anywhere;/);
   assert.match(estilos, /@media \(max-width: 639px\)/);
   assert.match(estilos, /#mesaPublicaCardapioProdutos\s*\{\s*grid-template-columns: minmax\(0, 1fr\);/);
+  assert.match(estilos, /\.mesa-publica-passos/);
+  assert.match(estilos, /\.mesa-publica-etapas/);
+  assert.match(estilos, /\.mesa-publica-mobile-controles/);
+  assert.match(estilos, /\.mesa-publica-passos\.hidden/);
 });
 
 test('cookie da sessão é assinado com restaurante e sessão na ordem correta', () => {
