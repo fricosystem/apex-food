@@ -102,6 +102,15 @@ test('Fluxo público mantém os assets da mesa e avança para a central da etapa
   assert.match(index, /apex-shell\.js\?v=etapa31-especialidades/);
 });
 
+test('comanda pública oculta todo o shell administrativo e mantém somente o corpo do cliente', () => {
+  const index = ler('index.html');
+  const estilos = ler('estilos/publico/mesa.css');
+  assert.match(index, /class="apex-mobile-header lg:hidden/);
+  assert.match(estilos, /body\.apex-publico-mesa > \.apex-mobile-header/);
+  assert.match(estilos, /body\.apex-publico-mesa > main > header/);
+  assert.match(estilos, /display: none !important/);
+});
+
 test('comanda pública mantém largura fluida e adapta o cardápio para telas móveis', () => {
   const estilos = ler('estilos/publico/mesa.css');
   assert.match(estilos, /body\.apex-publico-mesa\s*\{\s*overflow-x: hidden;/);

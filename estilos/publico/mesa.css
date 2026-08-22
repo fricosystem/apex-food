@@ -2,6 +2,7 @@ body.apex-publico-mesa {
   overflow-x: hidden;
 }
 
+body.apex-publico-mesa > .apex-mobile-header,
 body.apex-publico-mesa > .sidebar-overlay,
 body.apex-publico-mesa > #sidebarMobile,
 body.apex-publico-mesa > .sidebar-desktop,
