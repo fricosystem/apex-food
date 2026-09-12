@@ -98,3 +98,22 @@ Work Log:
 Stage Summary:
 - Logo encostada ao wordmark com nome "APEX FOOD" visivelmente maior; FOOD mantém laranja #FF7B2E
 - Validado E2E: screenshots shot-49 (desktop 1540px) e shot-50 (mobile 390px); lint 0/0; home 200
+
+---
+Task ID: 6
+Agent: Super Z (main)
+Task: Tela do cliente em tema escuro (igual autenticação) + modernização com personalização de itens (retirar cebola etc.) + sem header + logo sólida com nome APEX FOOD
+
+Work Log:
+- Tema escuro fixo: ClientView adiciona classe dark no documentElement ao montar (com restore seguro no unmount — remove só se não existia antes); wrapper com o mesmo gradiente do painel de marca da autenticação (BG_DARK linear-gradient 150deg #121215→#0A0A0C→#0D0B09); loading/erro também escuros; portais de dialog/toast herdam o dark automaticamente
+- Header removido: novo componente PhaseRail (conteúdo, não barra fixa) com logo sólida h-9 w-auto + "APEX FOOD" (FOOD laranja #FF7B2E), chip "Mesa NN" e trilha de 5 fases em dots com gradiente laranja + label da etapa atual
+- Boas-vindas: logo sólida h-24 sem card laranja + wordmark "APEX FOOD" text-3xl; título "Mesa NN — Bem-vindo!"
+- Personalização de itens: novo NotesField com chips "Retirar ingredientes" (Sem cebola, tomate, alface, picles, maionese, bacon, queijo, milho) + "Ponto da carne" (Mal passada/Ao ponto/Bem passada) + texto livre; helpers toggleChip/hasChip/notesParts operam sobre a string de notas (formato "a, b, c"); integrado no dialog de adicionar e no "personalizar" da revisão; notas exibidas como mini-chips laranja na revisão e enviadas por item ao garçom/cozinha
+- Carrinho: linhas agora com uid (permite mesmo produto com observações diferentes); merge só quando produto+notas iguais; changeQty/edição por uid
+- BUG corrigido (pré-existente): cardápio do cliente usava /api/categories (401 sem sessão de funcionário — em celular real o menu nunca carregaria); criado endpoint público /api/client/[token]/menu (valida qrToken da mesa, retorna só campos públicos ativos); queryKey agora ['client-menu', token] (elimina colisão de cache com o painel)
+- Verificações E2E (viewport 390px): welcome escuro, menu carregado, dialog com chips selecionados compondo "Sem cebola, Ao ponto", review com chips + personalizar (+Sem tomate), envio → comanda C0064 para garçom Juliana com notas persistidas (confirmado via API), tela continua dark com localStorage theme=light, e ao sair o tema claro do app é restaurado
+- Lint 0/0 (src completo); home 200
+
+Stage Summary:
+- Tela do cliente com identidade visual da marca: dark fixo, sem header, logo sólida + APEX FOOD, personalização moderna de itens antes de enviar ao garçom
+- Screenshots: shot-51 a shot-60

@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import {
   Minus, Plus, ChevronLeft, ClipboardList, Send, CheckCircle2,
   Clock, ChefHat, BellRing, CheckCheck, CreditCard, PartyPopper, Loader2,
-  ArrowRight, ShoppingBag, PencilLine,
+  ArrowRight, ShoppingBag, PencilLine, Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -43,10 +43,36 @@ type ClientData = {
   order: ClientOrder | null
   lastPaid: { code: string; total: number; paidAt: string; items: Array<{ id: string; productName: string; quantity: number; emoji: string }> } | null
 }
-type CartLine = { productId: string; quantity: number; notes: string }
+type CartLine = { uid: string; productId: string; quantity: number; notes: string }
 
 const STEPS = ['Boas-vindas', 'Cardápio', 'Revisão', 'Acompanhamento', 'Encerramento']
 const ITEM_FLOW = ['PENDING', 'IN_PREPARATION', 'READY', 'SERVED']
+
+// Fundo fixo escuro da tela do cliente — mesma assinatura visual do painel de marca da autenticação
+const BG_DARK = 'linear-gradient(150deg, #121215 0%, #0A0A0C 55%, #0D0B09 100%)'
+
+// Personalização rápida de itens (enviada como observação ao garçom/cozinha)
+const REMOVAL_CHIPS = ['Sem cebola', 'Sem tomate', 'Sem alface', 'Sem picles', 'Sem maionese', 'Sem bacon', 'Sem queijo', 'Sem milho']
+const COOKING_CHIPS = ['Mal passada', 'Ao ponto', 'Bem passada']
+
+function toggleChip(notes: string, chip: string): string {
+  const parts = notes.split(',').map((s) => s.trim()).filter(Boolean)
+  const idx = parts.findIndex((p) => p.toLowerCase() === chip.toLowerCase())
+  if (idx >= 0) parts.splice(idx, 1)
+  else parts.push(chip)
+  return parts.join(', ')
+}
+
+function hasChip(notes: string, chip: string): boolean {
+  return notes.split(',').some((p) => p.trim().toLowerCase() === chip.toLowerCase())
+}
+
+function notesParts(notes: string): string[] {
+  return notes.split(',').map((s) => s.trim()).filter(Boolean)
+}
+
+let uidSeq = 0
+const newUid = () => `l${Date.now().toString(36)}-${(++uidSeq).toString(36)}-${Math.random().toString(36).slice(2, 7)}`
 
 export function ClientView({ token, onExit }: { token: string; onExit: () => void }) {
   const [phase, setPhase] = useState<0 | 1 | 2 | 3 | 4>(0)
@@ -54,7 +80,17 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
   const [activeCat, setActiveCat] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
 
-  const menu = useQuery<MenuResponse>({ queryKey: ['categories'], queryFn: () => api<MenuResponse>('/api/categories') })
+  // Tela do cliente sempre em tema escuro (igual à autenticação), independentemente do tema do app
+  useEffect(() => {
+    const root = document.documentElement
+    const wasDark = root.classList.contains('dark')
+    root.classList.add('dark')
+    return () => {
+      if (!wasDark) root.classList.remove('dark')
+    }
+  }, [])
+
+  const menu = useQuery<MenuResponse>({ queryKey: ['client-menu', token], queryFn: () => api<MenuResponse>(`/api/client/${token}/menu`) })
   const { data, isLoading, refetch, isError } = useQuery<ClientData>({
     queryKey: ['client', token, tick],
     queryFn: () => api<ClientData>(`/api/client/${token}`),
@@ -107,8 +143,8 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+      <div className="min-h-screen flex items-center justify-center text-zinc-300" style={{ background: BG_DARK }}>
+        <div className="flex items-center gap-2 text-zinc-400 text-sm">
           <Loader2 className="h-5 w-5 animate-spin" /> Conectando à mesa…
         </div>
       </div>
@@ -117,7 +153,7 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
 
   if (isError || !data) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: BG_DARK }}>
         <Card className="max-w-sm w-full text-center p-8">
           <p className="text-4xl">🚨</p>
           <p className="font-semibold mt-3">Mesa indisponível</p>
@@ -132,39 +168,9 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
   const cartSum = cart.reduce((a, c) => a + (productsMap.get(c.productId)?.price ?? 0) * c.quantity, 0)
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-20 apex-gradient text-white shadow-lg">
-        <div className="max-w-md mx-auto px-4 h-14 flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-white/15 ring-1 ring-white/25 flex items-center justify-center">
-            <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-5 w-5 object-contain" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold leading-none">Mesa {String(data.table.number).padStart(2, '0')}</p>
-            <p className="text-[11px] text-white/75 mt-0.5">APEX FOOD</p>
-          </div>
-          {phase === 1 && cartCount > 0 && (
-            <Button size="sm" variant="ghost" className="text-white hover:bg-white/15 h-8" onClick={() => setPhase(2)}>
-              <ShoppingBag className="h-4 w-4 mr-1" /> {cartCount}
-            </Button>
-          )}
-        </div>
-        <div className="max-w-md mx-auto px-4 pb-2.5">
-          <div className="flex gap-1">
-            {STEPS.map((_, i) => (
-              <div key={i} className={cn('h-1.5 flex-1 rounded-full transition-colors duration-300', i <= displayPhase ? 'bg-white' : 'bg-white/25')} />
-            ))}
-          </div>
-          <div className="flex justify-between mt-1.5">
-            {STEPS.map((s, i) => (
-              <span key={s} className={cn('text-[9px] leading-none', i === displayPhase ? 'text-white font-semibold' : 'text-white/55')}>
-                {s}
-              </span>
-            ))}
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-screen flex flex-col text-zinc-100" style={{ background: BG_DARK }}>
       <main className="flex-1 max-w-md w-full mx-auto p-4 pb-32">
+        <PhaseRail phase={displayPhase} tableNumber={data.table.number} />
         {phase === 0 && (
           <WelcomePhase tableNumber={data.table.number} hasOpen={!!data.order} onStart={() => (data.order ? setPhase(3) : setPhase(1))} />
         )}
@@ -177,9 +183,9 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
             cart={cart}
             onAdd={(line) => {
               setCart((prev) => {
-                const existing = prev.find((c) => c.productId === line.productId)
+                const existing = prev.find((c) => c.productId === line.productId && c.notes === line.notes)
                 if (existing) {
-                  return prev.map((c) => (c.productId === line.productId ? { ...line, quantity: c.quantity + line.quantity } : c))
+                  return prev.map((c) => (c.uid === existing.uid ? { ...c, quantity: c.quantity + line.quantity } : c))
                 }
                 return [...prev, line]
               })
@@ -239,15 +245,43 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
   )
 }
 
+/* ==================== Trilha de fases (sem header) ==================== */
+function PhaseRail({ phase, tableNumber }: { phase: number; tableNumber: number }) {
+  return (
+    <div className="pt-2 mb-5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-9 w-auto drop-shadow" />
+          <p className="text-[15px] font-extrabold tracking-tight leading-none">
+            APEX <span className="text-[#FF7B2E]">FOOD</span>
+          </p>
+        </div>
+        <span className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full border border-white/10 bg-white/[0.05] text-zinc-300">
+          Mesa {String(tableNumber).padStart(2, '0')}
+        </span>
+      </div>
+      <div className="flex gap-1.5 mt-4" aria-label={`Etapa ${phase + 1} de ${STEPS.length}: ${STEPS[phase]}`}>
+        {STEPS.map((s, i) => (
+          <div key={s} className={cn('h-1 flex-1 rounded-full transition-colors duration-300', i <= phase ? 'bg-gradient-to-r from-[#FF6B1A] to-[#FF8A3D]' : 'bg-white/10')} />
+        ))}
+      </div>
+      <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mt-1.5">{STEPS[phase]}</p>
+    </div>
+  )
+}
+
 /* ==================== FASE 1 — Boas-vindas ==================== */
 function WelcomePhase({ tableNumber, hasOpen, onStart }: { tableNumber: number; hasOpen: boolean; onStart: () => void }) {
   return (
-    <div className="apex-enter text-center pt-10">
-      <div className="mx-auto h-20 w-20 rounded-3xl apex-gradient apex-glow flex items-center justify-center">
-        <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-12 w-12 object-contain" />
+    <div className="apex-enter text-center pt-2">
+      <div className="flex flex-col items-center">
+        <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-24 w-auto drop-shadow-xl" />
+        <p className="mt-3 text-3xl font-extrabold tracking-tight leading-none">
+          APEX <span className="text-[#FF7B2E]">FOOD</span>
+        </p>
       </div>
-      <h2 className="text-2xl font-bold mt-6 tracking-tight">
-        Mesa {String(tableNumber).padStart(2, '0')} — Bem-vindo à APEX FOOD!
+      <h2 className="text-xl font-bold mt-6 tracking-tight">
+        Mesa {String(tableNumber).padStart(2, '0')} — Bem-vindo!
       </h2>
       <p className="text-sm text-muted-foreground mt-2 leading-relaxed px-4">
         Explore o cardápio, monte sua comanda e acompanhe cada prato em tempo real, do preparo à entrega.
@@ -332,7 +366,7 @@ function ProductCard({ product, inCart, onAdd }: { product: Product; inCart: num
 
   const confirmAdd = () => {
     playSound('click')
-    onAdd({ productId: product.id, quantity: qty, notes: notes.trim() })
+    onAdd({ uid: newUid(), productId: product.id, quantity: qty, notes: notes.trim() })
     toast.success(`${product.name} adicionado à comanda`)
     setOpen(false)
   }
@@ -378,6 +412,7 @@ function ProductCard({ product, inCart, onAdd }: { product: Product; inCart: num
             </DialogTitle>
           </DialogHeader>
           <p className="text-xs text-muted-foreground">{product.description}</p>
+          <NotesField notes={notes} onChange={setNotes} />
           <div className="flex items-center gap-3">
             <span className="text-sm">Qtd.</span>
             <div className="flex items-center gap-2">
@@ -391,12 +426,6 @@ function ProductCard({ product, inCart, onAdd }: { product: Product; inCart: num
             </div>
             <p className="ml-auto font-bold text-primary">{currency(product.price * qty)}</p>
           </div>
-          <Textarea
-            placeholder="Observações (ex: sem cebola, ponto da carne…)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="min-h-[70px] text-sm"
-          />
           <DialogFooter>
             <Button className="w-full apex-gradient text-white font-semibold" onClick={confirmAdd}>
               <Plus className="h-4 w-4" /> Adicionar {qty} à comanda
@@ -405,6 +434,48 @@ function ProductCard({ product, inCart, onAdd }: { product: Product; inCart: num
         </DialogContent>
       </Dialog>
     </Card>
+  )
+}
+
+/* ==================== Personalização do item (observações) ==================== */
+function NotesField({ notes, onChange }: { notes: string; onChange: (n: string) => void }) {
+  const renderChip = (label: string) => {
+    const active = hasChip(notes, label)
+    return (
+      <button
+        key={label}
+        type="button"
+        onClick={() => onChange(toggleChip(notes, label))}
+        className={cn(
+          'inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition-all',
+          active
+            ? 'border-[#FF6B1A]/60 bg-[#FF6B1A]/15 text-[#FF9A57]'
+            : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:border-white/25 hover:text-zinc-200'
+        )}
+      >
+        {active && <Check className="h-3 w-3" />}
+        {label}
+      </button>
+    )
+  }
+
+  return (
+    <div className="space-y-3.5">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Retirar ingredientes</p>
+        <div className="flex flex-wrap gap-1.5">{REMOVAL_CHIPS.map(renderChip)}</div>
+      </div>
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Ponto da carne</p>
+        <div className="flex flex-wrap gap-1.5">{COOKING_CHIPS.map(renderChip)}</div>
+      </div>
+      <Textarea
+        placeholder="Algum outro detalhe? (ex: sem cebola roxa, cortar em pedaços…)"
+        value={notes}
+        onChange={(e) => onChange(e.target.value)}
+        className="min-h-[60px] text-sm"
+      />
+    </div>
   )
 }
 
@@ -442,11 +513,11 @@ function ReviewPhase({
     onError: (e: Error) => toast.error(e.message),
   })
 
-  const changeQty = (productId: string, delta: number) => {
+  const changeQty = (uid: string, delta: number) => {
     playSound('click')
     onCartChange(
       cart
-        .map((c) => (c.productId === productId ? { ...c, quantity: c.quantity + delta } : c))
+        .map((c) => (c.uid === uid ? { ...c, quantity: c.quantity + delta } : c))
         .filter((c) => c.quantity > 0)
     )
   }
@@ -473,7 +544,7 @@ function ReviewPhase({
         const p = productsMap.get(line.productId)
         if (!p) return null
         return (
-          <Card key={line.productId}>
+          <Card key={line.uid}>
             <CardContent className="p-3 flex gap-3 items-start">
               <div className="h-14 w-14 rounded-lg apex-gradient-soft flex items-center justify-center shrink-0 text-2xl">
                 {p.emoji}
@@ -484,18 +555,22 @@ function ReviewPhase({
                   {currency(p.price)} × {line.quantity}
                 </p>
                 {line.notes && (
-                  <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 flex items-start gap-1">
-                    <PencilLine className="h-3 w-3 mt-0.5 shrink-0" /> {line.notes}
-                  </p>
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {notesParts(line.notes).map((n) => (
+                      <span key={n} className="inline-flex items-center gap-1 rounded-full border border-[#FF6B1A]/40 bg-[#FF6B1A]/10 px-2 py-0.5 text-[10px] font-medium text-[#FF9A57]">
+                        <PencilLine className="h-2.5 w-2.5 shrink-0" /> {n}
+                      </span>
+                    ))}
+                  </div>
                 )}
               </div>
               <div className="flex flex-col items-end gap-1.5">
                 <p className="text-sm font-bold">{currency(p.price * line.quantity)}</p>
                 <div className="flex items-center gap-1.5">
-                  <Button size="icon" variant="outline" className="h-6.5 w-6.5" style={{ width: 26, height: 26 }} onClick={() => changeQty(line.productId, -1)} aria-label="Diminuir">
+                  <Button size="icon" variant="outline" className="h-6.5 w-6.5" style={{ width: 26, height: 26 }} onClick={() => changeQty(line.uid, -1)} aria-label="Diminuir">
                     <Minus className="h-3 w-3" />
                   </Button>
-                  <Button size="icon" variant="outline" style={{ width: 26, height: 26 }} className="h-6.5 w-6.5" onClick={() => changeQty(line.productId, 1)} aria-label="Aumentar">
+                  <Button size="icon" variant="outline" style={{ width: 26, height: 26 }} className="h-6.5 w-6.5" onClick={() => changeQty(line.uid, 1)} aria-label="Aumentar">
                     <Plus className="h-3 w-3" />
                   </Button>
                 </div>
@@ -503,7 +578,7 @@ function ReviewPhase({
                   className="text-[10px] text-muted-foreground underline"
                   onClick={() => { setEditing(line); setEditQty(line.quantity); setEditNotes(line.notes) }}
                 >
-                  editar obs.
+                  personalizar
                 </button>
               </div>
             </CardContent>
@@ -541,7 +616,7 @@ function ReviewPhase({
       <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
         <DialogContent className="max-w-[320px]">
           <DialogHeader>
-            <DialogTitle className="text-base">Observações do item</DialogTitle>
+            <DialogTitle className="text-base">Personalizar item</DialogTitle>
           </DialogHeader>
           <div className="flex items-center gap-3">
             <span className="text-sm">Qtd.</span>
@@ -555,7 +630,7 @@ function ReviewPhase({
               aria-label="Quantidade"
             />
           </div>
-          <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Ex: sem cebola" className="min-h-[70px] text-sm" />
+          <NotesField notes={editNotes} onChange={setEditNotes} />
           <DialogFooter>
             <Button
               className="w-full"

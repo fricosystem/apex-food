@@ -1,0 +1,812 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useEffect, useMemo, useState } from 'react'
+     4→     4→import { useMutation, useQuery } from '@tanstack/react-query'
+     5→     5→import { toast } from 'sonner'
+     6→     6→import {
+     7→     7→  Minus, Plus, ChevronLeft, ClipboardList, Send, CheckCircle2,
+     8→     8→  Clock, ChefHat, BellRing, CheckCheck, CreditCard, PartyPopper, Loader2,
+     9→     9→  ArrowRight, ShoppingBag, PencilLine,
+    10→    10→} from 'lucide-react'
+    11→    11→import { cn } from '@/lib/utils'
+    12→    12→import { Button } from '@/components/ui/button'
+    13→    13→import { Card, CardContent } from '@/components/ui/card'
+    14→    14→import { Badge } from '@/components/ui/badge'
+    15→    15→import { Input } from '@/components/ui/input'
+    16→    16→import { Textarea } from '@/components/ui/textarea'
+    17→    17→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+    18→    18→import { Progress } from '@/components/ui/progress'
+    19→    19→import { Separator } from '@/components/ui/separator'
+    20→    20→import { api, apiPost } from '@/lib/fetcher'
+    21→    21→import { currency, ITEM_STATUS_LABELS } from '@/lib/types'
+    22→    22→import { getSharedSocket } from '@/lib/socket-client'
+    23→    23→import { playSound } from '@/lib/sound'
+    24→    24→
+    25→    25→type Product = {
+    26→    26→  id: string; name: string; description: string; emoji: string; image: string | null
+    27→    27→  price: number; prepTime: number; categoryId: string
+    28→    28→  category: { id: string; name: string; sector: string; icon: string }
+    29→    29→}
+    30→    30→type Category = { id: string; name: string; sector: string; icon: string; sortOrder: number }
+    31→    31→type MenuResponse = { categories: Array<Category & { products: Product[] }> }
+    32→    32→type ClientOrder = {
+    33→    33→  id: string; code: string; status: string; total: number; createdAt: string
+    34→    34→  waiterName: string | null
+    35→    35→  items: Array<{
+    36→    36→    id: string; productName: string; quantity: number; notes: string; unitPrice: number
+    37→    37→    station: string; prepTime: number; status: string; startedAt: string | null
+    38→    38→    readyAt: string | null; servedAt: string | null; emoji: string
+    39→    39→  }>
+    40→    40→}
+    41→    41→type ClientData = {
+    42→    42→  table: { id: string; number: number; capacity: number; status: string }
+    43→    43→  order: ClientOrder | null
+    44→    44→  lastPaid: { code: string; total: number; paidAt: string; items: Array<{ id: string; productName: string; quantity: number; emoji: string }> } | null
+    45→    45→}
+    46→    46→type CartLine = { productId: string; quantity: number; notes: string }
+    47→    47→
+    48→    48→const STEPS = ['Boas-vindas', 'Cardápio', 'Revisão', 'Acompanhamento', 'Encerramento']
+    49→    49→const ITEM_FLOW = ['PENDING', 'IN_PREPARATION', 'READY', 'SERVED']
+    50→    50→
+    51→    51→export function ClientView({ token, onExit }: { token: string; onExit: () => void }) {
+    52→    52→  const [phase, setPhase] = useState<0 | 1 | 2 | 3 | 4>(0)
+    53→    53→  const [cart, setCart] = useState<CartLine[]>([])
+    54→    54→  const [activeCat, setActiveCat] = useState<string | null>(null)
+    55→    55→  const [tick, setTick] = useState(0)
+    56→    56→
+    57→    57→  const menu = useQuery<MenuResponse>({ queryKey: ['categories'], queryFn: () => api<MenuResponse>('/api/categories') })
+    58→    58→  const { data, isLoading, refetch, isError } = useQuery<ClientData>({
+    59→    59→    queryKey: ['client', token, tick],
+    60→    60→    queryFn: () => api<ClientData>(`/api/client/${token}`),
+    61→    61→    refetchInterval: 3000,
+    62→    62→    retry: 2,
+    63→    63→  })
+    64→    64→
+    65→    65→  const productsMap = useMemo(() => {
+    66→    66→    const map = new Map<string, Product>()
+    67→    67→    for (const c of menu.data?.categories ?? []) for (const p of c.products) map.set(p.id, p)
+    68→    68→    return map
+    69→    69→  }, [menu.data])
+    70→    70→
+    71→    71→  const orderId = data?.order?.id
+    72→    72→
+    73→    73→  // Realtime — sala da comanda do cliente
+    74→    74→  useEffect(() => {
+    75→    75→    const socket = getSharedSocket()
+    76→    76→    if (!orderId) return
+    77→    77→    socket.emit('join', { clientRoom: `client:${orderId}` })
+    78→    78→    const onChange = () => setTick((t) => t + 1)
+    79→    79→    socket.on('item:atualizado', onChange)
+    80→    80→    socket.on('comanda:paga', onChange)
+    81→    81→    socket.on('comanda:confirmada', onChange)
+    82→    82→    return () => {
+    83→    83→      socket.off('item:atualizado', onChange)
+    84→    84→      socket.off('comanda:paga', onChange)
+    85→    85→      socket.off('comanda:confirmada', onChange)
+    86→    86→    }
+    87→    87→  }, [orderId])
+    88→    88→
+    89→    89→  // Fase efetivamente exibida (deriva do estado real da comanda, sem efeitos)
+    90→    90→  const liveOrder = data?.order ?? null
+    91→    91→  const displayPhase: 0 | 1 | 2 | 3 | 4 =
+    92→    92→    liveOrder?.status === 'AWAITING_PAYMENT'
+    93→    93→      ? 4
+    94→    94→      : !liveOrder && data?.lastPaid && phase >= 3
+    95→    95→        ? 4
+    96→    96→        : phase
+    97→    97→
+    98→    98→  const finish = useMutation({
+    99→    99→    mutationFn: () => apiPost(`/api/client/${token}`, { action: 'finish', orderId }),
+   100→   100→    onSuccess: () => {
+   101→   101→      playSound('success')
+   102→   102→      toast.success('Comanda enviada ao caixa!')
+   103→   103→      void refetch()
+   104→   104→    },
+   105→   105→    onError: (e: Error) => toast.error(e.message),
+   106→   106→  })
+   107→   107→
+   108→   108→  if (isLoading) {
+   109→   109→    return (
+   110→   110→      <div className="min-h-screen bg-background flex items-center justify-center">
+   111→   111→        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+   112→   112→          <Loader2 className="h-5 w-5 animate-spin" /> Conectando à mesa…
+   113→   113→        </div>
+   114→   114→      </div>
+   115→   115→    )
+   116→   116→  }
+   117→   117→
+   118→   118→  if (isError || !data) {
+   119→   119→    return (
+   120→   120→      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+   121→   121→        <Card className="max-w-sm w-full text-center p-8">
+   122→   122→          <p className="text-4xl">🚨</p>
+   123→   123→          <p className="font-semibold mt-3">Mesa indisponível</p>
+   124→   124→          <p className="text-sm text-muted-foreground mt-1">Não foi possível identificar o QR Code. Chame um funcionário.</p>
+   125→   125→          <Button className="mt-6" variant="outline" onClick={onExit}>Painel da equipe</Button>
+   126→   126→        </Card>
+   127→   127→      </div>
+   128→   128→    )
+   129→   129→  }
+   130→   130→
+   131→   131→  const cartCount = cart.reduce((a, c) => a + c.quantity, 0)
+   132→   132→  const cartSum = cart.reduce((a, c) => a + (productsMap.get(c.productId)?.price ?? 0) * c.quantity, 0)
+   133→   133→
+   134→   134→  return (
+   135→   135→    <div className="min-h-screen bg-background flex flex-col">
+   136→   136→      <header className="sticky top-0 z-20 apex-gradient text-white shadow-lg">
+   137→   137→        <div className="max-w-md mx-auto px-4 h-14 flex items-center gap-3">
+   138→   138→          <div className="h-8 w-8 rounded-lg bg-white/15 ring-1 ring-white/25 flex items-center justify-center">
+   139→   139→            <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-5 w-5 object-contain" />
+   140→   140→          </div>
+   141→   141→          <div className="flex-1 min-w-0">
+   142→   142→            <p className="text-sm font-bold leading-none">Mesa {String(data.table.number).padStart(2, '0')}</p>
+   143→   143→            <p className="text-[11px] text-white/75 mt-0.5">APEX FOOD</p>
+   144→   144→          </div>
+   145→   145→          {phase === 1 && cartCount > 0 && (
+   146→   146→            <Button size="sm" variant="ghost" className="text-white hover:bg-white/15 h-8" onClick={() => setPhase(2)}>
+   147→   147→              <ShoppingBag className="h-4 w-4 mr-1" /> {cartCount}
+   148→   148→            </Button>
+   149→   149→          )}
+   150→   150→        </div>
+   151→   151→        <div className="max-w-md mx-auto px-4 pb-2.5">
+   152→   152→          <div className="flex gap-1">
+   153→   153→            {STEPS.map((_, i) => (
+   154→   154→              <div key={i} className={cn('h-1.5 flex-1 rounded-full transition-colors duration-300', i <= displayPhase ? 'bg-white' : 'bg-white/25')} />
+   155→   155→            ))}
+   156→   156→          </div>
+   157→   157→          <div className="flex justify-between mt-1.5">
+   158→   158→            {STEPS.map((s, i) => (
+   159→   159→              <span key={s} className={cn('text-[9px] leading-none', i === displayPhase ? 'text-white font-semibold' : 'text-white/55')}>
+   160→   160→                {s}
+   161→   161→              </span>
+   162→   162→            ))}
+   163→   163→          </div>
+   164→   164→        </div>
+   165→   165→      </header>
+   166→   166→
+   167→   167→      <main className="flex-1 max-w-md w-full mx-auto p-4 pb-32">
+   168→   168→        {phase === 0 && (
+   169→   169→          <WelcomePhase tableNumber={data.table.number} hasOpen={!!data.order} onStart={() => (data.order ? setPhase(3) : setPhase(1))} />
+   170→   170→        )}
+   171→   171→        {phase === 1 && (
+   172→   172→          <MenuPhase
+   173→   173→            productsMap={productsMap}
+   174→   174→            menu={menu.data?.categories ?? []}
+   175→   175→            activeCat={activeCat}
+   176→   176→            setActiveCat={setActiveCat}
+   177→   177→            cart={cart}
+   178→   178→            onAdd={(line) => {
+   179→   179→              setCart((prev) => {
+   180→   180→                const existing = prev.find((c) => c.productId === line.productId)
+   181→   181→                if (existing) {
+   182→   182→                  return prev.map((c) => (c.productId === line.productId ? { ...line, quantity: c.quantity + line.quantity } : c))
+   183→   183→                }
+   184→   184→                return [...prev, line]
+   185→   185→              })
+   186→   186→            }}
+   187→   187→          />
+   188→   188→        )}
+   189→   189→        {phase === 2 && (
+   190→   190→          <ReviewPhase
+   191→   191→            cart={cart}
+   192→   192→            productsMap={productsMap}
+   193→   193→            onCartChange={setCart}
+   194→   194→            onBack={() => setPhase(1)}
+   195→   195→            onSent={() => {
+   196→   196→              setCart([])
+   197→   197→              setPhase(3)
+   198→   198→              void refetch()
+   199→   199→            }}
+   200→   200→            tableToken={token}
+   201→   201→          />
+   202→   202→        )}
+   203→   203→        {displayPhase === 3 && liveOrder && (
+   204→   204→          <TrackingPhase order={liveOrder} onFinish={() => finish.mutate()} finishing={finish.isPending} />
+   205→   205→        )}
+   206→   206→        {displayPhase === 4 && (
+   207→   207→          <ClosingPhase data={data} tick={tick} onNew={() => { void refetch(); setPhase(1) }} />
+   208→   208→        )}
+   209→   209→      </main>
+   210→   210→
+   211→   211→      {(phase === 1 || phase === 2) && (
+   212→   212→        <div className="fixed bottom-0 inset-x-0 border-t bg-background/92 backdrop-blur p-3 z-20">
+   213→   213→          <div className="max-w-md mx-auto flex items-center gap-2">
+   214→   214→            {phase === 2 && (
+   215→   215→              <Button variant="outline" onClick={() => setPhase(1)} className="h-11">
+   216→   216→                <ChevronLeft className="h-4 w-4" /> Cardápio
+   217→   217→              </Button>
+   218→   218→            )}
+   219→   219→            {phase === 1 && (
+   220→   220→              <Button
+   221→   221→                onClick={() => setPhase(2)}
+   222→   222→                disabled={cart.length === 0}
+   223→   223→                className="flex-1 h-11 apex-gradient text-white font-semibold"
+   224→   224→              >
+   225→   225→                <ClipboardList className="h-4 w-4" />
+   226→   226→                Revisar comanda
+   227→   227→                <span className="mx-1">·</span> {currency(cartSum)}
+   228→   228→                {cartCount > 0 && <Badge className="ml-1 bg-white/20 text-white hover:bg-white/20">{cartCount}</Badge>}
+   229→   229→              </Button>
+   230→   230→            )}
+   231→   231→          </div>
+   232→   232→        </div>
+   233→   233→      )}
+   234→   234→
+   235→   235→      <p className="pb-4 text-center text-[10px] text-muted-foreground">
+   236→   236→        <button className="underline" onClick={onExit}>Painel da equipe</button>
+   237→   237→      </p>
+   238→   238→    </div>
+   239→   239→  )
+   240→   240→}
+   241→   241→
+   242→   242→/* ==================== FASE 1 — Boas-vindas ==================== */
+   243→   243→function WelcomePhase({ tableNumber, hasOpen, onStart }: { tableNumber: number; hasOpen: boolean; onStart: () => void }) {
+   244→   244→  return (
+   245→   245→    <div className="apex-enter text-center pt-10">
+   246→   246→      <div className="mx-auto h-20 w-20 rounded-3xl apex-gradient apex-glow flex items-center justify-center">
+   247→   247→        <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-12 w-12 object-contain" />
+   248→   248→      </div>
+   249→   249→      <h2 className="text-2xl font-bold mt-6 tracking-tight">
+   250→   250→        Mesa {String(tableNumber).padStart(2, '0')} — Bem-vindo à APEX FOOD!
+   251→   251→      </h2>
+   252→   252→      <p className="text-sm text-muted-foreground mt-2 leading-relaxed px-4">
+   253→   253→        Explore o cardápio, monte sua comanda e acompanhe cada prato em tempo real, do preparo à entrega.
+   254→   254→      </p>
+   255→   255→      <div className="grid grid-cols-3 gap-2 mt-8 px-2">
+   256→   256→        {[
+   257→   257→          { icon: ShoppingBag, label: 'Peça pelo celular' },
+   258→   258→          { icon: ChefHat, label: 'Cozinha em foco' },
+   259→   259→          { icon: BellRing, label: 'Avisos na hora' },
+   260→   260→        ].map((f) => (
+   261→   261→          <div key={f.label} className="rounded-xl border bg-card p-3">
+   262→   262→            <f.icon className="h-5 w-5 mx-auto text-primary" />
+   263→   263→            <p className="text-[11px] mt-1.5 text-muted-foreground leading-tight">{f.label}</p>
+   264→   264→          </div>
+   265→   265→        ))}
+   266→   266→      </div>
+   267→   267→      <Button onClick={onStart} className="mt-8 h-12 px-8 text-base apex-gradient text-white font-semibold apex-glow">
+   268→   268→        {hasOpen ? 'Ver minha comanda' : 'Iniciar comanda'} <ArrowRight className="h-4 w-4" />
+   269→   269→      </Button>
+   270→   270→    </div>
+   271→   271→  )
+   272→   272→}
+   273→   273→
+   274→   274→/* ==================== FASE 2 — Cardápio ==================== */
+   275→   275→function MenuPhase({
+   276→   276→  menu, activeCat, setActiveCat, cart, onAdd, productsMap,
+   277→   277→}: {
+   278→   278→  menu: Array<Category & { products: Product[] }>
+   279→   279→  activeCat: string | null
+   280→   280→  setActiveCat: (c: string | null) => void
+   281→   281→  cart: CartLine[]
+   282→   282→  onAdd: (line: CartLine) => void
+   283→   283→  productsMap: Map<string, Product>
+   284→   284→}) {
+   285→   285→  const current = useMemo(() => menu.find((c) => c.id === activeCat) ?? menu[0], [menu, activeCat])
+   286→   286→
+   287→   287→  if (menu.length === 0) {
+   288→   288→    return <div className="text-center text-muted-foreground text-sm py-16">Cardápio em atualização…</div>
+   289→   289→  }
+   290→   290→
+   291→   291→  const countInCart = (id: string) => cart.find((c) => c.productId === id)?.quantity ?? 0
+   292→   292→
+   293→   293→  return (
+   294→   294→    <div className="apex-enter">
+   295→   295→      <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
+   296→   296→        {menu.map((c) => (
+   297→   297→          <button
+   298→   298→            key={c.id}
+   299→   299→            onClick={() => setActiveCat(c.id)}
+   300→   300→            className={cn(
+   301→   301→              'shrink-0 rounded-full border px-3.5 py-2 text-xs font-medium transition-all flex items-center gap-1.5',
+   302→   302→              current?.id === c.id
+   303→   303→                ? 'border-primary/50 bg-primary/10 text-primary'
+   304→   304→                : 'bg-card text-muted-foreground hover:text-foreground'
+   305→   305→            )}
+   306→   306→          >
+   307→   307→            <span>{c.icon}</span> {c.name}
+   308→   308→          </button>
+   309→   309→        ))}
+   310→   310→      </div>
+   311→   311→
+   312→   312→      <div className="mt-4 space-y-3">
+   313→   313→        {current?.products.map((p) => (
+   314→   314→          <ProductCard key={p.id} product={p} inCart={countInCart(p.id)} onAdd={onAdd} />
+   315→   315→        ))}
+   316→   316→        {current?.products.length === 0 && (
+   317→   317→          <p className="text-center text-sm text-muted-foreground py-10">Sem itens disponíveis nesta categoria.</p>
+   318→   318→        )}
+   319→   319→      </div>
+   320→   320→
+   321→   321→      <div className="text-center text-[10px] text-muted-foreground mt-6">
+   322→   322→        {productsMap.size} itens no cardápio · preços em reais
+   323→   323→      </div>
+   324→   324→    </div>
+   325→   325→  )
+   326→   326→}
+   327→   327→
+   328→   328→function ProductCard({ product, inCart, onAdd }: { product: Product; inCart: number; onAdd: (line: CartLine) => void }) {
+   329→   329→  const [open, setOpen] = useState(false)
+   330→   330→  const [qty, setQty] = useState(1)
+   331→   331→  const [notes, setNotes] = useState('')
+   332→   332→
+   333→   333→  const confirmAdd = () => {
+   334→   334→    playSound('click')
+   335→   335→    onAdd({ productId: product.id, quantity: qty, notes: notes.trim() })
+   336→   336→    toast.success(`${product.name} adicionado à comanda`)
+   337→   337→    setOpen(false)
+   338→   338→  }
+   339→   339→
+   340→   340→  return (
+   341→   341→    <Card className="overflow-hidden transition-shadow hover:shadow-md">
+   342→   342→      <CardContent className="p-0 flex">
+   343→   343→        {product.image ? (
+   344→   344→          <img src={product.image} alt={product.name} className="h-24 w-24 object-cover shrink-0" />
+   345→   345→        ) : (
+   346→   346→          <div className="h-24 w-24 shrink-0 apex-gradient-soft flex items-center justify-center border-r">
+   347→   347→            <span className="text-4xl" aria-hidden>{product.emoji}</span>
+   348→   348→          </div>
+   349→   349→        )}
+   350→   350→        <div className="flex-1 min-w-0 p-3">
+   351→   351→          <div className="flex items-start justify-between gap-2">
+   352→   352→            <p className="font-semibold text-sm leading-tight">{product.name}</p>
+   353→   353→            <Badge variant="outline" className="shrink-0 text-[10px] gap-1">
+   354→   354→              <Clock className="h-3 w-3" /> {product.prepTime}min
+   355→   355→            </Badge>
+   356→   356→          </div>
+   357→   357→          <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-snug">{product.description}</p>
+   358→   358→          <div className="flex items-center justify-between mt-2.5">
+   359→   359→            <p className="font-bold text-primary">{currency(product.price)}</p>
+   360→   360→            {inCart > 0 ? (
+   361→   361→              <Badge className="apex-gradient text-white border-0 gap-1">
+   362→   362→                <CheckCircle2 className="h-3 w-3" /> {inCart} na comanda
+   363→   363→              </Badge>
+   364→   364→            ) : (
+   365→   365→              <Button size="sm" className="h-8 apex-gradient text-white" onClick={() => { setQty(1); setNotes(''); setOpen(true) }}>
+   366→   366→                <Plus className="h-3.5 w-3.5" /> Adicionar
+   367→   367→              </Button>
+   368→   368→            )}
+   369→   369→          </div>
+   370→   370→        </div>
+   371→   371→      </CardContent>
+   372→   372→
+   373→   373→      <Dialog open={open} onOpenChange={setOpen}>
+   374→   374→        <DialogContent className="max-w-[340px]">
+   375→   375→          <DialogHeader>
+   376→   376→            <DialogTitle className="flex items-center gap-2 text-base">
+   377→   377→              <span className="text-xl">{product.emoji}</span> {product.name}
+   378→   378→            </DialogTitle>
+   379→   379→          </DialogHeader>
+   380→   380→          <p className="text-xs text-muted-foreground">{product.description}</p>
+   381→   381→          <div className="flex items-center gap-3">
+   382→   382→            <span className="text-sm">Qtd.</span>
+   383→   383→            <div className="flex items-center gap-2">
+   384→   384→              <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Menos">
+   385→   385→                <Minus className="h-3.5 w-3.5" />
+   386→   386→              </Button>
+   387→   387→              <span className="w-6 text-center font-bold">{qty}</span>
+   388→   388→              <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setQty((q) => Math.min(20, q + 1))} aria-label="Mais">
+   389→   389→                <Plus className="h-3.5 w-3.5" />
+   390→   390→              </Button>
+   391→   391→            </div>
+   392→   392→            <p className="ml-auto font-bold text-primary">{currency(product.price * qty)}</p>
+   393→   393→          </div>
+   394→   394→          <Textarea
+   395→   395→            placeholder="Observações (ex: sem cebola, ponto da carne…)"
+   396→   396→            value={notes}
+   397→   397→            onChange={(e) => setNotes(e.target.value)}
+   398→   398→            className="min-h-[70px] text-sm"
+   399→   399→          />
+   400→   400→          <DialogFooter>
+   401→   401→            <Button className="w-full apex-gradient text-white font-semibold" onClick={confirmAdd}>
+   402→   402→              <Plus className="h-4 w-4" /> Adicionar {qty} à comanda
+   403→   403→            </Button>
+   404→   404→          </DialogFooter>
+   405→   405→        </DialogContent>
+   406→   406→      </Dialog>
+   407→   407→    </Card>
+   408→   408→  )
+   409→   409→}
+   410→   410→
+   411→   411→/* ==================== FASE 3 — Revisão ==================== */
+   412→   412→function ReviewPhase({
+   413→   413→  cart, productsMap, onCartChange, onBack, onSent, tableToken,
+   414→   414→}: {
+   415→   415→  cart: CartLine[]
+   416→   416→  productsMap: Map<string, Product>
+   417→   417→  onCartChange: (c: CartLine[]) => void
+   418→   418→  onBack: () => void
+   419→   419→  onSent: () => void
+   420→   420→  tableToken: string
+   421→   421→}) {
+   422→   422→  const [editing, setEditing] = useState<CartLine | null>(null)
+   423→   423→  const [editQty, setEditQty] = useState(1)
+   424→   424→  const [editNotes, setEditNotes] = useState('')
+   425→   425→
+   426→   426→  const subtotal = cart.reduce((a, c) => a + (productsMap.get(c.productId)?.price ?? 0) * c.quantity, 0)
+   427→   427→  const estMinutes = Math.max(...cart.map((c) => productsMap.get(c.productId)?.prepTime ?? 15), 0)
+   428→   428→  const itemCount = cart.reduce((a, c) => a + c.quantity, 0)
+   429→   429→
+   430→   430→  const send = useMutation({
+   431→   431→    mutationFn: () =>
+   432→   432→      apiPost<{ order: ClientOrder }>('/api/orders', {
+   433→   433→        tableToken,
+   434→   434→        items: cart.map((c) => ({ productId: c.productId, quantity: c.quantity, notes: c.notes })),
+   435→   435→      }),
+   436→   436→    onSuccess: () => {
+   437→   437→      playSound('success')
+   438→   438→      toast.success('Comanda enviada ao garçom!')
+   439→   439→      onCartChange([])
+   440→   440→      onSent()
+   441→   441→    },
+   442→   442→    onError: (e: Error) => toast.error(e.message),
+   443→   443→  })
+   444→   444→
+   445→   445→  const changeQty = (productId: string, delta: number) => {
+   446→   446→    playSound('click')
+   447→   447→    onCartChange(
+   448→   448→      cart
+   449→   449→        .map((c) => (c.productId === productId ? { ...c, quantity: c.quantity + delta } : c))
+   450→   450→        .filter((c) => c.quantity > 0)
+   451→   451→    )
+   452→   452→  }
+   453→   453→
+   454→   454→  if (cart.length === 0) {
+   455→   455→    return (
+   456→   456→      <div className="text-center py-16 apex-enter">
+   457→   457→        <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/40" />
+   458→   458→        <p className="font-semibold mt-4">Comanda vazia</p>
+   459→   459→        <p className="text-sm text-muted-foreground mt-1">Adicione itens pelo cardápio.</p>
+   460→   460→        <Button onClick={onBack} className="mt-6 apex-gradient text-white">Ir ao cardápio</Button>
+   461→   461→      </div>
+   462→   462→    )
+   463→   463→  }
+   464→   464→
+   465→   465→  return (
+   466→   466→    <div className="apex-enter space-y-3">
+   467→   467→      <div className="flex items-center justify-between">
+   468→   468→        <h2 className="font-bold tracking-tight">Revise sua comanda</h2>
+   469→   469→        <Badge variant="outline">{itemCount} item(ns)</Badge>
+   470→   470→      </div>
+   471→   471→
+   472→   472→      {cart.map((line) => {
+   473→   473→        const p = productsMap.get(line.productId)
+   474→   474→        if (!p) return null
+   475→   475→        return (
+   476→   476→          <Card key={line.productId}>
+   477→   477→            <CardContent className="p-3 flex gap-3 items-start">
+   478→   478→              <div className="h-14 w-14 rounded-lg apex-gradient-soft flex items-center justify-center shrink-0 text-2xl">
+   479→   479→                {p.emoji}
+   480→   480→              </div>
+   481→   481→              <div className="flex-1 min-w-0">
+   482→   482→                <p className="text-sm font-semibold leading-tight">{p.name}</p>
+   483→   483→                <p className="text-xs text-muted-foreground mt-0.5">
+   484→   484→                  {currency(p.price)} × {line.quantity}
+   485→   485→                </p>
+   486→   486→                {line.notes && (
+   487→   487→                  <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 flex items-start gap-1">
+   488→   488→                    <PencilLine className="h-3 w-3 mt-0.5 shrink-0" /> {line.notes}
+   489→   489→                  </p>
+   490→   490→                )}
+   491→   491→              </div>
+   492→   492→              <div className="flex flex-col items-end gap-1.5">
+   493→   493→                <p className="text-sm font-bold">{currency(p.price * line.quantity)}</p>
+   494→   494→                <div className="flex items-center gap-1.5">
+   495→   495→                  <Button size="icon" variant="outline" className="h-6.5 w-6.5" style={{ width: 26, height: 26 }} onClick={() => changeQty(line.productId, -1)} aria-label="Diminuir">
+   496→   496→                    <Minus className="h-3 w-3" />
+   497→   497→                  </Button>
+   498→   498→                  <Button size="icon" variant="outline" style={{ width: 26, height: 26 }} className="h-6.5 w-6.5" onClick={() => changeQty(line.productId, 1)} aria-label="Aumentar">
+   499→   499→                    <Plus className="h-3 w-3" />
+   500→   500→                  </Button>
+   501→   501→                </div>
+   502→   502→                <button
+   503→   503→                  className="text-[10px] text-muted-foreground underline"
+   504→   504→                  onClick={() => { setEditing(line); setEditQty(line.quantity); setEditNotes(line.notes) }}
+   505→   505→                >
+   506→   506→                  editar obs.
+   507→   507→                </button>
+   508→   508→              </div>
+   509→   509→            </CardContent>
+   510→   510→          </Card>
+   511→   511→        )
+   512→   512→      })}
+   513→   513→
+   514→   514→      <Card className="border-primary/30">
+   515→   515→        <CardContent className="p-4 space-y-2.5">
+   516→   516→          <div className="flex justify-between text-sm">
+   517→   517→            <span className="text-muted-foreground">Subtotal</span>
+   518→   518→            <span className="font-bold">{currency(subtotal)}</span>
+   519→   519→          </div>
+   520→   520→          <div className="flex justify-between text-sm">
+   521→   521→            <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Tempo estimado de preparo</span>
+   522→   522→            <span className="font-medium">{estMinutes} min</span>
+   523→   523→          </div>
+   524→   524→          <Separator />
+   525→   525→          <p className="text-[11px] text-muted-foreground">
+   526→   526→            Ao enviar, a comanda será direcionada automaticamente ao garçom disponível e confirmada para a cozinha.
+   527→   527→          </p>
+   528→   528→        </CardContent>
+   529→   529→      </Card>
+   530→   530→
+   531→   531→      <Button
+   532→   532→        onClick={() => send.mutate()}
+   533→   533→        disabled={send.isPending}
+   534→   534→        className="w-full h-12 text-base apex-gradient text-white font-semibold apex-glow"
+   535→   535→      >
+   536→   536→        {send.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+   537→   537→        Enviar comanda para o garçom
+   538→   538→      </Button>
+   539→   539→
+   540→   540→      {/* Editar observação */}
+   541→   541→      <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
+   542→   542→        <DialogContent className="max-w-[320px]">
+   543→   543→          <DialogHeader>
+   544→   544→            <DialogTitle className="text-base">Observações do item</DialogTitle>
+   545→   545→          </DialogHeader>
+   546→   546→          <div className="flex items-center gap-3">
+   547→   547→            <span className="text-sm">Qtd.</span>
+   548→   548→            <Input
+   549→   549→              value={editQty}
+   550→   550→              type="number"
+   551→   551→              min={1}
+   552→   552→              max={20}
+   553→   553→              onChange={(e) => setEditQty(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+   554→   554→              className="w-20"
+   555→   555→              aria-label="Quantidade"
+   556→   556→            />
+   557→   557→          </div>
+   558→   558→          <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Ex: sem cebola" className="min-h-[70px] text-sm" />
+   559→   559→          <DialogFooter>
+   560→   560→            <Button
+   561→   561→              className="w-full"
+   562→   562→              onClick={() => {
+   563→   563→                if (!editing) return
+   564→   564→                onCartChange(
+   565→   565→                  cart.map((c) =>
+   566→   566→                    c.productId === editing.productId ? { ...c, quantity: editQty, notes: editNotes.trim() } : c
+   567→   567→                  )
+   568→   568→                )
+   569→   569→                setEditing(null)
+   570→   570→              }}
+   571→   571→            >
+   572→   572→              Salvar
+   573→   573→            </Button>
+   574→   574→          </DialogFooter>
+   575→   575→        </DialogContent>
+   576→   576→      </Dialog>
+   577→   577→    </div>
+   578→   578→  )
+   579→   579→}
+   580→   580→
+   581→   581→/* ==================== FASE 4 — Acompanhamento ==================== */
+   582→   582→const STATUS_STEPS = [
+   583→   583→  { key: 'PENDING_CONFIRM', label: 'Comanda enviada', icon: ClipboardList },
+   584→   584→  { key: 'IN_KITCHEN', label: 'Na cozinha', icon: ChefHat },
+   585→   585→  { key: 'READY', label: 'Pronto', icon: BellRing },
+   586→   586→  { key: 'SERVED', label: 'Servido', icon: CheckCheck },
+   587→   587→]
+   588→   588→
+   589→   589→function itemProgress(status: string): number {
+   590→   590→  const idx = ITEM_FLOW.indexOf(status)
+   591→   591→  return ((idx + 1) / ITEM_FLOW.length) * 100
+   592→   592→}
+   593→   593→
+   594→   594→function TrackingPhase({ order, onFinish, finishing }: { order: ClientOrder; onFinish: () => void; finishing: boolean }) {
+   595→   595→  const [now, setNow] = useState(Date.now())
+   596→   596→
+   597→   597→  useEffect(() => {
+   598→   598→    const t = setInterval(() => setNow(Date.now()), 1000)
+   599→   599→    return () => clearInterval(t)
+   600→   600→  }, [])
+   601→   601→
+   602→   602→  const elapsedMin = Math.floor((now - new Date(order.createdAt).getTime()) / 60000)
+   603→   603→  const servedCount = order.items.filter((i) => i.status === 'SERVED').length
+   604→   604→  const readyCount = order.items.filter((i) => i.status === 'READY').length
+   605→   605→  const allServed = servedCount === order.items.length
+   606→   606→
+   607→   607→  return (
+   608→   608→    <div className="apex-enter space-y-4">
+   609→   609→      <Card className="border-primary/30 apex-gradient-soft">
+   610→   610→        <CardContent className="p-4">
+   611→   611→          <div className="flex items-center justify-between">
+   612→   612→            <div>
+   613→   613→              <p className="text-xs text-muted-foreground">Comanda {order.code}</p>
+   614→   614→              <p className="font-bold text-lg">Garçom: {order.waiterName ?? 'Atribuindo…'}</p>
+   615→   615→            </div>
+   616→   616→            <div className="text-right">
+   617→   617→              <p className="text-xs text-muted-foreground">Tempo total</p>
+   618→   618→              <p className="font-bold text-lg text-primary">{elapsedMin} min</p>
+   619→   619→            </div>
+   620→   620→          </div>
+   621→   621→          <div className="mt-3 flex gap-1">
+   622→   622→            {order.items.map((i) => (
+   623→   623→              <div key={i.id} className="flex-1 flex gap-1">
+   624→   624→                {Array.from({ length: i.quantity }).map((_, q) => (
+   625→   625→                  <div key={q} className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+   626→   626→                    <div
+   627→   627→                      className={cn('h-full rounded-full transition-all duration-500', {
+   628→   628→                        'bg-zinc-400 dark:bg-zinc-600': i.status === 'PENDING',
+   629→   629→                        'bg-amber-500': i.status === 'IN_PREPARATION',
+   630→   630→                        'bg-emerald-500': i.status === 'READY' || i.status === 'SERVED',
+   631→   631→                      })}
+   632→   632→                      style={{ width: i.status === 'PENDING' ? '25%' : i.status === 'IN_PREPARATION' ? '60%' : '100%' }}
+   633→   633→                    />
+   634→   634→                  </div>
+   635→   635→                ))}
+   636→   636→              </div>
+   637→   637→            ))}
+   638→   638→          </div>
+   639→   639→          <p className="text-[11px] text-muted-foreground mt-2">
+   640→   640→            {readyCount > 0 && !allServed
+   641→   641→              ? `${readyCount} prato(s) pronto(s) — o garçom já foi avisado!`
+   642→   642→              : allServed
+   643→   643→                ? 'Tudo servido. Bom apetite!'
+   644→   644→                : 'Seus pratos estão em andamento na cozinha.'}
+   645→   645→          </p>
+   646→   646→        </CardContent>
+   647→   647→      </Card>
+   648→   648→
+   649→   649→      {order.items.map((item) => {
+   650→   650→        const stepIdx = item.status === 'PENDING' ? 0 : item.status === 'IN_PREPARATION' ? 1 : item.status === 'READY' ? 2 : 3
+   651→   651→        const started = item.startedAt ? new Date(item.startedAt).getTime() : null
+   652→   652→        const elapsedSec = started ? Math.floor((now - started) / 1000) : 0
+   653→   653→        const remaining = Math.max(0, item.prepTime * 60 - elapsedSec)
+   654→   654→        const overdue = item.status === 'IN_PREPARATION' && remaining === 0
+   655→   655→        const pct = itemProgress(item.status)
+   656→   656→
+   657→   657→        return (
+   658→   658→          <Card key={item.id} className={cn(overdue && 'border-red-500/50')}>
+   659→   659→            <CardContent className="p-4 space-y-3">
+   660→   660→              <div className="flex items-start justify-between gap-2">
+   661→   661→                <div className="flex items-center gap-3">
+   662→   662→                  <span className="text-2xl">{item.emoji}</span>
+   663→   663→                  <div>
+   664→   664→                    <p className="text-sm font-semibold leading-tight">
+   665→   665→                      {item.quantity}× {item.productName}
+   666→   666→                    </p>
+   667→   667→                    {item.notes && <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">“{item.notes}”</p>}
+   668→   668→                  </div>
+   669→   669→                </div>
+   670→   670→                <Badge
+   671→   671→                  variant="outline"
+   672→   672→                  className={cn('text-[11px]', {
+   673→   673→                    'border-zinc-400/50 text-muted-foreground': item.status === 'PENDING',
+   674→   674→                    'border-amber-500/50 text-amber-600 dark:text-amber-400': item.status === 'IN_PREPARATION',
+   675→   675→                    'border-emerald-500/50 text-emerald-600 dark:text-emerald-400': item.status === 'READY',
+   676→   676→                    'border-primary/50 text-primary': item.status === 'SERVED',
+   677→   677→                  })}
+   678→   678→                >
+   679→   679→                  {ITEM_STATUS_LABELS[item.status]}
+   680→   680→                </Badge>
+   681→   681→              </div>
+   682→   682→
+   683→   683→              {/* Fluxo de status */}
+   684→   684→              <div className="flex items-center justify-between px-0.5">
+   685→   685→                {STATUS_STEPS.map((s, i) => {
+   686→   686→                  const Icon = s.icon
+   687→   687→                  const done = i <= stepIdx
+   688→   688→                  return (
+   689→   689→                    <div key={s.key} className="flex flex-col items-center gap-1 flex-1">
+   690→   690→                      <div className="flex items-center w-full">
+   691→   691→                        <div className={cn('h-0.5 flex-1', i === 0 ? 'opacity-0' : done ? 'bg-primary' : 'bg-border')} />
+   692→   692→                        <Icon className={cn('h-4 w-4 shrink-0 transition-colors', done ? 'text-primary' : 'text-muted-foreground/40')} />
+   693→   693→                        <div className={cn('h-0.5 flex-1', i === STATUS_STEPS.length - 1 ? 'opacity-0' : i < stepIdx ? 'bg-primary' : 'bg-border')} />
+   694→   694→                      </div>
+   695→   695→                      <span className={cn('text-[9px] leading-none text-center', done ? 'text-foreground font-medium' : 'text-muted-foreground/50')}>
+   696→   696→                        {s.label}
+   697→   697→                      </span>
+   698→   698→                    </div>
+   699→   699→                  )
+   700→   700→                })}
+   701→   701→              </div>
+   702→   702→
+   703→   703→              <div className="flex items-center gap-3">
+   704→   704→                <Progress value={pct} className="h-1.5" />
+   705→   705→                {item.status === 'PENDING' && (
+   706→   706→                  <span className="text-[11px] text-muted-foreground shrink-0">aguardando cozinha</span>
+   707→   707→                )}
+   708→   708→                {item.status === 'IN_PREPARATION' && (
+   709→   709→                  <span className={cn('text-[11px] shrink-0 font-mono tabular-nums', overdue ? 'text-red-500 font-bold' : 'text-amber-600 dark:text-amber-400 font-medium')}>
+   710→   710→                    {overdue ? 'no ponto!' : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`}
+   711→   711→                  </span>
+   712→   712→                )}
+   713→   713→                {(item.status === 'READY' || item.status === 'SERVED') && (
+   714→   714→                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 shrink-0 font-medium">concluído</span>
+   715→   715→                )}
+   716→   716→              </div>
+   717→   717→            </CardContent>
+   718→   718→          </Card>
+   719→   719→        )
+   720→   720→      })}
+   721→   721→
+   722→   722→      <Card>
+   723→   723→        <CardContent className="p-4">
+   724→   724→          <div className="flex items-center justify-between text-sm">
+   725→   725→            <span className="text-muted-foreground">Consumo até agora</span>
+   726→   726→            <span className="font-bold text-primary">{currency(order.total)}</span>
+   727→   727→          </div>
+   728→   728→        </CardContent>
+   729→   729→      </Card>
+   730→   730→
+   731→   731→      <Button
+   732→   732→        onClick={onFinish}
+   733→   733→        disabled={finishing}
+   734→   734→        className="w-full h-12 text-base apex-gradient text-white font-semibold"
+   735→   735→      >
+   736→   736→        {finishing ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
+   737→   737→        Concluir consumo — enviar ao caixa
+   738→   738→      </Button>
+   739→   739→      <p className="text-center text-[11px] text-muted-foreground">
+   740→   740→        A comanda será finalizada e encaminhada ao caixa para pagamento.
+   741→   741→      </p>
+   742→   742→    </div>
+   743→   743→  )
+   744→   744→}
+   745→   745→
+   746→   746→/* ==================== FASE 5 — Encerramento ==================== */
+   747→   747→function ClosingPhase({ data, tick, onNew }: { data: ClientData; tick: number; onNew: () => void }) {
+   748→   748→  const paid = !data.order && data.lastPaid
+   749→   749→  const order = data.order ?? data.lastPaid
+   750→   750→
+   751→   751→  return (
+   752→   752→    <div className="apex-enter text-center pt-6">
+   753→   753→      {paid ? (
+   754→   754→        <>
+   755→   755→          <div className="mx-auto h-20 w-20 rounded-3xl bg-emerald-500/15 flex items-center justify-center">
+   756→   756→            <PartyPopper className="h-10 w-10 text-emerald-500" />
+   757→   757→          </div>
+   758→   758→          <h2 className="text-2xl font-bold mt-5 tracking-tight">Pagamento confirmado!</h2>
+   759→   759→          <p className="text-sm text-muted-foreground mt-2">Obrigado pela visita — esperamos vê-lo novamente em breve.</p>
+   760→   760→        </>
+   761→   761→      ) : (
+   762→   762→        <>
+   763→   763→          <div className="mx-auto h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center">
+   764→   764→            <CreditCard className="h-10 w-10 text-primary" />
+   765→   765→          </div>
+   766→   766→          <h2 className="text-2xl font-bold mt-5 tracking-tight">Comanda encaminhada ao caixa</h2>
+   767→   767→          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+   768→   768→            Quando o pagamento for confirmado, esta tela mostrará o recibo final. Obrigado!
+   769→   769→          </p>
+   770→   770→        </>
+   771→   771→      )}
+   772→   772→
+   773→   773→      {order && (
+   774→   774→        <Card className="mt-6 text-left">
+   775→   775→          <CardContent className="p-4">
+   776→   776→            <div className="flex items-center justify-between">
+   777→   777→              <p className="text-xs text-muted-foreground">Resumo final · Comanda {order.code}</p>
+   778→   778→              {tick > 0 && <span className="text-[10px] text-emerald-500 flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 apex-live-dot" /> atualizando</span>}
+   779→   779→            </div>
+   780→   780→            <div className="mt-3 space-y-2">
+   781→   781→              {order.items.map((i) => (
+   782→   782→                <div key={i.id} className="flex items-center gap-2 text-sm">
+   783→   783→                  <span>{i.emoji}</span>
+   784→   784→                  <span className="flex-1 truncate">{i.quantity}× {i.productName}</span>
+   785→   785→                  <span className="font-medium">{currency(i.unitPrice * i.quantity)}</span>
+   786→   786→                </div>
+   787→   787→              ))}
+   788→   788→            </div>
+   789→   789→            <Separator className="my-3" />
+   790→   790→            <div className="flex items-center justify-between">
+   791→   791→              <span className="text-sm font-semibold">Total</span>
+   792→   792→              <span className="font-bold text-primary">{currency(order.total)}</span>
+   793→   793→            </div>
+   794→   794→          </CardContent>
+   795→   795→        </Card>
+   796→   796→      )}
+   797→   797→
+   798→   798→      {!paid && (
+   799→   799→        <div className="flex items-center justify-center gap-2 mt-6 text-xs text-muted-foreground">
+   800→   800→          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+   801→   801→          Aguardando confirmação do pagamento pelo caixa…
+   802→   802→        </div>
+   803→   803→      )}
+   804→   804→      {paid && (
+   805→   805→        <Button onClick={onNew} className="mt-6 apex-gradient text-white font-semibold">
+   806→   806→          Nova comanda <ArrowRight className="h-4 w-4" />
+   807→   807→        </Button>
+   808→   808→      )}
+   809→   809→    </div>
+   810→   810→  )
+   811→   811→}
+   812→   812→
