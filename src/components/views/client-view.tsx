@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import {
   Minus, Plus, ChevronLeft, ClipboardList, Send, CheckCircle2,
   Clock, ChefHat, BellRing, CheckCheck, CreditCard, PartyPopper, Loader2,
-  ArrowRight, ShoppingBag, PencilLine, Check,
+  ArrowRight, ShoppingBag, PencilLine, Check, Download,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,12 @@ import { api, apiPost } from '@/lib/fetcher'
 import { currency, ITEM_STATUS_LABELS } from '@/lib/types'
 import { getSharedSocket } from '@/lib/socket-client'
 import { playSound } from '@/lib/sound'
+import { setupClientPwa, isStandalone } from '@/lib/pwa-client'
+
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
 
 type Product = {
   id: string; name: string; description: string; emoji: string; image: string | null
@@ -79,6 +85,7 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
   const [cart, setCart] = useState<CartLine[]>([])
   const [activeCat, setActiveCat] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
+  const [installEvt, setInstallEvt] = useState<InstallPromptEvent | null>(null)
 
   // Tela do cliente sempre em tema escuro (igual à autenticação), independentemente do tema do app
   useEffect(() => {
@@ -89,6 +96,28 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
       if (!wasDark) root.classList.remove('dark')
     }
   }, [])
+
+  // PWA da mesa: manifest por mesa + metas de instalação + service worker — apenas no modo cliente.
+  // Em navegadores sem beforeinstallprompt (ex.: iOS), o cliente usa "Adicionar à Tela de Início".
+  useEffect(() => {
+    const cleanupPwa = setupClientPwa(token)
+    if (isStandalone()) return cleanupPwa
+    const onPrompt = (e: Event) => {
+      e.preventDefault()
+      setInstallEvt(e as InstallPromptEvent)
+    }
+    const onInstalled = () => {
+      setInstallEvt(null)
+      toast.success('APEX FOOD instalado no seu celular!')
+    }
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    window.addEventListener('appinstalled', onInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt)
+      window.removeEventListener('appinstalled', onInstalled)
+      cleanupPwa()
+    }
+  }, [token])
 
   const menu = useQuery<MenuResponse>({ queryKey: ['client-menu', token], queryFn: () => api<MenuResponse>(`/api/client/${token}/menu`) })
   const { data, isLoading, refetch, isError } = useQuery<ClientData>({
@@ -172,7 +201,16 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
       <main className="flex-1 max-w-md w-full mx-auto p-4 pb-32">
         <PhaseRail phase={displayPhase} tableNumber={data.table.number} />
         {phase === 0 && (
-          <WelcomePhase tableNumber={data.table.number} hasOpen={!!data.order} onStart={() => (data.order ? setPhase(3) : setPhase(1))} />
+          <WelcomePhase
+            tableNumber={data.table.number}
+            hasOpen={!!data.order}
+            onStart={() => (data.order ? setPhase(3) : setPhase(1))}
+            installAvailable={!!installEvt}
+            onInstall={() => {
+              void installEvt?.prompt()
+              setInstallEvt(null)
+            }}
+          />
         )}
         {phase === 1 && (
           <MenuPhase
@@ -271,7 +309,15 @@ function PhaseRail({ phase, tableNumber }: { phase: number; tableNumber: number 
 }
 
 /* ==================== FASE 1 — Boas-vindas ==================== */
-function WelcomePhase({ tableNumber, hasOpen, onStart }: { tableNumber: number; hasOpen: boolean; onStart: () => void }) {
+function WelcomePhase({
+  tableNumber, hasOpen, onStart, installAvailable, onInstall,
+}: {
+  tableNumber: number
+  hasOpen: boolean
+  onStart: () => void
+  installAvailable: boolean
+  onInstall: () => void
+}) {
   return (
     <div className="apex-enter text-center pt-2">
       <div className="flex flex-col items-center">
@@ -301,6 +347,18 @@ function WelcomePhase({ tableNumber, hasOpen, onStart }: { tableNumber: number; 
       <Button onClick={onStart} className="mt-8 h-12 px-8 text-base apex-gradient text-white font-semibold apex-glow">
         {hasOpen ? 'Ver minha comanda' : 'Iniciar comanda'} <ArrowRight className="h-4 w-4" />
       </Button>
+      {installAvailable && (
+        <div>
+          <Button
+            variant="outline"
+            onClick={onInstall}
+            className="mt-3 h-11 px-6 border-white/15 bg-white/[0.04] text-zinc-200 hover:bg-white/[0.08] hover:text-white"
+          >
+            <Download className="h-4 w-4" /> Instalar aplicativo
+          </Button>
+          <p className="text-[11px] text-zinc-500 mt-2">Acesso rápido ao cardápio da mesa pela tela inicial do celular</p>
+        </div>
+      )}
     </div>
   )
 }

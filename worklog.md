@@ -248,3 +248,23 @@ Work Log:
 Stage Summary:
 - O app agora orienta o usuário final quando uma extensão de tradução interferir na página (uma vez por sessão); o erro em si permanece externo ao app (extensão no navegador do usuário, recoverable pelo React, invisível em produção)
 - Screenshots: shot-89
+
+---
+Task ID: 16
+Agent: Super Z (main)
+Task: PWA apenas na tela do cliente (mesa/QR) + perfis garçom/cozinha/caixa sem sidebar (só header+body) com marca no header; admin/gerente inalterados
+
+Work Log:
+- Layout (app-shell.tsx): isCompact = WAITER|KITCHEN|CASHIER → aside desktop + Sheet mobile removidos; header ganha marca no canto esquerdo (logo h-11 invert dark:invert-0 + "APEX FOOD" com FOOD laranja + "Operação premium", mesmo padrão do sidebar) e controles que ficavam no sidebar movidos para o header (som, tema, avatar com iniciais + nome em xl + Sair); admin/gerente seguem com sidebar/drawer como estavam
+- PWA do cliente: ícones gerados de public/apex-logo.png via scripts/make-pwa-icons.py (icon-192/512 any + maskable na zona segura + apple-touch-icon 180, fundo #0E0E10) em public/icons/
+- Manifest dinâmico por mesa: /api/client-manifest?token= (route.ts novo) — nome "APEX FOOD — Mesa NN" consultando db.restaurantTable por qrToken, start_url "/#m/{token}" (ícone instalado abre a comanda da mesa), display standalone, portrait, cores da marca, 4 ícones
+- public/sw-client.js: navegação network-first com fallback cache, estáticos cache-first, APIs GET network-first com cache (cardápio offline)
+- src/lib/pwa-client.ts: setupClientPwa(token) injeta manifest link, theme-color #0A0A0C, metas iOS (capable/status-bar/title) e apple-touch-icon marcados com data-apex-client-pwa + registra o SW; cleanup restaura/remove tudo e desregistra o SW ao sair do modo cliente; isStandalone() para display-mode
+- client-view.tsx: efeito PWA por token + captura beforeinstallprompt/appinstalled; WelcomePhase ganha botão "Instalar aplicativo" (aparece quando o navegador oferece instalação) com dica de acesso rápido
+- Verificações E2E: garçom/cozinha/caixa — aside=false, marca+controles no header (shot-90); admin e gerente — aside=true com marca só no sidebar, header intacto (shot-91); cliente mesa 2 (390px) — manifest/metas/iOS no DOM (shot-92), SW registrado scope /, manifest API retornando "APEX FOOD — Mesa 02" com start_url /#m/{token}; ao limpar o hash: manifest e metas removidos, SW desregistrado (0 regs); botão "Instalar aplicativo" renderizou de fato (beforeinstallprompt disparado no headless); realtime-service ok (handshake 200)
+- Lint completo src 0/0; home 200
+
+Stage Summary:
+- Cliente da mesa agora é PWA instalável (ícone por mesa, standalone, cardápio offline via SW) e o PWA existe apenas no modo cliente — desativado automaticamente fora dele
+- Garçom, cozinha e caixa operam em tela cheia (header+body) com a marca no header; administrador e gerente mantêm header+sidebar+body
+- Screenshots: shot-90 a shot-92; ícones em public/icons/

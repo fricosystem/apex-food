@@ -86,6 +86,10 @@ export function AppShell({ user }: { user: SessionUser }) {
 
   const currentMeta = NAV_ITEMS.find((n) => n.key === current)
 
+  // Perfis operacionais (garçom, cozinha, caixa): sem sidebar — apenas header + body,
+  // com a marca (logo + APEX FOOD) no canto esquerdo do header. Admin/gerente mantêm sidebar.
+  const isCompact = user.role === 'WAITER' || user.role === 'KITCHEN' || user.role === 'CASHIER'
+
   const SidebarContent = (
     <div className="flex flex-col h-full">
       {/* Logo */}
@@ -190,37 +194,55 @@ export function AppShell({ user }: { user: SessionUser }) {
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* Sidebar desktop */}
-      <aside
-        className={cn(
-          'hidden md:flex flex-col bg-sidebar border-r border-sidebar-border transition-[width] duration-200 sticky top-0 h-screen',
-          sidebarCollapsed ? 'w-[68px]' : 'w-60'
-        )}
-      >
-        {SidebarContent}
-        <button
-          onClick={toggleSidebar}
-          className="absolute -right-3 top-20 h-6 w-6 rounded-full bg-background border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-          aria-label={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
-        >
-          {sidebarCollapsed ? <PanelLeft className="h-3 w-3" /> : <PanelLeftClose className="h-3 w-3" />}
-        </button>
-      </aside>
+      {/* Sidebar desktop — oculta para perfis operacionais */}
+      {!isCompact && (
+        <>
+          <aside
+            className={cn(
+              'hidden md:flex flex-col bg-sidebar border-r border-sidebar-border transition-[width] duration-200 sticky top-0 h-screen',
+              sidebarCollapsed ? 'w-[68px]' : 'w-60'
+            )}
+          >
+            {SidebarContent}
+            <button
+              onClick={toggleSidebar}
+              className="absolute -right-3 top-20 h-6 w-6 rounded-full bg-background border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
+            >
+              {sidebarCollapsed ? <PanelLeft className="h-3 w-3" /> : <PanelLeftClose className="h-3 w-3" />}
+            </button>
+          </aside>
 
-      {/* Sidebar mobile (drawer) */}
-      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-        <SheetContent side="left" className="p-0 w-64 bg-sidebar border-sidebar-border">
-          <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
-          {SidebarContent}
-        </SheetContent>
-      </Sheet>
+          {/* Sidebar mobile (drawer) */}
+          <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+            <SheetContent side="left" className="p-0 w-64 bg-sidebar border-sidebar-border">
+              <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
+              {SidebarContent}
+            </SheetContent>
+          </Sheet>
+        </>
+      )}
 
       {/* Conteúdo */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 sticky top-0 z-30 border-b bg-background/85 backdrop-blur-md flex items-center gap-3 px-4 lg:px-6">
-          <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileNavOpen(true)} aria-label="Abrir menu">
-            <Menu className="h-5 w-5" />
-          </Button>
+          {isCompact ? (
+            <>
+              {/* Marca no header (mesmo padrão do sidebar) */}
+              <div className="flex items-center gap-2.5 shrink-0">
+                <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-11 w-auto shrink-0 invert dark:invert-0" />
+                <div className="min-w-0 hidden sm:block">
+                  <p className="font-bold tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Operação premium</p>
+                </div>
+              </div>
+              <div className="h-8 w-px bg-border shrink-0 hidden md:block" aria-hidden />
+            </>
+          ) : (
+            <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileNavOpen(true)} aria-label="Abrir menu">
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
           <div className="min-w-0 flex-1">
             <h1 className="font-bold tracking-tight leading-tight truncate">{currentMeta?.label}</h1>
             <p className="text-xs text-muted-foreground truncate hidden sm:block">{currentMeta?.description}</p>
@@ -236,6 +258,32 @@ export function AppShell({ user }: { user: SessionUser }) {
             <span className="hidden sm:inline">{connected ? 'Tempo real' : 'Offline'}</span>
             <span className={cn('h-1.5 w-1.5 rounded-full', connected ? 'bg-emerald-500 apex-live-dot' : 'bg-muted-foreground')} />
           </div>
+          {isCompact && (
+            <>
+              {/* Controles que ficavam no sidebar, movidos para o header */}
+              <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={toggleSound} aria-label="Alternar sons">
+                {isSoundEnabled() ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              </Button>
+              <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={toggleTheme} aria-label="Alternar tema">
+                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+              <div className="flex items-center gap-1 shrink-0">
+                <div className="h-8 w-8 rounded-full apex-gradient flex items-center justify-center text-white text-[10px] font-bold" aria-hidden>
+                  {initials(user.name)}
+                </div>
+                <span className="hidden xl:inline text-xs font-semibold max-w-[120px] truncate">{user.name}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={() => logout.mutate()}
+                  aria-label="Sair"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            </>
+          )}
           <Badge variant="outline" className="hidden lg:inline-flex text-[11px] text-muted-foreground border-border">
             {ROLE_LABELS[user.role as keyof typeof ROLE_LABELS]}
           </Badge>
