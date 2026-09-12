@@ -268,3 +268,20 @@ Stage Summary:
 - Cliente da mesa agora é PWA instalável (ícone por mesa, standalone, cardápio offline via SW) e o PWA existe apenas no modo cliente — desativado automaticamente fora dele
 - Garçom, cozinha e caixa operam em tela cheia (header+body) com a marca no header; administrador e gerente mantêm header+sidebar+body
 - Screenshots: shot-90 a shot-92; ícones em public/icons/
+
+---
+Task ID: 17
+Agent: Super Z (main)
+Task: Header dos perfis operacionais (garçom, cozinha, caixa) — título centralizado no header e sem o nome do perfil, exibindo apenas a descrição da tela
+
+Work Log:
+- app-shell.tsx: header ganhou position relative; no bloco isCompact o título (h1 "Garçom"/"Cozinha (KDS)"/"Caixa" + p de descrição) foi substituído por elemento absolutamente centralizado (left-1/2 top-1/2 -translate-x/y-1/2) com apenas a descrição da tela como h1 (text-sm sm:text-base font-semibold), max-w-[min(60vw,560px)], truncate, pointer-events-none e spacer flex-1 para manter marca à esquerda e controles à direita
+- Texto do garçom atualizado conforme pedido: "Fila de comandas e atendimento ativo" → "Fila de comandas e atendimentos ativos" (NAV_ITEMS.description); cozinha e caixa mantêm suas descrições ("Fila de preparo, cronômetro e estações" / "Pagamentos e fechamento de comandas"), agora sem o nome do perfil
+- Admin/gerente intocados: h1 com label + descrição em flex-1 alinhado à esquerda, sidebar como estava
+- Validações E2E (1540×772): garçom — h1 "Fila de comandas e atendimentos ativos", centerOff 0 (leftGap=rightGap=595px), vOff 0, sem overflow (shot-93); cozinha — centerOff 0 (shot-94); caixa — centerOff 0 (shot-95); admin — h1 "Dashboard"+sub, position static, sidebar presente (shot-96); gerente — sidebar presente, h1 Dashboard+sub (shot-97)
+- Responsivo garçom: 768px — centralizado, sem colisão com marca/controles, sem truncamento; 390px — centralizado (centerOff 0), sem colisões, truncamento gracioso (218px visíveis) (shot-98)
+- Page errors vazio; lint completo src 0/0
+
+Stage Summary:
+- Garçom, cozinha e caixa agora têm no header apenas a descrição da tela, perfeitamente centralizada (horizontal e verticalmente), sem o nome do perfil; administrador e gerente permanecem exatamente como estavam
+- Screenshots: shot-93 a shot-98

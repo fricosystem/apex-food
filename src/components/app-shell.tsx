@@ -32,7 +32,7 @@ import { SettingsView } from '@/components/views/settings-view'
 
 const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: typeof LayoutDashboard; description: string }> = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Visão geral da operação em tempo real' },
-  { key: 'garcom', label: 'Garçom', icon: ClipboardList, description: 'Fila de comandas e atendimento ativo' },
+  { key: 'garcom', label: 'Garçom', icon: ClipboardList, description: 'Fila de comandas e atendimentos ativos' },
   { key: 'cozinha', label: 'Cozinha (KDS)', icon: ChefHat, description: 'Fila de preparo, cronômetro e estações' },
   { key: 'caixa', label: 'Caixa', icon: Wallet, description: 'Pagamentos e fechamento de comandas' },
   { key: 'gestao', label: 'Gestão', icon: Settings2, description: 'Produtos, equipe, metas e operação' },
@@ -225,7 +225,7 @@ export function AppShell({ user }: { user: SessionUser }) {
 
       {/* Conteúdo */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 sticky top-0 z-30 border-b bg-background/85 backdrop-blur-md flex items-center gap-3 px-4 lg:px-6">
+        <header className="h-16 sticky top-0 z-30 border-b bg-background/85 backdrop-blur-md flex items-center gap-3 px-4 lg:px-6 relative">
           {isCompact ? (
             <>
               {/* Marca no header (mesmo padrão do sidebar) */}
@@ -243,10 +243,22 @@ export function AppShell({ user }: { user: SessionUser }) {
               <Menu className="h-5 w-5" />
             </Button>
           )}
-          <div className="min-w-0 flex-1">
-            <h1 className="font-bold tracking-tight leading-tight truncate">{currentMeta?.label}</h1>
-            <p className="text-xs text-muted-foreground truncate hidden sm:block">{currentMeta?.description}</p>
-          </div>
+          {isCompact ? (
+            /* Perfis operacionais: apenas a descrição da tela, centralizada no header */
+            <>
+              <div className="min-w-0 flex-1" aria-hidden />
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none max-w-[min(60vw,560px)] px-2 text-center">
+                <h1 className="text-sm sm:text-base font-semibold tracking-tight leading-tight truncate text-foreground">
+                  {currentMeta?.description}
+                </h1>
+              </div>
+            </>
+          ) : (
+            <div className="min-w-0 flex-1">
+              <h1 className="font-bold tracking-tight leading-tight truncate">{currentMeta?.label}</h1>
+              <p className="text-xs text-muted-foreground truncate hidden sm:block">{currentMeta?.description}</p>
+            </div>
+          )}
           <div
             className={cn(
               'flex items-center gap-1.5 text-xs font-medium rounded-full border px-2.5 py-1',
