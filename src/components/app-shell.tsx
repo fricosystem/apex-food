@@ -90,9 +90,7 @@ export function AppShell({ user }: { user: SessionUser }) {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 h-16 border-b border-sidebar-border shrink-0">
-        <div className="h-9 w-9 rounded-lg apex-gradient flex items-center justify-center shrink-0">
-          <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-6 w-6 object-contain" />
-        </div>
+        <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-9 w-auto shrink-0 invert dark:invert-0" />
         {!sidebarCollapsed && (
           <div className="min-w-0">
             <p className="font-bold tracking-tight leading-none text-sidebar-foreground">APEX FOOD</p>

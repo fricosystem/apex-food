@@ -117,3 +117,16 @@ Work Log:
 Stage Summary:
 - Tela do cliente com identidade visual da marca: dark fixo, sem header, logo sólida + APEX FOOD, personalização moderna de itens antes de enviar ao garçom
 - Screenshots: shot-51 a shot-60
+
+---
+Task ID: 7
+Agent: Super Z (main)
+Task: Sidebar — remover card laranja da logo; logo escura no tema claro / clara no tema escuro (como no splash)
+
+Work Log:
+- app-shell.tsx: chip laranja (h-9 w-9 rounded-lg apex-gradient) do topo do sidebar substituído pela logo sólida h-9 w-auto com invert dark:invert-0 — branca no tema escuro e invertida (escura) no tema claro, mesmo comportamento da tela de carregamento inicial
+- Avatar do usuário (linha ~160) mantido com círculo laranja (não é a logo, fora do escopo)
+
+Stage Summary:
+- Sidebar com logo sólida adaptável nos dois temas, sem card; texto "APEX FOOD / Operação premium" mantido ao lado
+- Validado E2E logado como admin: shot-61 (dark — logo clara) e shot-62 (light — logo escura); lint 0/0; home 200
