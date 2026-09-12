@@ -154,3 +154,20 @@ Work Log:
 Stage Summary:
 - Marca consistente em todos os pontos: FOOD sempre laranja #FF7B2E
 - Validado E2E logado (dark): shot-64 + crop; lint 0/0; home 200
+
+---
+Task ID: 10
+Agent: Super Z (main)
+Task: Autenticação — fundo contínuo entre os painéis (sem caixa separada no direito, tema claro no formulário) + painel esquerdo com scroll de seções por módulo (fade in/out reversível) + rodapé © + DESENVOLVIDO POR APEX HUB SYSTEM na última seção
+
+Work Log:
+- login-screen.tsx reescrito: gradiente escuro movido para o wrapper único (backgroundAttachment fixed) — o painel direito não tem mais fundo próprio, é continuação do esquerdo; decoração (brilho radial + arcos) agora fixa na viewport
+- Formulário em tema claro fixo sobre o canvas escuro: inputs bg-white dark:bg-white (dark:bg-input/30 do Input base exigia dark:bg-white por especificidade), cards de acesso rápido brancos com hover laranja suave, labels/textos adaptados ao fundo escuro; coluna do formulário sticky (lg:sticky top-0 h-screen) permanece visível durante o scroll
+- Painel esquerdo virou coluna narrativa com scroll: topo com logo + wordmark, abertura (selo, headline, chips, dica "role para conhecer"), 6 seções de módulos (Dashboard, Garçom, Cozinha KDS, Caixa, Gestão, Mesas & QR) com ícone, tag "Módulo NN", título, descrição e chips, e seção final "Do QR Code na mesa ao caixa" com rodapé na base: "© 2026 APEX Food | DESENVOLVIDO POR APEX HUB SYSTEM" lado a lado
+- Animação de scroll: componente FadeSection com IntersectionObserver (threshold 0.2) — fade in + translateY(28px→0) ao entrar e fade out reversível ao sair (rolagem para baixo ou cima), duração 700ms ease-out
+- Mobile: formulário primeiro sobre o canvas escuro, logo branca sem invert, coluna narrativa oculta (hidden lg:flex)
+- Verificações: lint 0/0 (src completo), home 200; E2E desktop — topo contínuo, seções surgindo com fade no scroll (shot-67/68), seção final com rodapé (shot-70), fade reverso confirmado por medição de brilho entre frames (15.4 → 20.9); mobile 390px validado (shot-73)
+
+Stage Summary:
+- Tela de autenticação com canvas único contínuo, storytelling por módulos com animações de scroll e formulário claro flutuante; marca e rodapé com APEX HUB SYSTEM
+- Screenshots: shot-65 a shot-73
