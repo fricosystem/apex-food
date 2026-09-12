@@ -233,3 +233,18 @@ Stage Summary:
 - Hidratação do app está limpa; o erro reportado é causado pela extensão de tradução no navegador do usuário
 - Recomendação passada ao usuário: desativar a extensão para o domínio do preview / usar janela anônima / adicionar o site às exceções da extensão
 - Screenshots: shot-88
+
+---
+Task ID: 15
+Agent: Super Z (main)
+Task: Usuário re-reportou o mesmo erro de hidratação — além do diagnóstico, adicionar no app detecção de extensão de tradução com aviso amigável
+
+Work Log:
+- Criado src/components/extension-notice.tsx: MutationObserver finito (auto-disconnect em 120s) que detecta os marcadores da extensão Translate Web Pages (.translate-tooltip-mtz / .hidden_translate) no documentElement; ao detectar, mostra toast sonner uma única vez por sessão (guard sessionStorage "apexfood:ext-translation-notice", 12s) explicando que a extensão modifica a página, pode causar avisos de hidratação e alterar textos, recomendando desativá-la para o site
+- Componente renderiza null (zero risco de mismatch de hidratação próprio); montado em providers.tsx ao lado do Toaster
+- Validação E2E (browser limpo): página sem extensão → nenhum toast ("LIMPO-SEM-TOAST"); injeção simulada exata das classes da extensão via eval → toast "Extensão de tradução detectada" aparece (~700ms) e some após duração (flag sessionStorage=1 confirmada); reload limpo sem toast; page errors vazio; shot-89 com o toast sobre a tela de login dark (cards de acesso rápido temáticos visíveis e corretos)
+- Lint completo do src 0/0; home 200
+
+Stage Summary:
+- O app agora orienta o usuário final quando uma extensão de tradução interferir na página (uma vez por sessão); o erro em si permanece externo ao app (extensão no navegador do usuário, recoverable pelo React, invisível em produção)
+- Screenshots: shot-89
