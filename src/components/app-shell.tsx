@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
 import {
-  UtensilsCrossed, LayoutDashboard, ClipboardList, ChefHat, Wallet, Settings2,
+  LayoutDashboard, ClipboardList, ChefHat, Wallet, Settings2,
   Grid3x3, PanelLeftClose, PanelLeft, Sun, Moon, LogOut, Volume2, VolumeX,
   Menu, Wifi, WifiOff, X,
 } from 'lucide-react'
@@ -91,7 +91,8 @@ export function AppShell({ user }: { user: SessionUser }) {
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 h-16 border-b border-sidebar-border shrink-0">
         <div className="h-9 w-9 rounded-lg apex-gradient flex items-center justify-center shrink-0">
-          <UtensilsCrossed className="h-5 w-5 text-white" />
+          { }
+          <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-6 w-6 object-contain" />
         </div>
         {!sidebarCollapsed && (
           <div className="min-w-0">

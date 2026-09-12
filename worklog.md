@@ -33,3 +33,19 @@ Stage Summary:
 - Serviços: Next dev porta 3000 (auto), realtime-service porta 3003 (nohup bun --hot)
 - Arquivos-chave: prisma/schema.prisma, src/lib/*, src/app/api/**, mini-services/realtime-service/, src/components/{app-shell,login-screen,providers}.tsx, src/components/views/*.tsx
 - Contas demo: admin@apexfood.com, gerente@, rafael@, juliana@, carlos@, cozinha@, caixa@apexfood.com — senha apex123
+
+---
+Task ID: 2
+Agent: Super Z (main)
+Task: Ajustar tela de autenticação (apenas infos de apresentação da imagem de referência no painel esquerdo) + aplicar logo oficial APEX FOOD em todos os pontos de marca
+
+Work Log:
+- Processada logo enviada (upload/LOGO APEX FOOD.png): extração de fundo preto -> alfa por luminância (scripts/process-logo.py) -> public/apex-logo.png (421x600, RGBA branca transparente)
+- Gerados favicon via convenção Next: src/app/icon.png (128px) e src/app/apple-icon.png (180px), fundo #0E0E10 com logo
+- login-screen.tsx: painel esquerdo reescrito conforme referência — fundo escuro fixo (gradiente #121215→#0A0A0C) em ambos os temas, logo em chip laranja + "APEX Food", selo "GESTÃO QUE ACOMPANHA O SEU RITMO" com traço laranja, headline "Mais controle para uma operação mais inteligente." (destaque laranja #FF7B2E), parágrafo de apresentação, 3 chips com dot laranja (Operação em tempo real / Decisões mais rápidas / Visão do seu negócio), rodapé "© 2026 APEX Food", arcos laranja decorativos no canto inferior direito
+- Logo aplicada também em: app-shell.tsx (sidebar), client-view.tsx (header mobile + hero de boas-vindas), tables-view.tsx (dialog QR Code, chip laranja imprimível), page.tsx (splash de carregamento)
+- Correção: import duplicado de Loader2 em page.tsx (500 na home) -> resolvido; diretivas eslint-disable desnecessárias removidas via --fix
+
+Stage Summary:
+- Validado no browser (dark e light): login fiel à referência, sidebar, tela do cliente (#m/{token}), dialog QR e splash exibindo a logo; favicon ativo no HTML
+- Lint 0 erros/0 warnings; home 200; imagem em public/apex-logo.png referenciada por /apex-logo.png

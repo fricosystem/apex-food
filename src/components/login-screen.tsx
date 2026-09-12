@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, Lock, Mail, ArrowRight, UtensilsCrossed, ShieldCheck, Clock3, BarChart3 } from 'lucide-react'
+import { Loader2, Lock, Mail, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -47,55 +47,67 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background">
-      {/* Painel de marca */}
-      <div className="relative lg:flex-1 apex-gradient overflow-hidden flex flex-col justify-between p-8 lg:p-14 min-h-[240px] lg:min-h-screen">
+      {/* Painel de apresentação da marca */}
+      <div
+        className="relative lg:flex-1 overflow-hidden flex flex-col justify-between p-8 lg:p-14 min-h-[220px] lg:min-h-screen text-white"
+        style={{ background: 'linear-gradient(150deg, #121215 0%, #0A0A0C 55%, #0D0B09 100%)' }}
+      >
+        {/* Decoração — brilho e arcos laranja */}
         <div
           aria-hidden
-          className="absolute inset-0 opacity-20"
-          style={{
-            background:
-              'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.35) 0, transparent 40%), radial-gradient(circle at 80% 70%, rgba(0,0,0,0.25) 0, transparent 45%)',
-          }}
+          className="absolute inset-0"
+          style={{ background: 'radial-gradient(circle at 80% 96%, rgba(255,107,26,0.16) 0, transparent 44%)' }}
         />
+        <div aria-hidden className="absolute -bottom-44 -right-20 h-[460px] w-[460px] rounded-full border border-[#FF6B1A]/30" />
+        <div aria-hidden className="absolute -bottom-64 -right-36 h-[640px] w-[640px] rounded-full border border-[#FF6B1A]/12" />
+
+        {/* Topo — logo */}
         <div className="relative flex items-center gap-3">
-          <div className="h-11 w-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/30">
-            <UtensilsCrossed className="h-6 w-6 text-white" />
+          <div className="h-11 w-11 rounded-xl apex-gradient flex items-center justify-center ring-1 ring-white/20 shadow-lg shrink-0">
+            { }
+            <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-8 w-8 object-contain" />
           </div>
-          <div>
-            <p className="text-white font-bold text-lg tracking-tight leading-none">APEX FOOD</p>
-            <p className="text-white/75 text-xs mt-1">Gestão premium para restaurantes</p>
-          </div>
+          <p className="font-bold text-xl tracking-tight leading-none">APEX Food</p>
         </div>
-        <div className="relative hidden lg:block">
-          <h1 className="text-4xl xl:text-5xl font-extrabold text-white leading-tight tracking-tight max-w-xl">
-            Da mesa ao caixa,{' '}
-            <span className="underline decoration-white/40 underline-offset-4">em tempo real</span>.
+
+        {/* Apresentação */}
+        <div className="relative hidden lg:block max-w-xl">
+          <div className="flex items-center gap-3">
+            <span className="h-px w-8 bg-[#FF6B1A]" aria-hidden />
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/55">
+              Gestão que acompanha o seu ritmo
+            </p>
+          </div>
+          <h1 className="mt-6 text-[2.6rem] xl:text-[3.4rem] font-extrabold leading-[1.08] tracking-tight">
+            Mais controle para uma operação <span className="text-[#FF7B2E]">mais inteligente.</span>
           </h1>
-          <p className="text-white/85 mt-4 max-w-md text-sm lg:text-base leading-relaxed">
-            Comandas digitais, distribuição inteligente entre garçons, KDS com cronômetro, caixa integrado e métricas por funcionário.
+          <p className="mt-6 text-white/70 leading-relaxed max-w-lg">
+            Centralize pedidos, salão, equipe e financeiro em uma experiência criada para deixar o
+            seu restaurante mais eficiente todos os dias.
           </p>
-          <div className="flex flex-wrap gap-6 mt-10 text-white">
-            {[
-              { icon: ShieldCheck, label: 'Perfis e permissões' },
-              { icon: Clock3, label: 'Acompanhamento em tempo real' },
-              { icon: BarChart3, label: 'Métricas por funcionário' },
-            ].map((f) => (
-              <div key={f.label} className="flex items-center gap-2 text-sm font-medium">
-                <f.icon className="h-4 w-4" />
-                {f.label}
-              </div>
+          <div className="flex flex-wrap gap-3 mt-9">
+            {['Operação em tempo real', 'Decisões mais rápidas', 'Visão do seu negócio'].map((chip) => (
+              <span
+                key={chip}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-white/85 backdrop-blur"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-[#FF6B1A]" aria-hidden />
+                {chip}
+              </span>
             ))}
           </div>
         </div>
-        <p className="relative text-white/60 text-xs hidden lg:block">© 2026 APEX FOOD — Todos os direitos reservados</p>
+
+        <p className="relative text-white/40 text-xs">© 2026 APEX Food</p>
       </div>
 
       {/* Formulário */}
       <div className="lg:w-[480px] xl:w-[520px] flex items-center justify-center p-6 lg:p-10">
         <div className="w-full max-w-md apex-enter">
-          <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="h-9 w-9 rounded-lg apex-gradient flex items-center justify-center">
-              <UtensilsCrossed className="h-5 w-5 text-white" />
+          <div className="lg:hidden flex items-center gap-2.5 mb-8">
+            <div className="h-9 w-9 rounded-lg apex-gradient flex items-center justify-center shrink-0">
+              { }
+              <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-6 w-6 object-contain" />
             </div>
             <span className="font-bold tracking-tight">APEX FOOD</span>
           </div>

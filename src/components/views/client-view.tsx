@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
-  UtensilsCrossed, Minus, Plus, ChevronLeft, ClipboardList, Send, CheckCircle2,
+  Minus, Plus, ChevronLeft, ClipboardList, Send, CheckCircle2,
   Clock, ChefHat, BellRing, CheckCheck, CreditCard, PartyPopper, Loader2,
   ArrowRight, ShoppingBag, PencilLine,
 } from 'lucide-react'
@@ -136,7 +136,8 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
       <header className="sticky top-0 z-20 apex-gradient text-white shadow-lg">
         <div className="max-w-md mx-auto px-4 h-14 flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-white/15 ring-1 ring-white/25 flex items-center justify-center">
-            <UtensilsCrossed className="h-4 w-4" />
+            { }
+            <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-5 w-5 object-contain" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold leading-none">Mesa {String(data.table.number).padStart(2, '0')}</p>
@@ -244,7 +245,8 @@ function WelcomePhase({ tableNumber, hasOpen, onStart }: { tableNumber: number; 
   return (
     <div className="apex-enter text-center pt-10">
       <div className="mx-auto h-20 w-20 rounded-3xl apex-gradient apex-glow flex items-center justify-center">
-        <UtensilsCrossed className="h-10 w-10 text-white" />
+        { }
+        <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-12 w-12 object-contain" />
       </div>
       <h2 className="text-2xl font-bold mt-6 tracking-tight">
         Mesa {String(tableNumber).padStart(2, '0')} — Bem-vindo à APEX FOOD!
