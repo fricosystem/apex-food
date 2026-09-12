@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============ APEX FOOD ============
+
+model User {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  password       String
+  role           String   @default("WAITER") // ADMIN | MANAGER | WAITER | KITCHEN | CASHIER
+  status         String   @default("ONLINE") // ONLINE | BUSY | OFFLINE
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  assignedOrders Order[]
+  goals          Goal[]
+  payments       Payment[]
+}
+
+model RestaurantTable {
+  id        String    @id @default(cuid())
+  number    Int       @unique
+  capacity  Int       @default(4)
+  active    Boolean   @default(true)
+  status    String    @default("FREE") // FREE | OCCUPIED | AWAITING_PAYMENT
+  qrToken   String    @unique
+  createdAt DateTime  @default(now())
+  orders    Order[]
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  sector    String    @default("KITCHEN") // KITCHEN | GRILL | PIZZERIA | BAR
+  icon      String    @default("🍽️")
+  sortOrder Int       @default(0)
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+model Product {
+  id         String      @id @default(cuid())
+  name       String
+  description String     @default("")
+  image      String?
+  emoji      String      @default("🍽️")
+  price      Float
+  prepTime   Int         @default(15) // minutos
+  active     Boolean     @default(true)
+  categoryId String
+  category   Category    @relation(fields: [categoryId], references: [id])
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  items      OrderItem[]
+}
+
+model Order {
+  id            String           @id @default(cuid())
+  code          String           @unique
+  tableId       String
+  table         RestaurantTable  @relation(fields: [tableId], references: [id])
+  waiterId      String?
+  waiter        User?            @relation(fields: [waiterId], references: [id])
+  status        String           @default("PENDING_CONFIRM") // PENDING_CONFIRM | IN_KITCHEN | AWAITING_PAYMENT | PAID | CANCELLED
+  total         Float            @default(0)
+  createdAt     DateTime         @default(now())
+  confirmedAt   DateTime?
+  finishedAt    DateTime?
+  paidAt        DateTime?
+  items         OrderItem[]
+  payments      Payment[]
+}
+
+model OrderItem {
+  id          String    @id @default(cuid())
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  productName String
+  quantity    Int       @default(1)
+  notes       String    @default("")
+  unitPrice   Float
+  station     String    @default("KITCHEN") // KITCHEN | GRILL | PIZZERIA | BAR
+  prepTime    Int       @default(15)
+  status      String    @default("PENDING") // PENDING | IN_PREPARATION | READY | SERVED
+  startedAt   DateTime?
+  readyAt     DateTime?
+  servedAt    DateTime?
+}
+
+model Payment {
+  id        String    @id @default(cuid())
+  orderId   String
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method    String // CREDIT | DEBIT | PIX | CASH
+  amount    Float
+  cashierId String?
+  cashier   User?     @relation(fields: [cashierId], references: [id])
+  createdAt DateTime  @default(now())
+}
+
+model Goal {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  target    Int      @default(20) // comandas no mês
+  month     String // YYYY-MM
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
