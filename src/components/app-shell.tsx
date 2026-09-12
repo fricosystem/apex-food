@@ -93,7 +93,7 @@ export function AppShell({ user }: { user: SessionUser }) {
         <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-11 w-auto shrink-0 invert dark:invert-0" />
         {!sidebarCollapsed && (
           <div className="min-w-0">
-            <p className="font-bold tracking-tight leading-none text-sidebar-foreground">APEX FOOD</p>
+            <p className="font-bold tracking-tight leading-none text-sidebar-foreground">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Operação premium</p>
           </div>
         )}

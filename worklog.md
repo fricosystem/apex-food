@@ -142,3 +142,15 @@ Work Log:
 Stage Summary:
 - Logo do sidebar visivelmente maior, bem centralizada na linha h-16 do header do sidebar
 - Validado E2E logado (dark): shot-63 + crop do header; lint 0/0; home 200
+
+---
+Task ID: 9
+Agent: Super Z (main)
+Task: Sidebar — cor do texto FOOD no padrão da tela de autenticação
+
+Work Log:
+- app-shell.tsx: "APEX FOOD" do sidebar agora com FOOD em #FF7B2E (span text-[#FF7B2E]), mesmo padrão da autenticação/splash/cliente; apenas cor alterada
+
+Stage Summary:
+- Marca consistente em todos os pontos: FOOD sempre laranja #FF7B2E
+- Validado E2E logado (dark): shot-64 + crop; lint 0/0; home 200
