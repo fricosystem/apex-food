@@ -201,3 +201,17 @@ Work Log:
 Stage Summary:
 - Inputs da autenticação acompanham o tema: claros no claro, escuros no escuro, com ícones/placeholder/borda/foco nos tokens do design system; resto do formulário (labels, acessos rápidos) inalterado sobre o canvas escuro fixo
 - Screenshots: shot-83 a shot-85
+
+---
+Task ID: 13
+Agent: Super Z (main)
+Task: Autenticação — botões de acesso rápido também seguindo a cor de fundo do tema
+
+Work Log:
+- Cards de acesso rápido (5 perfis): "bg-white border-white/15 text-zinc-900/zinc-500" → "bg-background dark:bg-input/30 border-input" com label text-foreground e descrição text-muted-foreground — mesmo tratamento dos inputs (Task 12); hover adaptado por tema: hover:bg-orange-50 no claro e dark:hover:bg-[#FF6B1A]/10 no escuro, mantendo hover:border-[#FF6B1A]/70
+- Box tracejada "senha: apex123": border-white/20 text-white/55 → border-input text-muted-foreground (temática)
+- Verificações E2E (1540×772): tema claro — cardBg rgb(250,250,250), borda zinc-200, label rgb(24,24,27) (shot-86); tema escuro — cardBg escuro translúcido (igual aos inputs), borda rgb(46,46,56), label rgb(244,244,245) (shot-87); clique no acesso rápido "Gerente" no tema escuro → LOGADO; lint 0/0
+
+Stage Summary:
+- Formulário de autenticação totalmente temático (inputs + cards de acesso rápido + box de senha), coerente entre si em ambos os temas sobre o canvas escuro fixo da marca
+- Screenshots: shot-86 a shot-87

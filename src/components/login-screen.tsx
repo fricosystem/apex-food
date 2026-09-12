@@ -374,13 +374,13 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
                   type="button"
                   onClick={() => login.mutate({ email: acc.email, password: 'apex123' })}
                   disabled={login.isPending}
-                  className="text-left rounded-lg border border-white/15 bg-white px-3 py-2.5 hover:border-[#FF6B1A]/70 hover:bg-orange-50 transition-colors disabled:opacity-50"
+                  className="text-left rounded-lg border border-input bg-background dark:bg-input/30 px-3 py-2.5 hover:border-[#FF6B1A]/70 hover:bg-orange-50 dark:hover:bg-[#FF6B1A]/10 transition-colors disabled:opacity-50"
                 >
-                  <p className="text-sm font-semibold leading-tight text-zinc-900">{acc.label}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">{acc.desc}</p>
+                  <p className="text-sm font-semibold leading-tight text-foreground">{acc.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{acc.desc}</p>
                 </button>
               ))}
-              <div className="rounded-lg border border-dashed border-white/20 px-3 py-2.5 flex items-center justify-center text-xs text-white/55">
+              <div className="rounded-lg border border-dashed border-input px-3 py-2.5 flex items-center justify-center text-xs text-muted-foreground">
                 senha: apex123
               </div>
             </div>
