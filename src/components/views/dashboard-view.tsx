@@ -138,7 +138,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)}</div>
-        <div className="grid lg:grid-cols-2 gap-3">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-72 rounded-xl" />)}</div>
+        <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-72 rounded-xl" />)}</div>
       </div>
     )
   }
@@ -219,7 +219,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2 justify-between">
           <Tabs value={period} onValueChange={setPeriod}>
-            <TabsList>
+            <TabsList className="max-w-full overflow-x-auto">
               <TabsTrigger value="today">Hoje</TabsTrigger>
               <TabsTrigger value="week">Semana</TabsTrigger>
               <TabsTrigger value="month">Mês</TabsTrigger>
@@ -228,7 +228,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
             </TabsList>
           </Tabs>
           <Tabs value={turn} onValueChange={setTurn}>
-            <TabsList>
+            <TabsList className="max-w-full overflow-x-auto">
               <TabsTrigger value="all">Todos os turnos</TabsTrigger>
               <TabsTrigger value="morning">Manhã</TabsTrigger>
               <TabsTrigger value="afternoon">Tarde</TabsTrigger>
@@ -261,7 +261,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 [&>*]:min-w-0">
         {kpiCards.map((k) => (
           <Card key={k.label} className="overflow-hidden">
             <CardContent className="p-4">
@@ -277,7 +277,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
       </div>
 
       {/* Faturamento + comandas por hora */}
-      <div className="grid lg:grid-cols-2 gap-3">
+      <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -347,7 +347,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
       </div>
 
       {/* Ticket médio + faturamento acumulado */}
-      <div className="grid lg:grid-cols-2 gap-3">
+      <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -427,7 +427,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
       </div>
 
       {/* Produtos + faturamento por estação */}
-      <div className="grid lg:grid-cols-2 gap-3">
+      <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -467,7 +467,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
             {stationData.length === 0 ? (
               <EmptyChart className="h-[228px]" />
             ) : (
-              <div className="flex flex-col sm:flex-row items-center gap-2 h-[228px]">
+              <div className="flex flex-col sm:flex-row items-center gap-2 sm:h-[228px]">
                 <div className="relative h-[180px] w-full sm:w-[46%] shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -515,7 +515,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
       </div>
 
       {/* Dia da semana + mapa de calor */}
-      <div className="grid lg:grid-cols-2 gap-3">
+      <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -531,7 +531,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
             {kpis.periodOrders === 0 ? (
               <EmptyChart className="h-[228px]" />
             ) : (
-              <div className="flex flex-col sm:flex-row items-center gap-2 h-[228px]">
+              <div className="flex flex-col sm:flex-row items-center gap-2 sm:h-[228px]">
                 <div className="relative h-[180px] w-full sm:w-[46%] shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <RadialBarChart
@@ -587,7 +587,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
               <EmptyChart className="h-[228px]" />
             ) : (
               <div className="overflow-x-auto pb-1">
-                <div className="min-w-[540px] space-y-1">
+                <div className="min-w-[500px] space-y-1">
                   <div className="grid gap-0.5" style={{ gridTemplateColumns: '30px repeat(24, minmax(0, 1fr))' }}>
                     <span />
                     {Array.from({ length: 24 }, (_, h) => (
@@ -628,7 +628,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
       </div>
 
       {/* Radar da equipe + comparativo com período anterior */}
-      <div className="grid lg:grid-cols-2 gap-3">
+      <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -718,7 +718,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
       </div>
 
       {/* Garçons + cozinha */}
-      <div className="grid lg:grid-cols-2 gap-3">
+      <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -790,7 +790,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
       </div>
 
       {/* Metas + pagamentos */}
-      <div className="grid lg:grid-cols-2 gap-3">
+      <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">

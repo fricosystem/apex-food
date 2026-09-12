@@ -439,3 +439,23 @@ Work Log:
 Stage Summary:
 - Identidade visual EMPÓRIO RESTAURANTE reforçada nas telas operacionais: marca completa (logo ampliada + CNPJ) à esquerda, estabelecimento como título laranja central, perfil colado no canto direito
 - Nenhuma alteração em admin/gerente além do CNPJ no sidebar
+
+---
+Task ID: 25
+Agent: Super Z (main)
+Task: Corrigir responsividade — cards Movimento por dia da semana e Mapa de calor estourando à direita no mobile/tablet; largura de todos os cards do Dashboard mudando ao abrir o sidebar mobile; responsividade completa da tela Configurações (mobile/tablet)
+
+Work Log:
+- Diagnóstico dashboard: Card (item de grid) com min-width:auto propagava o min-content do bloco min-w-[540px] do heatmap → track do grid expandia além da viewport (radial na mesma linha transbordava junto)
+- Correção: adicionado [&>*]:min-w-0 a todas as 7 grades de cards do Dashboard (KPIs, faturamento/hora, produtos/estação, semana/heatmap, radar/comparativo, garçons/cozinha, metas/pagamentos) + skeleton de loading; min-w do heatmap 540→500px (quase cabe inteiro no tablet 768)
+- Charts radiais/pizza (Movimento por dia da semana e Faturamento por estação): container fixo h-[228px] → sm:h-[228px] (mobile empilha com altura natural — legenda de 7 dias totalmente visível sem espremer)
+- TabsList dos filtros de período/turno: max-w-full overflow-x-auto (rolagem interna em vez de estourar em 390px)
+- Causa do resize ao abrir sidebar mobile identificada: Sheet (Radix Dialog modal) usa react-remove-scroll → remove a scrollbar e aplica padding-right de compensação → viewport muda → ResponsiveContainer re-medem e todos os cards redimensionam
+- Correção: <Sheet modal={false}> no drawer de navegação mobile (sem scroll-lock; overlay visual e fechar por toque fora/Escape mantidos via DismissableLayer)
+- Configurações: [&>*]:min-w-0 na grade raiz; matriz de acesso por perfil (até 5 badges) agora flex-wrap com badges quebrando linha; card Sessão com min-w-0 + truncate + Badge shrink-0; botões de tipo de operação com min-w-0 + truncate do label; badge de som por tipo de ação com truncate
+- Lint 0/0; validação E2E (agent-browser, admin@apexfood.com): mobile 390px — scrollW 390=viewport, 0 cards além da borda, drawer aberto com cardsChanged:0/maxDelta:0 (larguras idênticas), drawer fecha ao tocar fora; tablet 768px — scrollW 768, 0 overflow, heatmap quase sem scroll; Configurações 390/768 — 0 elementos além da borda direita, matriz com badges em 2 linhas quando preciso; screenshots shot-124→131 em download/e2e/
+
+Stage Summary:
+- Nenhum overflow horizontal em Dashboard e Configurações no mobile (390) e tablet (768); heatmap/dia da semana com scroll interno controlado
+- Abrir o drawer mobile não altera mais nenhuma largura de card (fix estrutural modal={false}, beneficia qualquer página com drawer)
+- Nenhum impacto no visual desktop; lint limpo

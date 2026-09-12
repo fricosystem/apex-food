@@ -1,0 +1,573 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useEffect, useState } from 'react'
+     4→     4→import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+     5→     5→import { toast } from 'sonner'
+     6→     6→import { useTheme } from 'next-themes'
+     7→     7→import {
+     8→     8→  Store, Palette, BellRing, ShieldCheck, Sun, Moon, Volume2, VolumeX, Save, Loader2,
+     9→     9→  Play, Check, Info, AlertTriangle, XCircle, ArrowLeft, MonitorSmartphone, Vibrate,
+    10→    10→} from 'lucide-react'
+    11→    11→import { cn } from '@/lib/utils'
+    12→    12→import { Card, CardContent } from '@/components/ui/card'
+    13→    13→import { Badge } from '@/components/ui/badge'
+    14→    14→import { Button } from '@/components/ui/button'
+    15→    15→import { Input } from '@/components/ui/input'
+    16→    16→import { Label } from '@/components/ui/label'
+    17→    17→import { Switch } from '@/components/ui/switch'
+    18→    18→import { Slider } from '@/components/ui/slider'
+    19→    19→import { Separator } from '@/components/ui/separator'
+    20→    20→import { Skeleton } from '@/components/ui/skeleton'
+    21→    21→import { api, apiPatch } from '@/lib/fetcher'
+    22→    22→import { ROLE_LABELS } from '@/lib/types'
+    23→    23→import { useAppStore, DEFAULT_VIEW } from '@/lib/store'
+    24→    24→import type { ViewKey } from '@/lib/types'
+    25→    25→import {
+    26→    26→  isSoundEnabled, setSoundEnabled, playSound,
+    27→    27→  EVENT_SOUNDS, getVolume, setVolume,
+    28→    28→  playEventSound, isEventSoundEnabled, setEventSoundEnabled,
+    29→    29→} from '@/lib/sound'
+    30→    30→import {
+    31→    31→  NOTIF_KINDS, notificationPermission, requestNotificationPermission,
+    32→    32→  isSystemNotifEnabled, setSystemNotifEnabled,
+    33→    33→  isKindNotifEnabled, setKindNotifEnabled,
+    34→    34→  pushSystemNotification, type NotifKind,
+    35→    35→} from '@/lib/notification-service'
+    36→    36→import type { SessionUser } from '@/lib/auth'
+    37→    37→
+    38→    38→const EST_TYPES = [
+    39→    39→  { key: 'RESTAURANTE', label: 'Restaurante', icon: '🍽️' },
+    40→    40→  { key: 'PIZZARIA', label: 'Pizzaria', icon: '🍕' },
+    41→    41→  { key: 'HAMBURGUERIA', label: 'Hamburgueria', icon: '🍔' },
+    42→    42→  { key: 'CHURRASCARIA', label: 'Churrascaria', icon: '🥩' },
+    43→    43→]
+    44→    44→
+    45→    45→const PERMISSION_MATRIX = [
+    46→    46→  { area: 'Dashboard analítico', roles: ['ADMIN', 'MANAGER'] },
+    47→    47→  { area: 'Tela do garçom', roles: ['ADMIN', 'MANAGER', 'WAITER'] },
+    48→    48→  { area: 'Cozinha', roles: ['ADMIN', 'MANAGER', 'KITCHEN'] },
+    49→    49→  { area: 'Caixa e pagamentos', roles: ['ADMIN', 'MANAGER', 'CASHIER'] },
+    50→    50→  { area: 'Gestão (produtos, equipe, metas)', roles: ['ADMIN', 'MANAGER'] },
+    51→    51→  { area: 'Mesas e QR Codes', roles: ['ADMIN', 'MANAGER'] },
+    52→    52→  { area: 'Configurações e notificações', roles: ['ADMIN', 'MANAGER', 'WAITER', 'KITCHEN', 'CASHIER'] },
+    53→    53→]
+    54→    54→
+    55→    55→/** Aviso de exemplo usado no botão de teste de cada tipo de ação */
+    56→    56→function sampleFor(kind: NotifKind): { title: string; body: string } {
+    57→    57→  switch (kind) {
+    58→    58→    case 'comanda-nova':
+    59→    59→      return { title: 'Nova comanda — Mesa 12', body: 'Teste de notificação: cliente abriu a comanda pelo QR Code.' }
+    60→    60→    case 'comanda-confirmada':
+    61→    61→      return { title: 'Comanda confirmada na cozinha', body: 'Teste de notificação: 3 itens entraram na fila de preparo.' }
+    62→    62→    case 'prato-pronto':
+    63→    63→      return { title: 'Prato pronto para servir', body: 'Teste de notificação: Pizza Margherita — Mesa 07.' }
+    64→    64→    case 'encaminhada':
+    65→    65→      return { title: 'Mesa 07 encaminhada ao caixa', body: 'Teste de notificação: comanda aguardando pagamento.' }
+    66→    66→    case 'pagamento':
+    67→    67→      return { title: 'Pagamento confirmado — Mesa 07', body: 'Teste de notificação: comanda #A31 finalizada via PIX.' }
+    68→    68→    case 'alerta':
+    69→    69→      return { title: 'Alerta de operação', body: 'Teste de notificação: comanda da Mesa 03 acima de 45 min sem itens servidos.' }
+    70→    70→  }
+    71→    71→}
+    72→    72→
+    73→    73→export function SettingsView({ user }: { user: SessionUser }) {
+    74→    74→  const qc = useQueryClient()
+    75→    75→  const { theme, setTheme } = useTheme()
+    76→    76→  const { setActiveView } = useAppStore()
+    77→    77→
+    78→    78→  const isCompact = user.role === 'WAITER' || user.role === 'KITCHEN' || user.role === 'CASHIER'
+    79→    79→  const isAdminish = user.role === 'ADMIN' || user.role === 'MANAGER'
+    80→    80→
+    81→    81→  const [formEdits, setFormEdits] = useState<{ name?: string; type?: string; logo?: string }>({})
+    82→    82→
+    83→    83→  // Preferências do dispositivo — a view só monta no cliente (após o login),
+    84→    84→  // então inicializadores lazy podem ler localStorage sem mismatch de hidratação
+    85→    85→  const [permState, setPermState] = useState<NotificationPermission | 'unsupported'>(() => notificationPermission())
+    86→    86→  const [notifMaster, setNotifMaster] = useState(() => isSystemNotifEnabled())
+    87→    87→  const [sound, setSound] = useState(() => isSoundEnabled())
+    88→    88→  const [vol, setVol] = useState(() => getVolume())
+    89→    89→  const [kindNotif, setKindNotif] = useState<Record<string, boolean>>(() => {
+    90→    90→    const kn: Record<string, boolean> = {}
+    91→    91→    for (const k of Object.keys(NOTIF_KINDS) as NotifKind[]) kn[k] = isKindNotifEnabled(k)
+    92→    92→    return kn
+    93→    93→  })
+    94→    94→  const [kindSound, setKindSound] = useState<Record<string, boolean>>(() => {
+    95→    95→    const ks: Record<string, boolean> = {}
+    96→    96→    for (const k of Object.keys(NOTIF_KINDS) as NotifKind[]) ks[k] = isEventSoundEnabled(k)
+    97→    97→    return ks
+    98→    98→  })
+    99→    99→
+   100→   100→  // Acompanha o usuário liberar/bloquear a permissão pelo navegador
+   101→   101→  useEffect(() => {
+   102→   102→    let st: PermissionStatus | null = null
+   103→   103→    const onChange = () => setPermState(notificationPermission())
+   104→   104→    navigator.permissions
+   105→   105→      ?.query({ name: 'notifications' as PermissionName })
+   106→   106→      .then((s) => {
+   107→   107→        st = s
+   108→   108→        s.onchange = onChange
+   109→   109→      })
+   110→   110→      .catch(() => {})
+   111→   111→    return () => {
+   112→   112→      if (st) st.onchange = null
+   113→   113→    }
+   114→   114→  }, [])
+   115→   115→
+   116→   116→  const { data, isLoading } = useQuery<{ settings: Record<string, string> }>({
+   117→   117→    queryKey: ['settings'],
+   118→   118→    queryFn: () => api('/api/settings'),
+   119→   119→  })
+   120→   120→  const { data: usersData } = useQuery<{ users: Array<{ id: string; name: string; email: string; role: string; active: boolean; status: string }> }>({
+   121→   121→    queryKey: ['users'],
+   122→   122→    queryFn: () => api('/api/users'),
+   123→   123→    enabled: isAdminish,
+   124→   124→  })
+   125→   125→
+   126→   126→  const s = data?.settings ?? {}
+   127→   127→  const form = {
+   128→   128→    establishmentName: formEdits.name ?? s.establishmentName ?? 'APEX FOOD',
+   129→   129→    establishmentType: formEdits.type ?? s.establishmentType ?? 'RESTAURANTE',
+   130→   130→    establishmentLogo: formEdits.logo ?? s.establishmentLogo ?? '🍴',
+   131→   131→  }
+   132→   132→
+   133→   133→  const saveSettings = useMutation({
+   134→   134→    mutationFn: (payload: Record<string, string>) => apiPatch('/api/settings', payload),
+   135→   135→    onSuccess: () => {
+   136→   136→      void qc.invalidateQueries({ queryKey: ['settings'] })
+   137→   137→      toast.success('Configurações salvas')
+   138→   138→    },
+   139→   139→    onError: (e: Error) => toast.error(e.message),
+   140→   140→  })
+   141→   141→
+   142→   142→  const updateForm = (patch: Partial<{ name: string; type: string; logo: string }>) =>
+   143→   143→    setFormEdits((prev) => ({ ...prev, ...patch }))
+   144→   144→
+   145→   145→  const askPermission = async () => {
+   146→   146→    const p = await requestNotificationPermission()
+   147→   147→    setPermState(p)
+   148→   148→    if (p === 'granted') {
+   149→   149→      toast.success('Notificações permitidas neste dispositivo')
+   150→   150→      void pushSystemNotification('prato-pronto', {
+   151→   151→        title: 'Notificações ativas — APEX FOOD',
+   152→   152→        body: 'Você receberá aqui os avisos da operação, com som para cada tipo de ação.',
+   153→   153→      })
+   154→   154→    } else if (p === 'denied') {
+   155→   155→      toast.warning('Permissão negada', {
+   156→   156→        description: 'Para receber avisos, libere as notificações deste site nas configurações do navegador.',
+   157→   157→      })
+   158→   158→    }
+   159→   159→  }
+   160→   160→
+   161→   161→  const testKind = async (kind: NotifKind) => {
+   162→   162→    void playEventSound(kind, { force: true })
+   163→   163→    let p = permState
+   164→   164→    if (p === 'default') {
+   165→   165→      p = await requestNotificationPermission()
+   166→   166→      setPermState(p)
+   167→   167→    }
+   168→   168→    if (p === 'granted') {
+   169→   169→      const sample = sampleFor(kind)
+   170→   170→      const ok = await pushSystemNotification(kind, { title: sample.title, body: sample.body })
+   171→   171→      if (ok) {
+   172→   172→        toast.success(`Aviso "${NOTIF_KINDS[kind].label}" enviado à barra do sistema`, {
+   173→   173→          description: 'Veja o popup no canto da tela (ou na barra de notificações no celular).',
+   174→   174→        })
+   175→   175→      } else {
+   176→   176→        toast.warning('Notificação do sistema desligada para este tipo', {
+   177→   177→          description: 'Ative o interruptor do tipo de ação para receber o popup.',
+   178→   178→        })
+   179→   179→      }
+   180→   180→    } else if (p === 'denied') {
+   181→   181→      toast.warning('Notificações bloqueadas neste navegador', {
+   182→   182→        description: 'Clique no ícone à esquerda da barra de endereço e permita notificações para este site.',
+   183→   183→      })
+   184→   184→    } else {
+   185→   185→      toast.info('Som de teste tocado', {
+   186→   186→        description: 'Este navegador não suporta notificações do sistema (em iPhone/iPad, instale o app pela tela do cliente).',
+   187→   187→      })
+   188→   188→    }
+   189→   189→  }
+   190→   190→
+   191→   191→  const toggleKind = (kind: NotifKind, on: boolean) => {
+   192→   192→    setKindNotif((prev) => ({ ...prev, [kind]: on }))
+   193→   193→    setKindSound((prev) => ({ ...prev, [kind]: on }))
+   194→   194→    setKindNotifEnabled(kind, on)
+   195→   195→    setEventSoundEnabled(kind, on)
+   196→   196→    if (on) void playEventSound(kind, { force: true })
+   197→   197→  }
+   198→   198→
+   199→   199→  const goBack = () => {
+   200→   200→    playSound('click')
+   201→   201→    setActiveView((DEFAULT_VIEW[user.role] ?? 'dashboard') as ViewKey)
+   202→   202→  }
+   203→   203→
+   204→   204→  if (isLoading) return <Skeleton className="h-96 rounded-xl" />
+   205→   205→
+   206→   206→  const kindList = Object.keys(NOTIF_KINDS) as NotifKind[]
+   207→   207→  const permBadge =
+   208→   208→    permState === 'granted'
+   209→   209→      ? { label: 'Permitidas', cls: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' }
+   210→   210→      : permState === 'denied'
+   211→   211→        ? { label: 'Bloqueadas', cls: 'border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400' }
+   212→   212→        : permState === 'unsupported'
+   213→   213→          ? { label: 'Sem suporte', cls: 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400' }
+   214→   214→          : { label: 'Pendente', cls: 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400' }
+   215→   215→
+   216→   216→  return (
+   217→   217→    <div className="grid gap-4 lg:grid-cols-2 items-start">
+   218→   218→      {/* Banner do estabelecimento */}
+   219→   219→      <div className="lg:col-span-2 rounded-xl border bg-gradient-to-br from-primary/10 via-card to-card p-5 md:p-6 flex flex-col md:flex-row md:items-center gap-4">
+   220→   220→        <div className="h-16 w-16 rounded-2xl apex-gradient text-white text-3xl flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
+   221→   221→          {form.establishmentLogo}
+   222→   222→        </div>
+   223→   223→        <div className="flex-1 min-w-0">
+   224→   224→          <div className="flex items-center gap-2 flex-wrap">
+   225→   225→            <h2 className="text-lg font-bold tracking-tight truncate">{form.establishmentName}</h2>
+   226→   226→            <Badge className="apex-gradient text-white border-0 text-[10px]">Sistema ativo</Badge>
+   227→   227→          </div>
+   228→   228→          <p className="text-xs text-muted-foreground mt-1">
+   229→   229→            {EST_TYPES.find((t) => t.key === form.establishmentType)?.label ?? 'Restaurante'} · 10 módulos · 5 perfis de acesso · operação em tempo real
+   230→   230→          </p>
+   231→   231→        </div>
+   232→   232→        {isCompact && (
+   233→   233→          <Button variant="outline" onClick={goBack} className="shrink-0 gap-2">
+   234→   234→            <ArrowLeft className="h-4 w-4" /> Voltar ao atendimento
+   235→   235→          </Button>
+   236→   236→        )}
+   237→   237→      </div>
+   238→   238→
+   239→   239→      {/* Notificações do dispositivo — desktop, tablet e mobile PWA */}
+   240→   240→      <Card className="lg:col-span-2 border-primary/25">
+   241→   241→        <CardContent className="p-5 space-y-4">
+   242→   242→          <div className="flex items-center justify-between gap-2 flex-wrap">
+   243→   243→            <div className="flex items-center gap-2">
+   244→   244→              <BellRing className="text-primary" style={{ width: 18, height: 18 }} />
+   245→   245→              <p className="font-semibold">Notificações do dispositivo</p>
+   246→   246→            </div>
+   247→   247→            <div className="flex items-center gap-2">
+   248→   248→              <Badge variant="outline" className={cn('text-[10px]', permBadge.cls)}>
+   249→   249→                {permBadge.label}
+   250→   250→              </Badge>
+   251→   251→              <Badge variant="outline" className="text-[10px] text-muted-foreground border-border gap-1">
+   252→   252→                <MonitorSmartphone className="h-3 w-3" /> Desktop · Tablet · PWA
+   253→   253→              </Badge>
+   254→   254→            </div>
+   255→   255→          </div>
+   256→   256→
+   257→   257→          {/* Estado da permissão */}
+   258→   258→          {permState === 'unsupported' ? (
+   259→   259→            <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+   260→   260→              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+   261→   261→              <p className="text-xs text-muted-foreground">
+   262→   262→                Este navegador não suporta notificações do sistema. No iPhone/iPad, instale o app pela tela do
+   263→   263→                cliente (Compartilhar → Adicionar à Tela de Início) e abra pelo ícone para receber os avisos.
+   264→   264→              </p>
+   265→   265→            </div>
+   266→   266→          ) : permState === 'denied' ? (
+   267→   267→            <div className="flex items-start gap-2.5 rounded-lg border border-red-500/30 bg-red-500/5 p-3">
+   268→   268→              <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+   269→   269→              <p className="text-xs text-muted-foreground">
+   270→   270→                Notificações bloqueadas para este site. Clique no ícone à esquerda da barra de endereço e permita
+   271→   271→                notificações para voltar a receber os avisos na barra do sistema.
+   272→   272→              </p>
+   273→   273→            </div>
+   274→   274→          ) : permState === 'default' ? (
+   275→   275→            <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+   276→   276→              <div className="flex items-start gap-2.5 flex-1">
+   277→   277→                <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+   278→   278→                <p className="text-xs text-muted-foreground">
+   279→   279→                  Permita as notificações para que os avisos apareçam na barra do sistema — com popup na tela,
+   280→   280→                  som personalizado por ação e vibração no celular — mesmo com o app em outra aba.
+   281→   281→                </p>
+   282→   282→              </div>
+   283→   283→              <Button size="sm" className="apex-gradient text-white font-semibold shrink-0" onClick={askPermission}>
+   284→   284→                <BellRing className="h-4 w-4" /> Ativar notificações
+   285→   285→              </Button>
+   286→   286→            </div>
+   287→   287→          ) : (
+   288→   288→            <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+   289→   289→              <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+   290→   290→              <p className="text-xs text-muted-foreground flex-1">
+   291→   291→                Notificações permitidas neste dispositivo. Os avisos aparecem na barra do sistema com o som de cada ação.
+   292→   292→              </p>
+   293→   293→              <Button size="sm" variant="outline" className="shrink-0 gap-1.5" onClick={() => testKind('prato-pronto')}>
+   294→   294→                <Play className="h-3.5 w-3.5" /> Testar agora
+   295→   295→              </Button>
+   296→   296→            </div>
+   297→   297→          )}
+   298→   298→
+   299→   299→          {/* Master das notificações do sistema */}
+   300→   300→          <div className="flex items-center justify-between rounded-lg border p-3">
+   301→   301→            <div className="flex items-center gap-2.5">
+   302→   302→              <MonitorSmartphone className="h-4 w-4" />
+   303→   303→              <div>
+   304→   304→                <p className="text-sm font-medium">Avisos na barra do sistema</p>
+   305→   305→                <p className="text-[11px] text-muted-foreground">
+   306→   306→                  Popup na tela e na central de notificações (desktop, tablet e PWA no celular)
+   307→   307→                </p>
+   308→   308→              </div>
+   309→   309→            </div>
+   310→   310→            <Switch
+   311→   311→              checked={notifMaster}
+   312→   312→              onCheckedChange={(v) => {
+   313→   313→                setNotifMaster(v)
+   314→   314→                setSystemNotifEnabled(v)
+   315→   315→                playSound('click')
+   316→   316→                toast.success(v ? 'Notificações do sistema ativadas' : 'Notificações do sistema desativadas')
+   317→   317→              }}
+   318→   318→              aria-label="Notificações do sistema"
+   319→   319→            />
+   320→   320→          </div>
+   321→   321→
+   322→   322→          <Separator />
+   323→   323→
+   324→   324→          {/* Tipos de ação: som + popup por tipo */}
+   325→   325→          <div>
+   326→   326→            <p className="text-xs font-semibold text-muted-foreground mb-2">
+   327→   327→              Tipos de ação — som personalizado e popup para cada um
+   328→   328→            </p>
+   329→   329→            <div className="rounded-lg border divide-y">
+   330→   330→              {kindList.map((kind) => {
+   331→   331→                const meta = NOTIF_KINDS[kind]
+   332→   332→                const on = kindNotif[kind] !== false
+   333→   333→                return (
+   334→   334→                  <div key={kind} className="flex items-center gap-3 p-2.5">
+   335→   335→                    <div className={cn(
+   336→   336→                      'h-9 w-9 rounded-lg flex items-center justify-center text-base shrink-0 border',
+   337→   337→                      on ? 'bg-primary/10 border-primary/25' : 'bg-muted/50 border-border opacity-60'
+   338→   338→                    )}>
+   339→   339→                      {meta.emoji}
+   340→   340→                    </div>
+   341→   341→                    <div className="flex-1 min-w-0">
+   342→   342→                      <div className="flex items-center gap-2 flex-wrap">
+   343→   343→                        <p className="text-xs font-semibold leading-tight">{meta.label}</p>
+   344→   344→                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-muted-foreground border-border">
+   345→   345→                          {EVENT_SOUNDS[kind].label}
+   346→   346→                        </Badge>
+   347→   347→                      </div>
+   348→   348→                      <p className="text-[11px] text-muted-foreground truncate">{meta.description}</p>
+   349→   349→                    </div>
+   350→   350→                    <Button
+   351→   351→                      variant="ghost"
+   352→   352→                      size="icon"
+   353→   353→                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
+   354→   354→                      onClick={() => testKind(kind)}
+   355→   355→                      aria-label={`Testar ${meta.label}`}
+   356→   356→                    >
+   357→   357→                      <Play className="h-3.5 w-3.5" />
+   358→   358→                    </Button>
+   359→   359→                    <Switch
+   360→   360→                      checked={on}
+   361→   361→                      onCheckedChange={(v) => toggleKind(kind, v)}
+   362→   362→                      aria-label={`${on ? 'Desativar' : 'Ativar'} ${meta.label}`}
+   363→   363→                    />
+   364→   364→                  </div>
+   365→   365→                )
+   366→   366→              })}
+   367→   367→            </div>
+   368→   368→            <p className="text-[11px] text-muted-foreground mt-2 flex items-center gap-1.5">
+   369→   369→              <Vibrate className="h-3 w-3" /> No celular (PWA instalado), os avisos vibram com padrão próprio por tipo de ação.
+   370→   370→            </p>
+   371→   371→          </div>
+   372→   372→        </CardContent>
+   373→   373→      </Card>
+   374→   374→
+   375→   375→      {/* Aparência */}
+   376→   376→      <Card>
+   377→   377→        <CardContent className="p-5 space-y-4">
+   378→   378→          <div className="flex items-center gap-2">
+   379→   379→            <Palette className="text-primary" style={{ width: 18, height: 18 }} />
+   380→   380→            <p className="font-semibold">Aparência</p>
+   381→   381→          </div>
+   382→   382→          <div className="grid grid-cols-2 gap-2">
+   383→   383→            {([
+   384→   384→              { key: 'light', label: 'Claro', icon: Sun },
+   385→   385→              { key: 'dark', label: 'Escuro', icon: Moon },
+   386→   386→            ] as const).map((t) => {
+   387→   387→              const Icon = t.icon
+   388→   388→              const active = theme === t.key
+   389→   389→              return (
+   390→   390→                <button
+   391→   391→                  key={t.key}
+   392→   392→                  onClick={() => { setTheme(t.key); playSound('click') }}
+   393→   393→                  className={cn(
+   394→   394→                    'rounded-lg border p-3 flex items-center gap-2 text-sm font-medium transition-all',
+   395→   395→                    active ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary/40'
+   396→   396→                  )}
+   397→   397→                >
+   398→   398→                  <Icon className="h-4 w-4" /> {t.label}
+   399→   399→                  {active && <Check className="h-3.5 w-3.5 ml-auto" />}
+   400→   400→                </button>
+   401→   401→              )
+   402→   402→            })}
+   403→   403→          </div>
+   404→   404→          <div className="flex items-center justify-between rounded-lg border p-3">
+   405→   405→            <div className="flex items-center gap-2.5">
+   406→   406→              <span className="h-5 w-5 rounded-md apex-gradient shrink-0" aria-hidden />
+   407→   407→              <div>
+   408→   408→                <p className="text-sm font-medium">Acento laranja APEX</p>
+   409→   409→                <p className="text-[11px] text-muted-foreground">Identidade da marca em botões, filas e destaques</p>
+   410→   410→              </div>
+   411→   411→            </div>
+   412→   412→            <Badge variant="outline" className="text-[10px] text-muted-foreground border-border">#FF6B1A</Badge>
+   413→   413→          </div>
+   414→   414→        </CardContent>
+   415→   415→      </Card>
+   416→   416→
+   417→   417→      {/* Sons e volume */}
+   418→   418→      <Card>
+   419→   419→        <CardContent className="p-5 space-y-4">
+   420→   420→          <div className="flex items-center gap-2">
+   421→   421→            {sound ? <Volume2 className="text-primary" style={{ width: 18, height: 18 }} /> : <VolumeX className="text-muted-foreground" style={{ width: 18, height: 18 }} />}
+   422→   422→            <p className="font-semibold">Sons e volume</p>
+   423→   423→          </div>
+   424→   424→          <div className="flex items-center justify-between rounded-lg border p-3">
+   425→   425→            <div className="flex items-center gap-2.5">
+   426→   426→              {sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+   427→   427→              <div>
+   428→   428→                <p className="text-sm font-medium">Sons de alerta</p>
+   429→   429→                <p className="text-[11px] text-muted-foreground">Comandas, pratos prontos, pagamentos e cliques</p>
+   430→   430→              </div>
+   431→   431→            </div>
+   432→   432→            <Switch
+   433→   433→              checked={sound}
+   434→   434→              onCheckedChange={(v) => {
+   435→   435→                setSound(v)
+   436→   436→                setSoundEnabled(v)
+   437→   437→                if (v) void playEventSound('comanda-nova', { force: true })
+   438→   438→              }}
+   439→   439→              aria-label="Sons"
+   440→   440→            />
+   441→   441→          </div>
+   442→   442→          <div className="rounded-lg border p-3 space-y-2.5">
+   443→   443→            <div className="flex items-center justify-between">
+   444→   444→              <p className="text-sm font-medium">Volume master</p>
+   445→   445→              <span className="text-xs font-semibold text-primary">{Math.round(vol * 100)}%</span>
+   446→   446→            </div>
+   447→   447→            <div className="flex items-center gap-3">
+   448→   448→              <VolumeX className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   449→   449→              <Slider
+   450→   450→                value={[vol]}
+   451→   451→                min={0}
+   452→   452→                max={1}
+   453→   453→                step={0.05}
+   454→   454→                onValueChange={([v]) => { setVol(v); setVolume(v) }}
+   455→   455→                onValueCommit={() => void playEventSound('pagamento', { force: true })}
+   456→   456→                aria-label="Volume master"
+   457→   457→                disabled={!sound}
+   458→   458→              />
+   459→   459→              <Volume2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   460→   460→            </div>
+   461→   461→            <p className="text-[11px] text-muted-foreground">
+   462→   462→              Arraste e solte para ouvir uma amostra. Aplica-se aos sons das ações e das notificações.
+   463→   463→            </p>
+   464→   464→          </div>
+   465→   465→        </CardContent>
+   466→   466→      </Card>
+   467→   467→
+   468→   468→      {/* Estabelecimento (administrador e gerente) */}
+   469→   469→      {isAdminish && (
+   470→   470→        <Card>
+   471→   471→          <CardContent className="p-5 space-y-4">
+   472→   472→            <div className="flex items-center gap-2">
+   473→   473→              <Store className="text-primary" style={{ width: 18, height: 18 }} />
+   474→   474→              <p className="font-semibold">Estabelecimento</p>
+   475→   475→            </div>
+   476→   476→            <div className="grid grid-cols-[70px_1fr] gap-3">
+   477→   477→              <div className="space-y-1.5">
+   478→   478→                <Label>Logo</Label>
+   479→   479→                <Input value={form.establishmentLogo} onChange={(e) => updateForm({ logo: e.target.value.slice(0, 2) })} className="text-center text-lg" />
+   480→   480→              </div>
+   481→   481→              <div className="space-y-1.5">
+   482→   482→                <Label>Nome</Label>
+   483→   483→                <Input value={form.establishmentName} onChange={(e) => updateForm({ name: e.target.value })} />
+   484→   484→              </div>
+   485→   485→            </div>
+   486→   486→            <div className="space-y-1.5">
+   487→   487→              <Label>Tipo de operação</Label>
+   488→   488→              <div className="grid grid-cols-2 gap-2">
+   489→   489→                {EST_TYPES.map((t) => {
+   490→   490→                  const active = form.establishmentType === t.key
+   491→   491→                  return (
+   492→   492→                    <button
+   493→   493→                      key={t.key}
+   494→   494→                      onClick={() => updateForm({ type: t.key })}
+   495→   495→                      className={cn(
+   496→   496→                        'rounded-lg border p-3 flex items-center gap-2 text-sm font-medium transition-all',
+   497→   497→                        active ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary/40'
+   498→   498→                      )}
+   499→   499→                    >
+   500→   500→                      <span className="text-lg">{t.icon}</span> {t.label}
+   501→   501→                      {active && <Check className="h-3.5 w-3.5 ml-auto" />}
+   502→   502→                    </button>
+   503→   503→                  )
+   504→   504→                })}
+   505→   505→              </div>
+   506→   506→            </div>
+   507→   507→            <Button className="w-full apex-gradient text-white font-semibold" onClick={() => saveSettings.mutate({ ...form })} disabled={saveSettings.isPending}>
+   508→   508→              {saveSettings.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar dados
+   509→   509→            </Button>
+   510→   510→          </CardContent>
+   511→   511→        </Card>
+   512→   512→      )}
+   513→   513→
+   514→   514→      {/* Usuários e permissões (administrador e gerente) */}
+   515→   515→      {isAdminish && (
+   516→   516→        <Card>
+   517→   517→          <CardContent className="p-5 space-y-3">
+   518→   518→            <div className="flex items-center gap-2">
+   519→   519→              <ShieldCheck className="text-primary" style={{ width: 18, height: 18 }} />
+   520→   520→              <p className="font-semibold">Usuários e permissões</p>
+   521→   521→            </div>
+   522→   522→            <div className="max-h-[190px] overflow-y-auto rounded-lg border">
+   523→   523→              <div className="divide-y">
+   524→   524→                {(usersData?.users ?? []).map((u) => (
+   525→   525→                  <div key={u.id} className="flex items-center gap-2.5 p-2.5">
+   526→   526→                    <div className={cn('h-7 w-7 rounded-full text-[10px] font-bold text-white flex items-center justify-center', u.active ? 'apex-gradient' : 'bg-muted')}>
+   527→   527→                      {u.name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}
+   528→   528→                    </div>
+   529→   529→                    <div className="flex-1 min-w-0">
+   530→   530→                      <p className="text-xs font-medium leading-tight">{u.name}</p>
+   531→   531→                      <p className="text-[10px] text-muted-foreground">{u.email}</p>
+   532→   532→                    </div>
+   533→   533→                    <Badge variant="outline" className="text-[10px] shrink-0">{ROLE_LABELS[u.role as keyof typeof ROLE_LABELS]}</Badge>
+   534→   534→                    <span className={cn('h-2 w-2 rounded-full shrink-0', u.active ? 'bg-emerald-500' : 'bg-zinc-400')} />
+   535→   535→                  </div>
+   536→   536→                ))}
+   537→   537→              </div>
+   538→   538→            </div>
+   539→   539→            <Separator />
+   540→   540→            <p className="text-xs font-medium text-muted-foreground">Matriz de acesso por perfil</p>
+   541→   541→            <div className="space-y-1.5">
+   542→   542→              {PERMISSION_MATRIX.map((p) => (
+   543→   543→                <div key={p.area} className="flex items-center justify-between text-[11px] rounded-md bg-muted/40 px-2.5 py-1.5">
+   544→   544→                  <span className="text-muted-foreground">{p.area}</span>
+   545→   545→                  <span className="flex gap-1">
+   546→   546→                    {p.roles.map((r) => (
+   547→   547→                      <Badge key={r} variant="outline" className="text-[9px] px-1.5">{ROLE_LABELS[r as keyof typeof ROLE_LABELS]}</Badge>
+   548→   548→                    ))}
+   549→   549→                  </span>
+   550→   550→                </div>
+   551→   551→              ))}
+   552→   552→            </div>
+   553→   553→          </CardContent>
+   554→   554→        </Card>
+   555→   555→      )}
+   556→   556→
+   557→   557→      {/* Sessão */}
+   558→   558→      <Card className={cn(!isAdminish && 'lg:col-span-2')}>
+   559→   559→        <CardContent className="p-4 flex items-center gap-3">
+   560→   560→          <div className="h-10 w-10 rounded-full apex-gradient text-white text-xs font-bold flex items-center justify-center">
+   561→   561→            {user.name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}
+   562→   562→          </div>
+   563→   563→          <div className="flex-1">
+   564→   564→            <p className="text-sm font-semibold">{user.name}</p>
+   565→   565→            <p className="text-[11px] text-muted-foreground">{user.email} · sessão ativa por 12h</p>
+   566→   566→          </div>
+   567→   567→          <Badge variant="outline" className="text-[10px]">{ROLE_LABELS[user.role as keyof typeof ROLE_LABELS]}</Badge>
+   568→   568→        </CardContent>
+   569→   569→      </Card>
+   570→   570→    </div>
+   571→   571→  )
+   572→   572→}
+   573→   573→

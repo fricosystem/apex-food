@@ -241,8 +241,9 @@ export function AppShell({ user }: { user: SessionUser }) {
             </button>
           </aside>
 
-          {/* Sidebar mobile (drawer) */}
-          <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+          {/* Sidebar mobile (drawer) — modal={false} evita o scroll-lock do Radix,
+              que removia a scrollbar e alterava a largura de todos os cards ao abrir */}
+          <Sheet modal={false} open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
             <SheetContent side="left" className="p-0 w-64 bg-sidebar border-sidebar-border">
               <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
               {SidebarContent}

@@ -214,7 +214,7 @@ export function SettingsView({ user }: { user: SessionUser }) {
           : { label: 'Pendente', cls: 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400' }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2 items-start">
+    <div className="grid gap-4 lg:grid-cols-2 items-start [&>*]:min-w-0">
       {/* Banner do estabelecimento */}
       <div className="lg:col-span-2 rounded-xl border bg-gradient-to-br from-primary/10 via-card to-card p-5 md:p-6 flex flex-col md:flex-row md:items-center gap-4">
         <div className="h-16 w-16 rounded-2xl apex-gradient text-white text-3xl flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
@@ -341,8 +341,8 @@ export function SettingsView({ user }: { user: SessionUser }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-xs font-semibold leading-tight">{meta.label}</p>
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-muted-foreground border-border">
-                          {EVENT_SOUNDS[kind].label}
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-muted-foreground border-border max-w-full">
+                          <span className="truncate">{EVENT_SOUNDS[kind].label}</span>
                         </Badge>
                       </div>
                       <p className="text-[11px] text-muted-foreground truncate">{meta.description}</p>
@@ -493,11 +493,11 @@ export function SettingsView({ user }: { user: SessionUser }) {
                       key={t.key}
                       onClick={() => updateForm({ type: t.key })}
                       className={cn(
-                        'rounded-lg border p-3 flex items-center gap-2 text-sm font-medium transition-all',
+                        'rounded-lg border p-3 flex items-center gap-2 text-sm font-medium transition-all min-w-0',
                         active ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary/40'
                       )}
                     >
-                      <span className="text-lg">{t.icon}</span> {t.label}
+                      <span className="text-lg shrink-0">{t.icon}</span> <span className="truncate">{t.label}</span>
                       {active && <Check className="h-3.5 w-3.5 ml-auto" />}
                     </button>
                   )
@@ -540,9 +540,9 @@ export function SettingsView({ user }: { user: SessionUser }) {
             <p className="text-xs font-medium text-muted-foreground">Matriz de acesso por perfil</p>
             <div className="space-y-1.5">
               {PERMISSION_MATRIX.map((p) => (
-                <div key={p.area} className="flex items-center justify-between text-[11px] rounded-md bg-muted/40 px-2.5 py-1.5">
+                <div key={p.area} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-[11px] rounded-md bg-muted/40 px-2.5 py-1.5">
                   <span className="text-muted-foreground">{p.area}</span>
-                  <span className="flex gap-1">
+                  <span className="flex flex-wrap justify-end gap-1">
                     {p.roles.map((r) => (
                       <Badge key={r} variant="outline" className="text-[9px] px-1.5">{ROLE_LABELS[r as keyof typeof ROLE_LABELS]}</Badge>
                     ))}
@@ -560,11 +560,11 @@ export function SettingsView({ user }: { user: SessionUser }) {
           <div className="h-10 w-10 rounded-full apex-gradient text-white text-xs font-bold flex items-center justify-center">
             {user.name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}
           </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold">{user.name}</p>
-            <p className="text-[11px] text-muted-foreground">{user.email} · sessão ativa por 12h</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate">{user.name}</p>
+            <p className="text-[11px] text-muted-foreground truncate">{user.email} · sessão ativa por 12h</p>
           </div>
-          <Badge variant="outline" className="text-[10px]">{ROLE_LABELS[user.role as keyof typeof ROLE_LABELS]}</Badge>
+          <Badge variant="outline" className="text-[10px] shrink-0">{ROLE_LABELS[user.role as keyof typeof ROLE_LABELS]}</Badge>
         </CardContent>
       </Card>
     </div>
