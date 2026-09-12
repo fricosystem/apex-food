@@ -130,3 +130,15 @@ Work Log:
 Stage Summary:
 - Sidebar com logo sólida adaptável nos dois temas, sem card; texto "APEX FOOD / Operação premium" mantido ao lado
 - Validado E2E logado como admin: shot-61 (dark — logo clara) e shot-62 (light — logo escura); lint 0/0; home 200
+
+---
+Task ID: 8
+Agent: Super Z (main)
+Task: Sidebar — aumentar o tamanho da logo sólida
+
+Work Log:
+- app-shell.tsx: logo do sidebar h-9 (36px) → h-11 (44px), mantendo w-auto, shrink-0 e invert dark:invert-0 (só tamanho, nada mais alterado)
+
+Stage Summary:
+- Logo do sidebar visivelmente maior, bem centralizada na linha h-16 do header do sidebar
+- Validado E2E logado (dark): shot-63 + crop do header; lint 0/0; home 200
