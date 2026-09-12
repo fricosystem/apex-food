@@ -215,3 +215,21 @@ Work Log:
 Stage Summary:
 - Formulário de autenticação totalmente temático (inputs + cards de acesso rápido + box de senha), coerente entre si em ambos os temas sobre o canvas escuro fixo da marca
 - Screenshots: shot-86 a shot-87
+
+---
+Task ID: 14
+Agent: Super Z (main)
+Task: Diagnóstico do erro de hidratação reportado pelo usuário (div do metadata do Next com hidden/className divergentes)
+
+Work Log:
+- Auditado src/ completo: nenhum uso de Math.random/Date.now/toLocale* participa do SSR da tela de login (todos em APIs/seed server-side ou views pós-login renderizadas client-side); suppressHydrationWarning já presente no <html> do layout raiz
+- HTML servido inspecionado via curl: metadata boundary renderiza <div hidden=""> vazio e SEM classes; o texto "translate-tooltip-mtz" aparece 0 (zero) vezes no HTML do servidor
+- O diff do erro contém className="translate-tooltip-mtz blue sm-root translate hidden_translate" — classes da extensão de tradução "Translate Web Pages (TWP)", que reescreve o DOM antes da hidratação (remove o atributo hidden do div interno do Next e injeta o próprio wrapper)
+- Prova E2E: browser headless limpo (sem extensões) abriu e recarregou a home — console sem nenhum erro/aviso de hidratação (apenas HMR connected e aviso do React DevTools), page errors vazio, página renderiza normalmente (shot-88)
+- Nenhuma alteração de código necessária: o erro é classificado pelo próprio React como "Recoverable" (a árvore é regenerada no cliente) e só ocorre em navegadores com a extensão instalada
+- Confirmado no worklog que a Task 13 (botões de acesso rápido temáticos) já havia sido concluída e validada na sessão anterior (shots 86-87)
+
+Stage Summary:
+- Hidratação do app está limpa; o erro reportado é causado pela extensão de tradução no navegador do usuário
+- Recomendação passada ao usuário: desativar a extensão para o domínio do preview / usar janela anônima / adicionar o site às exceções da extensão
+- Screenshots: shot-88
