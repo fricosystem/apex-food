@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { apiPost } from '@/lib/fetcher'
 import { playSound } from '@/lib/sound'
+import { pushSystemNotification } from '@/lib/notification-service'
+import { ROLE_LABELS } from '@/lib/types'
 import type { SessionUser } from '@/lib/auth'
 
 const DEMO_ACCOUNTS = [
@@ -170,6 +172,29 @@ function ScrollFade({ children, className, startVisible, anchored }: {
   )
 }
 
+/** Notificação de teste exibida ao entrar — boas-vindas com a logo da APEX */
+function WelcomeNotification({ name, role }: { name: string; role: string }) {
+  return (
+    <div className="flex items-start gap-3 w-[min(92vw,360px)] rounded-xl border border-[#FF6B1A]/35 bg-[#141417] p-3.5 shadow-2xl">
+      <div className="h-12 w-12 rounded-lg border border-[#FF6B1A]/25 bg-white/[0.04] flex items-center justify-center shrink-0 p-1.5">
+        <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-full w-full object-contain" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold text-white leading-tight">
+          Bem-vindo(a) de volta, <span className="text-[#FF9A57]">{name}</span>!
+        </p>
+        <p className="text-[11px] text-white/60 mt-0.5">
+          Você entrou como <span className="text-white/85 font-medium">{role}</span>
+        </p>
+        <span className="inline-flex items-center gap-1.5 mt-2 rounded-full border border-[#FF6B1A]/30 bg-[#FF6B1A]/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#FF9A57]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#FF6B1A]" aria-hidden />
+          Notificação de teste
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -181,7 +206,16 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
       apiPost<{ user: SessionUser }>('/api/auth/login', creds),
     onSuccess: (data) => {
       playSound('success')
-      toast.success(`Bem-vindo(a), ${data.user.name.split(' ')[0]}!`)
+      const firstName = data.user.name.split(' ')[0]
+      const roleLabel = ROLE_LABELS[data.user.role] ?? data.user.role
+      toast.custom(() => <WelcomeNotification name={firstName} role={roleLabel} />, { duration: 5000 })
+      // Notificação de teste também na barra do sistema (quando permitido), com a logo da APEX
+      void pushSystemNotification('alerta', {
+        title: 'Bem-vindo(a) de volta!',
+        body: `${data.user.name} — ${roleLabel} · APEX FOOD`,
+        tag: 'apex-bem-vindo',
+        icon: '/apex-logo.png',
+      })
       queryClient.setQueryData(['me'], { user: data.user })
       onLogin(data.user)
     },

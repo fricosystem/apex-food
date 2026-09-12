@@ -205,7 +205,7 @@ export function onNotificationClick(handler: (kind: NotifKind | null) => void): 
  */
 export async function pushSystemNotification(
   kind: NotifKind,
-  data: { title: string; body?: string; tag?: string }
+  data: { title: string; body?: string; tag?: string; icon?: string }
 ): Promise<boolean> {
   if (!isSystemNotifEnabled() || !isKindNotifEnabled(kind)) return false
   const perm = notificationPermission()
@@ -220,8 +220,8 @@ export async function pushSystemNotification(
     tag: data.tag ?? `apex-${kind}`,
     renotify: true,
     silent: true, // o som é o nosso, personalizado por ação
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    icon: data.icon ?? '/icons/icon-192.png',
+    badge: data.icon ?? '/icons/icon-192.png',
     data: { kind },
   })
 }

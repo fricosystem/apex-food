@@ -348,3 +348,20 @@ Stage Summary:
 - Dashboard com filtro de período completo e 4 novos gráficos animados na paleta laranja da marca
 - Todos os cards existentes preservados (Produtos, Garçons, Eficiência, Metas, Pagamentos)
 - Screenshots: shot-101 (custom), shot-102 (semana), shot-103 (estação/radar/gauge), shot-104 (final)
+
+---
+Task ID: 20
+Agent: Super Z (main)
+Task: Notificação de teste no login com mensagem de boas-vindas e logo da APEX
+
+Work Log:
+- login-screen.tsx: substituído toast simples por notificação rica (toast.custom) — card dark com borda laranja, logo /apex-logo.png em destaque, "Bem-vindo(a) de volta, {nome}!", "Você entrou como {cargo}" e badge "NOTIFICAÇÃO DE TESTE"; duração 5s; som de sucesso mantido
+- onSuccess também dispara notificação na barra do sistema via pushSystemNotification('alerta', ...) com título "Bem-vindo(a) de volta!", corpo "{nome} — {cargo} · APEX FOOD" e ícone /apex-logo.png (silencioso quando sem permissão/toggles off)
+- notification-service.ts: data param estendido com icon?: string (fallback /icons/icon-192.png)
+- Fix: ROLE_LABELS importado de @/lib/types (não de @/lib/auth) — auth.ts usa next/headers (server-only) e quebrava o bundle cliente (home 500 → 200 após correção)
+- E2E: login gerente/admin/garçom — toast visível com logo carregada, textos corretos por perfil; mobile 390px (358px de largura, sem overflow); 0 page errors, console limpo
+- ESLint 0/0
+
+Stage Summary:
+- Login exibe notificação de teste com logo APEX + boas-vindas personalizada por perfil, in-app (sempre) e na barra do sistema (quando permitido)
+- Screenshots: shot-105-bem-vindo-login.png, shot-106-bem-vindo-mobile.png
