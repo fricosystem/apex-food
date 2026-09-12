@@ -171,3 +171,19 @@ Work Log:
 Stage Summary:
 - Tela de autenticação com canvas único contínuo, storytelling por módulos com animações de scroll e formulário claro flutuante; marca e rodapé com APEX HUB SYSTEM
 - Screenshots: shot-65 a shot-73
+
+---
+Task ID: 11
+Agent: Super Z (main)
+Task: Autenticação desktop — primeira dobra exata (só hero + dica "Role para conhecer o sistema" na base; módulos abaixo do limite da tela) + fade vinculado à posição do scroll com reverse natural
+
+Work Log:
+- Dobra exata: coluna de apresentação reestruturada — bloco hero com min-h-screen (flex-col): ScrollFade da abertura (logo + selo + headline + chips) no topo e dica "Role para conhecer o sistema" com mt-auto pb-9 ancorada na base da viewport; módulos passam a começar exatamente na borda inferior da primeira dobra (layout top = 772 @ vh 772, medido)
+- Fade scroll-linked: FadeSection (IntersectionObserver + transition CSS) substituído por controlador posicional useFadeController (rAF no evento scroll/resize + recalculos em 350ms/900ms e document.fonts.ready): por bloco, tIn = top percorrendo os 22% inferiores da viewport (fade in +44px→0) e tOut = base adentrando os 28% superiores (fade out 0→-30px), opacity = min(tIn, tOut) — sem transição CSS, estilo recalculado a cada frame; rolar para cima inverte os efeitos naturalmente (matemática posicional, sem estado de direção)
+- Correções durante validação: (1) dica ancorada na base tinha top ~760 → tIn≈0 a deixava com opacity 0.084 e empurrada +41px para fora — criado prop anchored (data-fade-anchored) que desativa o fade de entrada (só fade de saída); (2) getBoundingClientRect incluía o transform do frame anterior (feedback) — posição de layout agora desconta dataset.fadeY
+- Mobile inalterado (coluna narrativa segue oculta, hidden lg:flex); formulário sticky à direita sem mudanças
+- Verificações E2E (1540×772): dobra inicial só com hero + dica (shot-76); scroll 420 → intro 0.778 fade out, módulo 01 opacity 1, módulo 02 0.024 entrando (shot-77); scroll 1150 → intro 0, mod1 0.176, mod2/mod3 1 (shot-78); reverse ao topo restaura intro 1 / hint 1 / módulos 0 (shot-79, idêntico ao inicial); fim da página com rodapé "© 2026 APEX Food | DESENVOLVIDO POR APEX HUB SYSTEM" 100% visível (shot-80); login via acesso rápido OK (shot-81); mobile 390px OK (shot-82); lint 0/0; home 200
+
+Stage Summary:
+- Ao abrir a autenticação em desktop o usuário vê apenas a abertura e a dica de rolagem na parte inferior; os módulos só aparecem ao rolar, com fade in por baixo / fade out por cima e reversão automática ao subir
+- Screenshots: shot-75 a shot-82

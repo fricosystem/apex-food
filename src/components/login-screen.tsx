@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -68,30 +68,102 @@ const MODULE_SECTIONS = [
   },
 ]
 
-/** Seção com fade in ao entrar na viewport e fade out reversível ao sair (rolando para baixo ou para cima) */
-function FadeSection({ children, className }: { children: React.ReactNode; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(false)
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => setVisible(entry.isIntersecting),
-      { threshold: 0.2 },
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
+/**
+ * Fade vinculado à posição de rolagem (sem transição CSS — o estilo é recalculado a cada frame):
+ * - rolando para baixo: o que entra por baixo sofre fade in subindo (+44px → 0) e o que
+ *   sai por cima sofre fade out (0 → -30px);
+ * - rolando para cima (reverse): o mesmo cálculo posicional inverte o efeito — o conteúdo
+ *   superior volta com fade in descendo e o inferior some com fade out.
+ */
+type FadeApi = { register: (el: HTMLDivElement | null) => void }
+const FadeCtx = createContext<FadeApi | null>(null)
+
+function useFadeController(): FadeApi {
+  const items = useRef(new Set<HTMLDivElement>())
+  const rafRef = useRef(0)
+
+  const update = useCallback(() => {
+    rafRef.current = 0
+    const H = window.innerHeight || 1
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    items.current.forEach((el) => {
+      if (!el.isConnected) {
+        items.current.delete(el)
+        return
+      }
+      if (reduced) {
+        el.style.opacity = '1'
+        el.style.transform = ''
+        return
+      }
+      const rect = el.getBoundingClientRect()
+      // Desconta o transform aplicado no frame anterior para medir a posição de layout
+      const prevY = Number(el.dataset.fadeY ?? 0)
+      const top = rect.top - prevY
+      const bottom = rect.bottom - prevY
+      // Entrada: topo percorrendo os 22% inferiores da viewport
+      const tIn = clamp01((H - top) / (H * 0.22))
+      // Saída: base adentrando os 28% superiores da viewport
+      const tOut = clamp01(bottom / (H * 0.28))
+      // Blocos ancorados na primeira dobra nascem visíveis e sofrem apenas o fade de saída
+      const anchored = el.dataset.fadeAnchored === '1'
+      const opacity = anchored ? tOut : Math.min(tIn, tOut)
+      const y = (anchored ? 0 : (1 - tIn) * 44) - (1 - tOut) * 30
+      el.dataset.fadeY = y.toFixed(1)
+      el.style.opacity = opacity.toFixed(3)
+      el.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`
+    })
   }, [])
 
+  const schedule = useCallback(() => {
+    if (!rafRef.current) rafRef.current = requestAnimationFrame(update)
+  }, [update])
+
+  const register = useCallback((el: HTMLDivElement | null) => {
+    if (el) items.current.add(el)
+  }, [])
+
+  useEffect(() => {
+    schedule()
+    window.addEventListener('scroll', schedule, { passive: true })
+    window.addEventListener('resize', schedule)
+    // Recalcula após fontes/imagens estabilizarem o layout
+    const t1 = window.setTimeout(schedule, 350)
+    const t2 = window.setTimeout(schedule, 900)
+    document.fonts?.ready.then(schedule).catch(() => {})
+    return () => {
+      window.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+      window.clearTimeout(t1)
+      window.clearTimeout(t2)
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    }
+  }, [schedule])
+
+  return { register }
+}
+
+/** Bloco que participa do fade de rolagem; startVisible mantém o bloco visível antes da hidratação e anchored desativa o fade de entrada (só sai por cima) */
+function ScrollFade({ children, className, startVisible, anchored }: {
+  children: React.ReactNode
+  className?: string
+  startVisible?: boolean
+  anchored?: boolean
+}) {
+  const fade = useContext(FadeCtx)
   return (
     <div
-      ref={ref}
-      className={cn(
-        'transition-all duration-700 ease-out will-change-[opacity,transform]',
-        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-7',
-        className,
-      )}
+      ref={fade?.register}
+      className={cn('relative', className)}
+      data-fade-anchored={anchored ? '1' : undefined}
+      data-fade-y={startVisible ? undefined : '44'}
+      style={{
+        opacity: startVisible ? undefined : 0,
+        transform: startVisible ? undefined : 'translate3d(0, 44px, 0)',
+        willChange: 'opacity, transform',
+      }}
     >
       {children}
     </div>
@@ -101,6 +173,7 @@ function FadeSection({ children, className }: { children: React.ReactNode; class
 export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const fade = useFadeController()
   const queryClient = useQueryClient()
 
   const login = useMutation({
@@ -139,50 +212,57 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
         <div className="absolute -bottom-64 -right-36 h-[640px] w-[640px] rounded-full border border-[#FF6B1A]/12" />
       </div>
 
+      <FadeCtx.Provider value={fade}>
       {/* Coluna de apresentação — scroll com seções por módulo */}
-      <div className="relative z-10 hidden lg:flex lg:flex-col flex-1 px-14 pt-10 pb-14">
-        {/* Topo — logo sólida */}
-        <div className="relative flex items-center gap-2">
-          <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-16 w-auto drop-shadow-lg" />
-          <p className="font-extrabold text-3xl xl:text-[2.4rem] tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
-        </div>
+      <div className="relative z-10 hidden lg:flex lg:flex-col flex-1 px-14 pb-10">
+        {/* Primeira dobra — ocupa exatamente a viewport inicial: só a abertura e a dica "role" ficam visíveis; os módulos começam abaixo do limite da tela */}
+        <div className="flex min-h-screen flex-col">
+          <ScrollFade startVisible className="max-w-xl pt-10">
+            <div className="flex items-center gap-2">
+              <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-16 w-auto drop-shadow-lg" />
+              <p className="font-extrabold text-3xl xl:text-[2.4rem] tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
+            </div>
+            <div className="pt-24">
+              <div className="flex items-center gap-3">
+                <span className="h-px w-8 bg-[#FF6B1A]" aria-hidden />
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/55">
+                  Gestão que acompanha o seu ritmo
+                </p>
+              </div>
+              <h1 className="mt-6 text-[2.6rem] xl:text-[3.4rem] font-extrabold leading-[1.08] tracking-tight">
+                Mais controle para uma operação <span className="text-[#FF7B2E]">mais inteligente.</span>
+              </h1>
+              <p className="mt-6 text-white/70 leading-relaxed max-w-lg">
+                Centralize pedidos, salão, equipe e financeiro em uma experiência criada para deixar o
+                seu restaurante mais eficiente todos os dias.
+              </p>
+              <div className="flex flex-wrap gap-3 mt-9">
+                {['Operação em tempo real', 'Decisões mais rápidas', 'Visão do seu negócio'].map((chip) => (
+                  <span
+                    key={chip}
+                    className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-white/85 backdrop-blur"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#FF6B1A]" aria-hidden />
+                    {chip}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </ScrollFade>
 
-        {/* Abertura */}
-        <FadeSection className="relative max-w-xl pt-24 pb-24">
-          <div className="flex items-center gap-3">
-            <span className="h-px w-8 bg-[#FF6B1A]" aria-hidden />
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/55">
-              Gestão que acompanha o seu ritmo
+          {/* Dica de rolagem — ancorada na base da primeira dobra, acima do limite da tela */}
+          <ScrollFade startVisible anchored className="max-w-xl mt-auto pb-9">
+            <p className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-white/35">
+              Role para conhecer o sistema <ArrowRight className="h-3.5 w-3.5 rotate-90" aria-hidden />
             </p>
-          </div>
-          <h1 className="mt-6 text-[2.6rem] xl:text-[3.4rem] font-extrabold leading-[1.08] tracking-tight">
-            Mais controle para uma operação <span className="text-[#FF7B2E]">mais inteligente.</span>
-          </h1>
-          <p className="mt-6 text-white/70 leading-relaxed max-w-lg">
-            Centralize pedidos, salão, equipe e financeiro em uma experiência criada para deixar o
-            seu restaurante mais eficiente todos os dias.
-          </p>
-          <div className="flex flex-wrap gap-3 mt-9">
-            {['Operação em tempo real', 'Decisões mais rápidas', 'Visão do seu negócio'].map((chip) => (
-              <span
-                key={chip}
-                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-white/85 backdrop-blur"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-[#FF6B1A]" aria-hidden />
-                {chip}
-              </span>
-            ))}
-          </div>
-          <p className="mt-10 flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-white/35">
-            Role para conhecer o sistema <ArrowRight className="h-3.5 w-3.5 rotate-90" aria-hidden />
-          </p>
-        </FadeSection>
+          </ScrollFade>
+        </div>
 
         {/* Seções por módulo */}
         {MODULE_SECTIONS.map((m, i) => {
           const Icon = m.icon
           return (
-            <FadeSection key={m.tag} className={cn('relative max-w-xl', i === 0 ? 'pt-10' : 'pt-24', 'pb-16')}>
+            <ScrollFade key={m.tag} className={cn('max-w-xl', i === 0 ? 'pt-2' : 'pt-24', 'pb-16')}>
               <div className="flex items-center gap-3">
                 <span className="h-10 w-10 rounded-xl border border-[#FF6B1A]/30 bg-[#FF6B1A]/10 flex items-center justify-center shrink-0">
                   <Icon className="h-5 w-5 text-[#FF9A57]" aria-hidden />
@@ -204,12 +284,12 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
                   </span>
                 ))}
               </div>
-            </FadeSection>
+            </ScrollFade>
           )
         })}
 
         {/* Seção final — fechamento + rodapé */}
-        <FadeSection className="relative max-w-xl pt-24 pb-2">
+        <ScrollFade className="max-w-xl pt-24 pb-2">
           <div className="flex items-center gap-3">
             <span className="h-px w-8 bg-[#FF6B1A]" aria-hidden />
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/55">Tudo em um só lugar</p>
@@ -227,8 +307,9 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
             <span className="h-3 w-px bg-white/25" aria-hidden />
             <span className="uppercase tracking-[0.18em]">Desenvolvido por APEX HUB SYSTEM</span>
           </div>
-        </FadeSection>
+        </ScrollFade>
       </div>
+      </FadeCtx.Provider>
 
       {/* Formulário — continuação do mesmo fundo, sem caixa separada (tema claro fixo) */}
       <div className="relative z-10 w-full lg:w-[480px] xl:w-[520px] lg:sticky lg:top-0 lg:h-screen flex items-center justify-center p-6 lg:p-10">
