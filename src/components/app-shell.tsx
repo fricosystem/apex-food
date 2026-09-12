@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
@@ -8,12 +8,14 @@ import { toast } from 'sonner'
 import {
   LayoutDashboard, ClipboardList, ChefHat, Wallet, Settings2,
   Grid3x3, PanelLeftClose, PanelLeft, Sun, Moon, LogOut, Volume2, VolumeX,
-  Menu, Wifi, WifiOff, X, ArrowLeft, Bell,
+  Menu, Wifi, WifiOff, X, Bell, UserCircle2, ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAppStore, DEFAULT_VIEW, VIEW_ROLES } from '@/lib/store'
 import type { ViewKey } from '@/lib/types'
 import { ROLE_LABELS } from '@/lib/types'
@@ -55,6 +57,7 @@ export function AppShell({ user }: { user: SessionUser }) {
   const { activeView, setActiveView, sidebarCollapsed, toggleSidebar, mobileNavOpen, setMobileNavOpen } = useAppStore()
   const { theme, setTheme } = useTheme()
   const queryClient = useQueryClient()
+  const [profileOpen, setProfileOpen] = useState(false)
   const { connected } = useRealtime(user.role, user.id)
 
   const allowedViews = useMemo(
@@ -249,90 +252,187 @@ export function AppShell({ user }: { user: SessionUser }) {
 
       {/* Conteúdo */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 sticky top-0 z-30 border-b bg-background/85 backdrop-blur-md flex items-center gap-3 px-4 lg:px-6 relative">
+        <header
+          className={cn(
+            'h-16 sticky top-0 z-30 border-b bg-background/85 backdrop-blur-md items-center px-3 sm:px-4 lg:px-6 relative',
+            isCompact ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)] gap-2' : 'flex gap-3'
+          )}
+        >
           {isCompact ? (
             <>
-              {/* Marca no header (mesmo padrão do sidebar) */}
-              <div className="flex items-center gap-2.5 shrink-0">
-                <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-11 w-auto shrink-0 invert dark:invert-0" />
-                <div className="min-w-0 hidden sm:block">
-                  <p className="font-bold tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
+              {/* Marca — coluna esquerda do grid */}
+              <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-9 sm:h-11 w-auto shrink-0 invert dark:invert-0" />
+                <div className="min-w-0 hidden lg:block">
+                  <p className="font-bold tracking-tight leading-none text-sm">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
                   <p className="text-[10px] text-muted-foreground mt-0.5 truncate">EMPÓRIO RESTAURANTE</p>
                 </div>
               </div>
-              <div className="h-8 w-px bg-border shrink-0 hidden md:block" aria-hidden />
-            </>
-          ) : (
-            <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileNavOpen(true)} aria-label="Abrir menu">
-              <Menu className="h-5 w-5" />
-            </Button>
-          )}
-          {isCompact ? (
-            /* Perfis operacionais: apenas a descrição da tela, centralizada no header */
-            <>
-              <div className="min-w-0 flex-1" aria-hidden />
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none max-w-[min(60vw,560px)] px-2 text-center">
+
+              {/* Título da tela — coluna central, truncado sem sobrepor as laterais */}
+              <div className="w-full min-w-0 justify-self-center text-center px-1">
                 <h1 className="text-sm sm:text-base font-semibold tracking-tight leading-tight truncate text-foreground">
                   {currentMeta?.description}
                 </h1>
               </div>
-            </>
-          ) : (
-            <div className="min-w-0 flex-1">
-              <h1 className="font-bold tracking-tight leading-tight truncate">{currentMeta?.label}</h1>
-              <p className="text-xs text-muted-foreground truncate hidden sm:block">{currentMeta?.description}</p>
-            </div>
-          )}
-          <div
-            className={cn(
-              'flex items-center gap-1.5 text-xs font-medium rounded-full border px-2.5 py-1',
-              connected ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'text-muted-foreground border-border'
-            )}
-            title={connected ? 'Conectado em tempo real' : 'Reconectando...'}
-          >
-            {connected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-            <span className="hidden sm:inline">{connected ? 'Tempo real' : 'Offline'}</span>
-            <span className={cn('h-1.5 w-1.5 rounded-full', connected ? 'bg-emerald-500 apex-live-dot' : 'bg-muted-foreground')} />
-          </div>
-          {isCompact && (
-            <>
-              {/* Controles que ficavam no sidebar, movidos para o header */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 shrink-0"
-                onClick={() => navigate(current === 'configuracoes' ? ((DEFAULT_VIEW[user.role] ?? 'garcom') as ViewKey) : 'configuracoes')}
-                aria-label={current === 'configuracoes' ? 'Voltar ao atendimento' : 'Configurações'}
-              >
-                {current === 'configuracoes' ? <ArrowLeft className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
-              </Button>
-              <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={toggleSound} aria-label="Alternar sons">
-                {isSoundEnabled() ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-              </Button>
-              <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={toggleTheme} aria-label="Alternar tema">
-                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </Button>
-              <div className="flex items-center gap-1 shrink-0">
-                <div className="h-8 w-8 rounded-full apex-gradient flex items-center justify-center text-white text-[10px] font-bold" aria-hidden>
-                  {initials(user.name)}
-                </div>
-                <span className="hidden xl:inline text-xs font-semibold max-w-[120px] truncate">{user.name}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={() => logout.mutate()}
-                  aria-label="Sair"
-                >
-                  <LogOut className="h-4 w-4" />
-                </Button>
+
+              {/* Bolinha do perfil — coluna direita, abre o menu de opções */}
+              <div className="justify-self-end">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-full apex-gradient flex items-center justify-center text-white text-[10px] sm:text-xs font-bold transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      aria-label="Abrir menu do perfil"
+                      aria-haspopup="menu"
+                    >
+                      {initials(user.name)}
+                      <span
+                        className={cn('absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background', user.status === 'BUSY' ? 'bg-amber-500' : 'bg-emerald-500')}
+                        aria-hidden
+                      />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" sideOffset={10} className="w-[min(92vw,320px)] p-0">
+                    {/* Identidade */}
+                    <div className="flex items-center gap-3 p-3.5 pb-2.5">
+                      <div className="relative shrink-0">
+                        <div className="h-10 w-10 rounded-full apex-gradient flex items-center justify-center text-white text-xs font-bold">
+                          {initials(user.name)}
+                        </div>
+                        <span
+                          className={cn('absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background', user.status === 'BUSY' ? 'bg-amber-500' : 'bg-emerald-500')}
+                          aria-hidden
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate leading-tight">{user.name}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{ROLE_LABELS[user.role as keyof typeof ROLE_LABELS]}</p>
+                      </div>
+                    </div>
+
+                    {/* Status de conexão (informativo) */}
+                    <div className="mx-3 mb-2 flex items-center justify-between rounded-lg border bg-muted/30 px-2.5 py-1.5 text-[11px]">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        {connected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+                        Conexão
+                      </span>
+                      <span className={cn('font-semibold', connected ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>
+                        {connected ? 'Tempo real' : 'Offline'}
+                      </span>
+                    </div>
+
+                    {/* Opções com ícones */}
+                    <div className="p-1.5 pt-0">
+                      <DropdownMenuItem
+                        onClick={() => { playSound('click'); setActiveView('configuracoes') }}
+                        className="gap-2.5 py-2.5"
+                      >
+                        <Bell className="h-4 w-4 text-primary shrink-0" />
+                        <span className="flex-1">Configurações e avisos</span>
+                        <ChevronRightHint />
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={toggleSound} className="gap-2.5 py-2.5">
+                        {isSoundEnabled() ? <Volume2 className="h-4 w-4 text-primary shrink-0" /> : <VolumeX className="h-4 w-4 text-muted-foreground shrink-0" />}
+                        <span className="flex-1">Sons de alerta</span>
+                        <span className="text-[10px] text-muted-foreground">{isSoundEnabled() ? 'ativados' : 'desativados'}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={toggleTheme} className="gap-2.5 py-2.5">
+                        {theme === 'dark' ? <Sun className="h-4 w-4 text-primary shrink-0" /> : <Moon className="h-4 w-4 text-primary shrink-0" />}
+                        <span className="flex-1">{theme === 'dark' ? 'Tema claro' : 'Tema escuro'}</span>
+                      </DropdownMenuItem>
+                    </div>
+
+                    <DropdownMenuSeparator className="my-1" />
+
+                    <div className="p-1.5 pt-1.5">
+                      <DropdownMenuItem onClick={() => setProfileOpen(true)} className="gap-2.5 py-2.5">
+                        <UserCircle2 className="h-4 w-4 text-primary shrink-0" />
+                        <span className="flex-1">Perfil do usuário</span>
+                        <ChevronRightHint />
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => logout.mutate()}
+                        className="gap-2.5 py-2.5 text-destructive focus:text-destructive"
+                      >
+                        <LogOut className="h-4 w-4 shrink-0" />
+                        <span className="flex-1">Sair</span>
+                      </DropdownMenuItem>
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </>
+          ) : (
+            <>
+              <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileNavOpen(true)} aria-label="Abrir menu">
+                <Menu className="h-5 w-5" />
+              </Button>
+              <div className="min-w-0 flex-1">
+                <h1 className="font-bold tracking-tight leading-tight truncate">{currentMeta?.label}</h1>
+                <p className="text-xs text-muted-foreground truncate hidden sm:block">{currentMeta?.description}</p>
+              </div>
+              <div
+                className={cn(
+                  'flex items-center gap-1.5 text-xs font-medium rounded-full border px-2.5 py-1',
+                  connected ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'text-muted-foreground border-border'
+                )}
+                title={connected ? 'Conectado em tempo real' : 'Reconectando...'}
+              >
+                {connected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+                <span className="hidden sm:inline">{connected ? 'Tempo real' : 'Offline'}</span>
+                <span className={cn('h-1.5 w-1.5 rounded-full', connected ? 'bg-emerald-500 apex-live-dot' : 'bg-muted-foreground')} />
+              </div>
+              <Badge variant="outline" className="hidden lg:inline-flex text-[11px] text-muted-foreground border-border">
+                {ROLE_LABELS[user.role as keyof typeof ROLE_LABELS]}
+              </Badge>
+            </>
           )}
-          <Badge variant="outline" className="hidden lg:inline-flex text-[11px] text-muted-foreground border-border">
-            {ROLE_LABELS[user.role as keyof typeof ROLE_LABELS]}
-          </Badge>
         </header>
+
+        {/* Dialog: Perfil do usuário (apenas telas operacionais) */}
+        {isCompact && (
+          <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+            <DialogContent className="w-[min(92vw,400px)] rounded-xl gap-4">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <UserCircle2 className="h-5 w-5 text-primary" /> Perfil do usuário
+                </DialogTitle>
+                <DialogDescription>Seus dados de acesso no EMPÓRIO RESTAURANTE.</DialogDescription>
+              </DialogHeader>
+              <div className="flex items-center gap-3.5">
+                <div className="relative shrink-0">
+                  <div className="h-14 w-14 rounded-full apex-gradient flex items-center justify-center text-white text-base font-bold">
+                    {initials(user.name)}
+                  </div>
+                  <span
+                    className={cn('absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-background', user.status === 'BUSY' ? 'bg-amber-500' : 'bg-emerald-500')}
+                    aria-hidden
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold truncate leading-tight">{user.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                </div>
+              </div>
+              <div className="rounded-lg border divide-y text-sm">
+                <div className="flex items-center justify-between px-3.5 py-2.5">
+                  <span className="text-muted-foreground text-xs">Cargo</span>
+                  <span className="font-medium">{ROLE_LABELS[user.role as keyof typeof ROLE_LABELS]}</span>
+                </div>
+                <div className="flex items-center justify-between px-3.5 py-2.5">
+                  <span className="text-muted-foreground text-xs">Status</span>
+                  <span className={cn('font-medium', user.status === 'BUSY' ? 'text-amber-500' : 'text-emerald-500')}>
+                    {user.status === 'BUSY' ? 'Ocupado' : 'Online'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between px-3.5 py-2.5">
+                  <span className="text-muted-foreground text-xs">Estabelecimento</span>
+                  <span className="font-medium">EMPÓRIO RESTAURANTE</span>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
 
         <main className="flex-1 p-4 lg:p-6 max-w-[1600px] w-full mx-auto">
           <div className="apex-enter" key={current}>
@@ -366,4 +466,9 @@ function initials(name: string): string {
 export { NAV_ITEMS }
 export function MobileNavClose() {
   return <X className="h-4 w-4" />
+}
+
+/** Setinha de "abrir" usada nos itens do menu do perfil */
+function ChevronRightHint() {
+  return <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" aria-hidden />
 }

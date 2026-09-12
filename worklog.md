@@ -380,3 +380,23 @@ Work Log:
 
 Stage Summary:
 - Marca agora exibe "APEX FOOD / EMPÓRIO RESTAURANTE" em todo o app; nenhum "SYSTEM" remanescente da marca
+
+---
+Task ID: 22
+Agent: Super Z (main)
+Task: Header das telas Garçom/Cozinha/Caixa — corrigir sobreposição do título, menu na bolinha do perfil (opções + Perfil + Sair) e responsividade 100% mobile/tablet
+
+Work Log:
+- Header compacto migrado de flex+absolute para CSS grid simétrico: grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)] — marca | título centralizado | bolinha do perfil; sobreposição impossível por construção (tracks com min 0)
+- Fix 1: track auto explodia com max-content → middle em minmax(0,3fr); Fix 2: justify-self-center deixava o item em max-content → w-full no container central para truncar dentro da track
+- Ícones movidos do header para o DropdownMenu da bolinha: Configurações e avisos (Bell), Sons de alerta (Volume2/VolumeX + hint ativados/desativados), Tema claro/escuro (Sun/Moon); status de conexão virou linha informativa no menu (Wifi/WifiOff + Tempo real/Offline)
+- Menu: bloco de identidade (avatar + nome + cargo), conexão, opções, separador, Perfil do usuário (UserCircle2) e Sair (vermelho) — removidos do header: pill de conexão, botões bell/som/tema, nome, botão logout e badge de cargo (preservados para admin/gerente)
+- Dialog "Perfil do usuário": avatar grande com status, nome, e-mail, cargo, status (Online/Ocupado) e estabelecimento EMPÓRIO RESTAURANTE
+- Marca: texto APEX FOOD/EMPÓRIO RESTAURANTE agora visível a partir de lg (logo pura em mobile/tablet); logo h-9 sm:h-11
+- E2E medido por getBoundingClientRect: 390px (título 202px truncado, desvio centro 0, sem sobreposição), 768px (424px, sem truncate, desvio 0), 1540px (878px, desvio 0); menu testado (todos os itens, navegação Configurações, logout Sair); dialog validado (nome, email, cargo, status, estabelecimento); admin/gerente inalterados (pill, badge, sidebar)
+- ESLint 0/0; console limpo
+
+Stage Summary:
+- Header operacional limpo: marca | título centralizado sem sobreposição | bolinha com menu completo (opções, Perfil, Sair)
+- Responsividade validada em 390/768/1540 com desvio de centralização 0px
+- Screenshots: shot-109 (menu desktop), shot-110 (dialog perfil), shot-111 (menu mobile)
