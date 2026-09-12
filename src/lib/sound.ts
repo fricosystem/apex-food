@@ -32,6 +32,100 @@ function tone(freq: number, start: number, dur: number, type: OscillatorType = '
 
 export type SoundKind = 'new' | 'ready' | 'cash' | 'success' | 'alert' | 'click'
 
+/* ---------------------------------------------------------------------------
+ * Sons personalizados por tipo de ação (arquivos WAV em /sounds)
+ * Cada evento da operação tem um motif sonoro próprio, usado junto com as
+ * notificações do sistema (barra de notificações em desktop/tablet/PWA).
+ * ------------------------------------------------------------------------- */
+
+export type EventSoundKind =
+  | 'comanda-nova'
+  | 'comanda-confirmada'
+  | 'prato-pronto'
+  | 'encaminhada'
+  | 'pagamento'
+  | 'alerta'
+
+export const EVENT_SOUNDS: Record<EventSoundKind, { file: string; label: string }> = {
+  'comanda-nova': { file: '/sounds/comanda-nova.wav', label: 'Sino duplo' },
+  'comanda-confirmada': { file: '/sounds/comanda-confirmada.wav', label: 'Três toques' },
+  'prato-pronto': { file: '/sounds/prato-pronto.wav', label: 'Arpejo de campanha' },
+  'encaminhada': { file: '/sounds/encaminhada.wav', label: 'Dois tons suaves' },
+  'pagamento': { file: '/sounds/pagamento.wav', label: 'Cha-ching de caixa' },
+  'alerta': { file: '/sounds/alerta.wav', label: 'Buzina dupla' },
+}
+
+const bufferCache = new Map<string, AudioBuffer>()
+
+/** Volume master (0–1) persistido por dispositivo */
+export function getVolume(): number {
+  try {
+    const raw = localStorage.getItem('apex-sound-volume')
+    if (raw === null || raw === '') return 0.8
+    const v = Number(raw)
+    return Number.isFinite(v) && v >= 0 && v <= 1 ? v : 0.8
+  } catch {
+    return 0.8
+  }
+}
+
+export function setVolume(v: number) {
+  try {
+    localStorage.setItem('apex-sound-volume', String(Math.min(1, Math.max(0, v))))
+  } catch {
+    // ignore
+  }
+}
+
+/** Som de ação habilitado? (por tipo; padrão ligado) */
+export function isEventSoundEnabled(kind: EventSoundKind): boolean {
+  try {
+    return localStorage.getItem(`apex-es-${kind}`) !== 'off'
+  } catch {
+    return true
+  }
+}
+
+export function setEventSoundEnabled(kind: EventSoundKind, on: boolean) {
+  try {
+    localStorage.setItem(`apex-es-${kind}`, on ? 'on' : 'off')
+  } catch {
+    // ignore
+  }
+}
+
+async function loadBuffer(file: string): Promise<AudioBuffer | null> {
+  const cached = bufferCache.get(file)
+  if (cached) return cached
+  const audio = getCtx()
+  if (!audio) return null
+  try {
+    const res = await fetch(file)
+    if (!res.ok) return null
+    const buf = await audio.decodeAudioData(await res.arrayBuffer())
+    bufferCache.set(file, buf)
+    return buf
+  } catch {
+    return null
+  }
+}
+
+/** Toca o som personalizado do evento (respeita mute master, volume e toggle por tipo) */
+export async function playEventSound(kind: EventSoundKind, opts?: { force?: boolean }) {
+  if (!opts?.force && (!isSoundEnabled() || !isEventSoundEnabled(kind))) return
+  const audio = getCtx()
+  if (!audio) return
+  const buf = await loadBuffer(EVENT_SOUNDS[kind].file)
+  if (!buf) return
+  const src = audio.createBufferSource()
+  const g = audio.createGain()
+  g.gain.value = getVolume()
+  src.buffer = buf
+  src.connect(g)
+  g.connect(audio.destination)
+  src.start()
+}
+
 export function isSoundEnabled(): boolean {
   try {
     return localStorage.getItem('apex-sound') !== 'off'

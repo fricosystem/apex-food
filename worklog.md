@@ -285,3 +285,24 @@ Work Log:
 Stage Summary:
 - Garçom, cozinha e caixa agora têm no header apenas a descrição da tela, perfeitamente centralizada (horizontal e verticalmente), sem o nome do perfil; administrador e gerente permanecem exatamente como estavam
 - Screenshots: shot-93 a shot-98
+
+---
+Task ID: 18
+Agent: Super Z (main)
+Task: Melhoria drástica da tela de Configurações + notificações popup na barra do sistema (desktop/tablet/mobile PWA) com som personalizado por tipo de ação
+
+Work Log:
+- Sons por ação (scripts/make-sounds.py, numpy): 6 WAVs PCM 16-bit mono 44.1kHz em public/sounds/ — comanda-nova (sino duplo A5→E6), comanda-confirmada (três toques C6-D6-E6), prato-pronto (arpejo G5-B5-D6-G6), pagamento (cha-ching com brilho de moedas), encaminhada (dois tons suaves descendentes), alerta (buzina dupla grave com vibrato); todos com envelope ADSR, pico 0.85
+- lib/sound.ts estendido: EVENT_SOUNDS (arquivo+label por tipo), playEventSound com cache de AudioBuffer, volume master persistido (apex-sound-volume, default 0.8) e toggle por tipo (apex-es-{kind}); bug corrigido: Number(null)=0 fazia volume nascer em 0% (getVolume agora trata null/"" → 0.8)
+- lib/notification-service.ts novo: Web Notifications API com permissão (granted/denied/default/unsupported), master (apex-sysnotif) e toggle por tipo (apex-nt-{kind}); pushSystemNotification = som personalizado do evento + vibração (padrão por tipo) + notificação (SW registration.showNotification com fallback new Notification; silent:true pois o som é o nosso; tag+renotify por tipo/mesa; icon/badge 192); clique na notificação → foco + roteamento (CustomEvent apex:notification-click / postMessage do SW); onNotificationClick() helper para o app escutar
+- hooks/use-realtime.ts: handlers de comanda:nova/confirmada/pronta/encaminhada/paga agora usam notifyStaff(kind,...) — popup na barra do sistema + som personalizado + toast in-app mantido; dedupe por tag de mesa
+- sw-client.js: notificationclick (foca janela aberta e repassa kind via postMessage, senão abre '/'), handler push (payload {title,body,kind}) e /sounds/ no cache-first
+- app-shell.tsx: header compacto ganhou botão Bell → Configurações (vira ArrowLeft "Voltar ao atendimento" dentro da tela); VIEW_ROLES.configuracoes aberto para WAITER/KITCHEN/CASHIER; useEffect roteia clique de notificação → tela do tipo (NOTIF_VIEW) respeitando permissões do perfil
+- settings-view.tsx reescrito: banner do estabelecimento (logo emoji apex-gradient, nome, badge "Sistema ativo", stats, botão Voltar p/ perfis operacionais); card destaque "Notificações do dispositivo" com máquina de estados da permissão (CTA Ativar / box Bloqueadas com instrução / box Sem suporte p/ iOS / card Permitidas com Testar agora), master de avisos na barra e lista dos 6 tipos de ação (emoji, badge do som, Play de teste que toca o áudio e dispara o popup, switch por tipo que liga som+popup juntos); card Aparência (seletor Claro/Escuro com check + acento #FF6B1A); card Sons e volume (master + Slider com persistência e amostra ao soltar); Estabelecimento e Usuários/permissões mantidos para admin/gerente; Sessão para todos; permissão acompanhada em tempo real via navigator.permissions.query onchange
+- Validações E2E (1540×772): garçom — Bell abre Configurações, título header "Preferências, notificações e estabelecimento", 6 tipos, sem Estabelecimento/Usuários, botão Voltar funciona (shot-99); Ativar notificações → headless negou → badge "Bloqueadas" + toast orientativo; Play Prato pronto → WAV servido 200 audio/wav, decodeAudioData ok (0.92s mono 44.1kHz), som toca; toggle tipo "Nova comanda" → apex-nt-/apex-es- off persistidos; Slider via teclado 0.8→0.9 → apex-sound-volume=0.9 + texto 90%; voltar → garcom; admin — tela completa (banner+6 tipos+Estabelecimento+Usuários+Matriz), salvar dados → toast "Configurações salvas" e banner atualizado em tempo real (shots 100-102); tema claro e escuro validados; page errors vazio; node --check sw OK; lint 0/0; home/SW 200
+
+Stage Summary:
+- Configurações virou central de notificações: permissão do dispositivo, master da barra do sistema, 6 tipos de ação com som próprio + popup + switch individual, volume master com amostra
+- Avisos aparecem na barra de notificações do SO (desktop/tablet/PWA) com som personalizado por tipo de ação e vibração no celular; clique no aviso leva à tela certa do fluxo
+- Perfil operacional (garçom/cozinha/caixa) agora acessa Configurações pelo Bell no header, comVoltar ao atendimento no banner
+- Screenshots: shot-99 a shot-102; sons em public/sounds/ (6 WAVs)

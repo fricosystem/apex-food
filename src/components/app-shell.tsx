@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import {
   LayoutDashboard, ClipboardList, ChefHat, Wallet, Settings2,
   Grid3x3, PanelLeftClose, PanelLeft, Sun, Moon, LogOut, Volume2, VolumeX,
-  Menu, Wifi, WifiOff, X,
+  Menu, Wifi, WifiOff, X, ArrowLeft, Bell,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,7 @@ import type { ViewKey } from '@/lib/types'
 import { ROLE_LABELS } from '@/lib/types'
 import { useRealtime } from '@/hooks/use-realtime'
 import { isSoundEnabled, setSoundEnabled, playSound } from '@/lib/sound'
+import { onNotificationClick, type NotifKind } from '@/lib/notification-service'
 import { apiPost } from '@/lib/fetcher'
 import type { SessionUser } from '@/lib/auth'
 
@@ -37,8 +38,18 @@ const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: typeof LayoutDashboa
   { key: 'caixa', label: 'Caixa', icon: Wallet, description: 'Pagamentos e fechamento de comandas' },
   { key: 'gestao', label: 'Gestão', icon: Settings2, description: 'Produtos, equipe, metas e operação' },
   { key: 'mesas', label: 'Mesas & QR', icon: Grid3x3, description: 'Mesas, QR Codes e status em tempo real' },
-  { key: 'configuracoes', label: 'Configurações', icon: Settings2, description: 'Preferências e estabelecimento' },
+  { key: 'configuracoes', label: 'Configurações', icon: Settings2, description: 'Preferências, notificações e estabelecimento' },
 ]
+
+/** Clique numa notificação da barra do sistema leva à tela certa do tipo */
+const NOTIF_VIEW: Record<NotifKind, ViewKey | null> = {
+  'comanda-nova': 'garcom',
+  'comanda-confirmada': 'cozinha',
+  'prato-pronto': 'garcom',
+  'encaminhada': 'caixa',
+  'pagamento': 'caixa',
+  'alerta': null,
+}
 
 export function AppShell({ user }: { user: SessionUser }) {
   const { activeView, setActiveView, sidebarCollapsed, toggleSidebar, mobileNavOpen, setMobileNavOpen } = useAppStore()
@@ -85,6 +96,19 @@ export function AppShell({ user }: { user: SessionUser }) {
   }
 
   const currentMeta = NAV_ITEMS.find((n) => n.key === current)
+
+  // Clique numa notificação da barra do sistema: foca a tela correspondente
+  // ao tipo de ação (respeitando as permissões do perfil)
+  useEffect(() => {
+    const off = onNotificationClick((kind) => {
+      const view = kind ? NOTIF_VIEW[kind] : null
+      if (view && VIEW_ROLES[view].includes(user.role)) {
+        playSound('click')
+        setActiveView(view)
+      }
+    })
+    return off
+  }, [user.role, setActiveView])
 
   // Perfis operacionais (garçom, cozinha, caixa): sem sidebar — apenas header + body,
   // com a marca (logo + APEX FOOD) no canto esquerdo do header. Admin/gerente mantêm sidebar.
@@ -273,6 +297,15 @@ export function AppShell({ user }: { user: SessionUser }) {
           {isCompact && (
             <>
               {/* Controles que ficavam no sidebar, movidos para o header */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                onClick={() => navigate(current === 'configuracoes' ? ((DEFAULT_VIEW[user.role] ?? 'garcom') as ViewKey) : 'configuracoes')}
+                aria-label={current === 'configuracoes' ? 'Voltar ao atendimento' : 'Configurações'}
+              >
+                {current === 'configuracoes' ? <ArrowLeft className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+              </Button>
               <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={toggleSound} aria-label="Alternar sons">
                 {isSoundEnabled() ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
               </Button>

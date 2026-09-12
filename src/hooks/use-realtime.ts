@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { getSharedSocket } from '@/lib/socket-client'
-import { playSound } from '@/lib/sound'
+import { notifyStaff } from '@/lib/notification-service'
 
 type Role = string | undefined
 
@@ -48,14 +48,22 @@ export function useRealtime(role: Role, userId?: string) {
           if (role === 'KITCHEN') return
           if (role === 'WAITER') {
             const mine = !d.waiterId || d.waiterId === userId
-            playSound('new')
+            notifyStaff('comanda-nova', {
+              title: `Nova comanda — Mesa ${d.tableNumber ?? '?'}`,
+              body: mine ? 'Distribuída para você. Confirme para enviar à cozinha.' : 'Aberta por outro garçom.',
+              tag: `apex-comanda-nova-${String(d.tableNumber ?? '0')}`,
+            })
             toast.success(`Nova comanda — Mesa ${d.tableNumber ?? '?'}`, {
               description: mine ? 'Distribuída para você. Confirme para enviar à cozinha.' : 'Aberta por outro garçom.',
             })
           } else if (role === 'CASHIER') {
             // silencioso
           } else {
-            playSound('new')
+            notifyStaff('comanda-nova', {
+              title: `Nova comanda — Mesa ${d.tableNumber ?? '?'}`,
+              body: 'Aguardando confirmação do garçom.',
+              tag: `apex-comanda-nova-${String(d.tableNumber ?? '0')}`,
+            })
             toast.success(`Nova comanda — Mesa ${d.tableNumber ?? '?'}`, { description: 'Aguardando confirmação do garçom.' })
           }
         },
@@ -65,7 +73,10 @@ export function useRealtime(role: Role, userId?: string) {
         invalidates: [['orders'], ['metrics']],
         handler: () => {
           if (role === 'KITCHEN') {
-            playSound('new')
+            notifyStaff('comanda-confirmada', {
+              title: 'Comanda confirmada na cozinha',
+              body: 'Novos itens na fila de preparo.',
+            })
             toast.info('Comanda confirmada na cozinha', { description: 'Novos itens na fila de preparo.' })
           }
         },
@@ -80,7 +91,11 @@ export function useRealtime(role: Role, userId?: string) {
         handler: (d) => {
           if (role === 'KITCHEN') return
           if (role === 'CASHIER') return
-          playSound('ready')
+          notifyStaff('prato-pronto', {
+            title: 'Prato pronto para servir',
+            body: `${String(d.productName ?? 'Item')} — Mesa ${d.tableNumber ?? '?'}`,
+            tag: `apex-pronto-${String(d.tableNumber ?? '0')}`,
+          })
           toast.success('Prato pronto para servir', {
             description: `${String(d.productName ?? 'Item')} — Mesa ${d.tableNumber ?? '?'}`,
           })
@@ -91,12 +106,20 @@ export function useRealtime(role: Role, userId?: string) {
         invalidates: [['orders'], ['tables'], ['metrics']],
         handler: (d) => {
           if (role === 'CASHIER') {
-            playSound('new')
+            notifyStaff('encaminhada', {
+              title: `Mesa ${d.tableNumber ?? '?'} encaminhada ao caixa`,
+              body: 'Aguardando pagamento.',
+              tag: `apex-encaminhada-${String(d.tableNumber ?? '0')}`,
+            })
             toast.info('Comanda encaminhada ao caixa', {
               description: `Mesa ${d.tableNumber ?? '?'} aguardando pagamento.`,
             })
           } else if (role === 'ADMIN' || role === 'MANAGER') {
-            playSound('new')
+            notifyStaff('encaminhada', {
+              title: `Mesa ${d.tableNumber ?? '?'} encaminhada ao caixa`,
+              body: 'Comanda finalizada pelo salão.',
+              tag: `apex-encaminhada-${String(d.tableNumber ?? '0')}`,
+            })
             toast.info(`Mesa ${d.tableNumber ?? '?'} encaminhada ao caixa`)
           }
         },
@@ -106,7 +129,11 @@ export function useRealtime(role: Role, userId?: string) {
         invalidates: [['orders'], ['tables'], ['metrics'], ['goals']],
         handler: (d) => {
           if (role === 'KITCHEN') return
-          playSound('cash')
+          notifyStaff('pagamento', {
+            title: `Pagamento confirmado — Mesa ${d.tableNumber ?? '?'}`,
+            body: `Comanda ${String(d.code ?? '')} finalizada.`,
+            tag: `apex-pagamento-${String(d.tableNumber ?? '0')}`,
+          })
           toast.success(`Pagamento confirmado — Mesa ${d.tableNumber ?? '?'}`, {
             description: `Comanda ${String(d.code ?? '')} finalizada.`,
           })

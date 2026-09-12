@@ -45,6 +45,7 @@ self.addEventListener('fetch', (event) => {
   if (
     url.pathname.startsWith('/_next/static') ||
     url.pathname.startsWith('/icons/') ||
+    url.pathname.startsWith('/sounds/') ||
     url.pathname === '/apex-logo.png'
   ) {
     event.respondWith(
@@ -75,4 +76,48 @@ self.addEventListener('fetch', (event) => {
         .catch(() => caches.match(req))
     )
   }
+})
+
+/* Notificações (barra de notificações do sistema — desktop/tablet/PWA).
+ * Ao clicar no aviso: foca a janela aberta (ou abre o app) e repassa o tipo
+ * de ação para a página rotear até a tela certa. */
+self.addEventListener('notificationclick', (event) => {
+  const kind = event.notification?.data?.kind ?? null
+  event.notification.close()
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const client of all) {
+        if ('focus' in client) {
+          await client.focus()
+          client.postMessage({ type: 'apex-notification-click', kind })
+          return
+        }
+      }
+      await self.clients.openWindow('/')
+    })()
+  )
+})
+
+/* Push (reservado para notificações em segundo plano com servidor próprio).
+ * Payload JSON esperado: { title, body, kind } */
+self.addEventListener('push', (event) => {
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch {
+    data = {}
+  }
+  if (!data.title) return
+  event.waitUntil(
+    self.registration.showNotification(String(data.title), {
+      body: data.body,
+      tag: data.tag ?? 'apex-push',
+      renotify: true,
+      silent: true,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { kind: data.kind ?? null },
+    })
+  )
 })
