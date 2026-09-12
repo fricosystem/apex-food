@@ -62,9 +62,9 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
         <div aria-hidden className="absolute -bottom-64 -right-36 h-[640px] w-[640px] rounded-full border border-[#FF6B1A]/12" />
 
         {/* Topo — logo sólida */}
-        <div className="relative flex items-center gap-3.5">
-          <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-16 w-16 object-contain drop-shadow-lg" />
-          <p className="font-extrabold text-2xl xl:text-[1.9rem] tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
+        <div className="relative flex items-center gap-2">
+          <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-16 w-auto drop-shadow-lg" />
+          <p className="font-extrabold text-3xl xl:text-[2.4rem] tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
         </div>
 
         {/* Apresentação */}
@@ -101,9 +101,9 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
       {/* Formulário */}
       <div className="lg:w-[480px] xl:w-[520px] flex items-center justify-center p-6 lg:p-10">
         <div className="w-full max-w-md apex-enter">
-          <div className="lg:hidden flex items-center gap-3 mb-8">
-            <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-12 w-12 object-contain invert dark:invert-0" />
-            <span className="font-extrabold text-xl tracking-tight">APEX <span className="text-[#FF7B2E]">FOOD</span></span>
+          <div className="lg:hidden flex items-center gap-2 mb-8">
+            <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-12 w-auto invert dark:invert-0" />
+            <span className="font-extrabold text-2xl tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></span>
           </div>
 
           <h2 className="text-2xl font-bold tracking-tight">Acessar painel</h2>

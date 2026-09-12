@@ -82,3 +82,19 @@ Work Log:
 Stage Summary:
 - Acesso rápido funcional em todos os perfis inclusive em contexto de iframe/preview; marca com destaque laranja consistente
 - Screenshots: shot-47 (dark), shot-48 (light)
+
+---
+Task ID: 5
+Agent: Super Z (main)
+Task: Autenticação — logo mais próxima do texto "APEX FOOD" e nome maior
+
+Work Log:
+- Diagnóstico: logo 421x600 em container quadrado w-16/w-12 com object-contain deixava ~10px invisíveis de cada lado do glifo + gap-3.5 (14px) = ~26px de distância visual entre logo e texto
+- login-screen.tsx (apenas tela de autenticação, conforme escopo):
+  - Painel desktop: gap-3.5 → gap-2; img h-16 w-16 object-contain → h-16 w-auto (elimina padding lateral transparente renderizado); texto text-2xl xl:text-[1.9rem] → text-3xl xl:text-[2.4rem]
+  - Bloco mobile do formulário: gap-3 → gap-2; img h-12 w-12 → h-12 w-auto; texto text-xl → text-2xl + leading-none
+- Splash (page.tsx) e demais pontos de marca mantidos sem alteração (fora do escopo pedido)
+
+Stage Summary:
+- Logo encostada ao wordmark com nome "APEX FOOD" visivelmente maior; FOOD mantém laranja #FF7B2E
+- Validado E2E: screenshots shot-49 (desktop 1540px) e shot-50 (mobile 390px); lint 0/0; home 200
