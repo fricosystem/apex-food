@@ -326,13 +326,13 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
             <div className="space-y-2">
               <Label htmlFor="email" className="text-zinc-200">E-mail</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" aria-hidden />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
                 <Input
                   id="email"
                   type="email"
                   autoComplete="email"
                   placeholder="voce@apexfood.com"
-                  className="pl-9 h-11 bg-white dark:bg-white border-white/15 text-zinc-900 placeholder:text-zinc-400"
+                  className="pl-9 h-11 bg-background text-foreground"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -342,13 +342,13 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-zinc-200">Senha</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" aria-hidden />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
                 <Input
                   id="password"
                   type="password"
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  className="pl-9 h-11 bg-white dark:bg-white border-white/15 text-zinc-900 placeholder:text-zinc-400"
+                  className="pl-9 h-11 bg-background text-foreground"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required

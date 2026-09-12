@@ -187,3 +187,17 @@ Work Log:
 Stage Summary:
 - Ao abrir a autenticação em desktop o usuário vê apenas a abertura e a dica de rolagem na parte inferior; os módulos só aparecem ao rolar, com fade in por baixo / fade out por cima e reversão automática ao subir
 - Screenshots: shot-75 a shot-82
+
+---
+Task ID: 12
+Agent: Super Z (main)
+Task: Autenticação — inputs seguindo a cor de fundo do tema (sem inversão no tema escuro)
+
+Work Log:
+- Diagnóstico: os inputs de E-mail/Senha usavam override forçado "bg-white dark:bg-white border-white/15 text-zinc-900 placeholder:text-zinc-400" — branco nos dois temas (invertido em relação ao tema escuro); o container do formulário herda text-white do wrapper, o que exigiria cuidado com o texto digitado
+- Correção: className dos dois inputs → "pl-9 h-11 bg-background text-foreground" — tema claro: fundo claro (token background, rgb 250,250,250) com texto escuro; tema escuro: fundo escuro translúcido padrão do design system (dark:bg-input/30 do base do Input) com texto claro; borda (border-input), placeholder (muted-foreground) e foco (ring) vindos dos tokens temáticos do componente Input; ícones Mail/Lock de text-zinc-400 → text-muted-foreground
+- Verificações E2E (1540×772): tema claro — inputBg rgb(250,250,250), texto rgb(24,24,27), borda zinc-200 (shot-83); tema escuro — inputBg dark translúcido, texto rgb(244,244,245), borda escura, texto digitado legível nos dois (shot-84); login manual (Entrar) no tema escuro OK — LOGADO (shot-85); lint 0/0
+
+Stage Summary:
+- Inputs da autenticação acompanham o tema: claros no claro, escuros no escuro, com ícones/placeholder/borda/foco nos tokens do design system; resto do formulário (labels, acessos rápidos) inalterado sobre o canvas escuro fixo
+- Screenshots: shot-83 a shot-85
