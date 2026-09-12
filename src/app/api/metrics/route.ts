@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireUser, isResponse } from '@/lib/api'
 
+type Bucket = { key: string; label: string; revenue: number; orders: number }
+
 function inTurn(date: Date, turn: string): boolean {
   const h = date.getHours()
   if (turn === 'morning') return h >= 6 && h < 12
@@ -10,24 +12,55 @@ function inTurn(date: Date, turn: string): boolean {
   return true
 }
 
-/** GET /api/metrics?days=7&turn=all — agregações do dashboard */
+function parseLocalDate(s: string, endOfDay = false): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
+  if (!m) return null
+  const [, y, mo, d] = m
+  return endOfDay
+    ? new Date(Number(y), Number(mo) - 1, Number(d), 23, 59, 59, 999)
+    : new Date(Number(y), Number(mo) - 1, Number(d), 0, 0, 0, 0)
+}
+
+/** GET /api/metrics?period=today|week|month|year|custom&from=&to=&days=&turn=
+ *  Agregações do dashboard com granularidade automática (hora/dia/mês). */
 export async function GET(req: NextRequest) {
   const auth = await requireUser()
   if (isResponse(auth)) return auth
   const sp = new URL(req.url).searchParams
-  const days = Math.min(90, Math.max(1, Number(sp.get('days') || 7)))
+  const period = sp.get('period') || 'week'
   const turn = sp.get('turn') || 'all'
 
-  const start = new Date()
-  start.setHours(0, 0, 0, 0)
-  start.setDate(start.getDate() - (days - 1))
+  // ---- Janela do período ----
+  let start: Date
+  let end: Date = new Date()
+
+  if (period === 'custom') {
+    const from = parseLocalDate(sp.get('from') || '')
+    const to = parseLocalDate(sp.get('to') || '', true)
+    if (from && to) {
+      start = from <= to ? from : to
+      end = from <= to ? to : from
+    } else {
+      start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - 6)
+    }
+  } else {
+    const daysMap: Record<string, number> = { today: 1, week: 7, month: 30, year: 365 }
+    const days = daysMap[period] ?? Number(sp.get('days') || 7)
+    start = new Date()
+    start.setHours(0, 0, 0, 0)
+    start.setDate(start.getDate() - (days - 1))
+  }
+
+  const spanMs = Math.max(end.getTime() - start.getTime(), 3600_000)
+  const spanDays = spanMs / 86_400_000
+  const granularity: 'hour' | 'day' | 'month' = spanDays <= 2 ? 'hour' : spanDays <= 62 ? 'day' : 'month'
 
   const paid = await db.order.findMany({
-    where: { status: 'PAID', paidAt: { gte: start } },
+    where: { status: 'PAID', paidAt: { gte: start, lte: end } },
     include: {
       waiter: { select: { id: true, name: true } },
       payments: { select: { method: true } },
-      items: true,
+      items: { select: { productId: true, productName: true, quantity: true, unitPrice: true, station: true } },
     },
     orderBy: { paidAt: 'asc' },
   })
@@ -46,21 +79,63 @@ export async function GET(req: NextRequest) {
   const avgService = serviceTimes.length ? serviceTimes.reduce((a, b) => a + b, 0) / serviceTimes.length : 0
   const avgTicket = paidInTurn.length ? paidInTurn.reduce((a, o) => a + o.total, 0) / paidInTurn.length : 0
 
-  // ---- Faturamento por dia ----
-  const byDay: Array<{ date: string; label: string; revenue: number; orders: number }> = []
-  for (let d = days - 1; d >= 0; d--) {
-    const day = new Date()
-    day.setHours(0, 0, 0, 0)
-    day.setDate(day.getDate() - d)
-    const next = new Date(day)
-    next.setDate(next.getDate() + 1)
-    const rows = paidInTurn.filter((o) => o.paidAt && o.paidAt >= day && o.paidAt < next)
-    byDay.push({
-      date: day.toISOString().slice(0, 10),
-      label: day.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-      revenue: Math.round(rows.reduce((a, o) => a + o.total, 0) * 100) / 100,
-      orders: rows.length,
-    })
+  // ---- Série de faturamento (hora/dia/mês conforme o período) ----
+  const buckets: Bucket[] = []
+  if (granularity === 'hour') {
+    for (let h = 0; h < 24; h++) {
+      buckets.push({ key: String(h), label: `${String(h).padStart(2, '0')}h`, revenue: 0, orders: 0 })
+    }
+    for (const o of paidInTurn) {
+      const b = buckets[o.paidAt!.getHours()]
+      b.revenue += o.total
+      b.orders += 1
+    }
+  } else if (granularity === 'day') {
+    const cursor = new Date(start)
+    while (cursor <= end) {
+      const next = new Date(cursor)
+      next.setDate(next.getDate() + 1)
+      const rows = paidInTurn.filter((o) => o.paidAt && o.paidAt >= cursor && o.paidAt < next)
+      buckets.push({
+        key: cursor.toISOString().slice(0, 10),
+        label: cursor.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        revenue: Math.round(rows.reduce((a, o) => a + o.total, 0) * 100) / 100,
+        orders: rows.length,
+      })
+      cursor.setDate(cursor.getDate() + 1)
+    }
+  } else {
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1)
+    while (cursor <= end) {
+      const next = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
+      const rows = paidInTurn.filter((o) => o.paidAt && o.paidAt >= cursor && o.paidAt < next)
+      buckets.push({
+        key: `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`,
+        label: `${cursor.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')} ${String(cursor.getFullYear()).slice(2)}`,
+        revenue: Math.round(rows.reduce((a, o) => a + o.total, 0) * 100) / 100,
+        orders: rows.length,
+      })
+      cursor.setMonth(cursor.getMonth() + 1)
+    }
+  }
+  for (const b of buckets) b.revenue = Math.round(b.revenue * 100) / 100
+
+  // ---- Comandas por hora (agregado do período, p/ horários de pico) ----
+  const byHour: Array<{ hour: number; label: string; revenue: number; orders: number }> = []
+  for (let h = 0; h < 24; h++) byHour.push({ hour: h, label: `${String(h).padStart(2, '0')}h`, revenue: 0, orders: 0 })
+  for (const o of paidInTurn) {
+    const b = byHour[o.paidAt!.getHours()]
+    b.revenue += o.total
+    b.orders += 1
+  }
+
+  // ---- Período anterior (mesma duração, imediatamente anterior) ----
+  const prevEnd = new Date(start.getTime() - 1)
+  const prevStart = new Date(prevEnd.getTime() - spanMs)
+  const prevOrders = paid.filter((o) => o.paidAt && o.paidAt >= prevStart && o.paidAt <= prevEnd && inTurn(o.paidAt, turn))
+  const prev = {
+    revenue: Math.round(prevOrders.reduce((a, o) => a + o.total, 0) * 100) / 100,
+    orders: prevOrders.length,
   }
 
   // ---- Produtos mais vendidos ----
@@ -133,6 +208,14 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // ---- Faturamento por estação ----
+  const stationAgg = new Map<string, number>()
+  for (const o of paidInTurn) {
+    for (const it of o.items) {
+      stationAgg.set(it.station, (stationAgg.get(it.station) ?? 0) + it.quantity * it.unitPrice)
+    }
+  }
+
   return NextResponse.json({
     kpis: {
       occupiedTables,
@@ -143,7 +226,11 @@ export async function GET(req: NextRequest) {
       periodRevenue: Math.round(paidInTurn.reduce((a, o) => a + o.total, 0) * 100) / 100,
       periodOrders: paidInTurn.length,
     },
-    revenueByDay: byDay,
+    period: { key: period, granularity, start: start.toISOString(), end: end.toISOString() },
+    prev,
+    revenueSeries: buckets,
+    byHour,
+    byStation: Object.fromEntries(stationAgg),
     topProducts,
     waiterPerformance,
     kitchenEfficiency,

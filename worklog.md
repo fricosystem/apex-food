@@ -327,3 +327,24 @@ Stage Summary:
 - Sistema sem qualquer "Cozinha (KDS)" ou "KDS" visível; marca exibe "APEX FOOD / SYSTEM"
 - Screenshots: shot-99-cozinha-renomeado.png, shot-100-config-renomeado.png
 - Lint 0/0; validado admin, login e perfil cozinha
+
+---
+Task ID: 19
+Agent: Super Z (main)
+Task: Dashboard — filtro de período (Hoje/Semana/Mês/Ano/Personalizado) + novos gráficos animados na cor da marca
+
+Work Log:
+- API /api/metrics reescrita: params period (today/week/month/year/custom + from/to), granularidade automática (hora ≤2d, dia ≤62d, mês >62d), byHour (24h), byStation (receita por estação), prev (período anterior equivalente), turn e days mantidos
+- dashboard-view.tsx reescrito: filtro de período em Tabs (Hoje/Semana/Mês/Ano/Personalizado) + inputs de data nativos quando Personalizado (de/até, default últimos 7 dias)
+- Componentes novos: AnimatedNumber (count-up rAF ease-out, respeita prefers-reduced-motion) e DeltaBadge (variação vs. período anterior)
+- 4 novos gráficos #FF6B1A animados: Comandas por hora (Bar com pico no subtítulo), Faturamento por estação (Donut com total central + legenda %), Radar de desempenho da equipe (comandas/receita normalizados), Comparativo com período anterior (gauge RadialBar + cards atual vs. anterior)
+- KPIs com count-up; Faturamento por período com delta badge; tooltip labels por granularidade (Dia X/hora/mês)
+- Fix lint: setState síncrono no effect → dentro de rAF (react-hooks/set-state-in-effect)
+- Fixes visuais: gauge vazio quando não há base de comparação; label de mês "set 25"
+- E2E: 12/12 cards presentes; API validada por período (hoje=24h, semana=7d, mês=30d, ano=13m, custom com turno e datas invertidas); donut com 4 estações (Cozinha 53%, Pizzaria 22%, Churrasqueira 15%, Bar 10%); screenshots shot-101→104; 0 page errors, console limpo
+- ESLint 0/0
+
+Stage Summary:
+- Dashboard com filtro de período completo e 4 novos gráficos animados na paleta laranja da marca
+- Todos os cards existentes preservados (Produtos, Garçons, Eficiência, Metas, Pagamentos)
+- Screenshots: shot-101 (custom), shot-102 (semana), shot-103 (estação/radar/gauge), shot-104 (final)
