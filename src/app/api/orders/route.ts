@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       quantity: qty,
       notes: (i.notes ?? '').slice(0, 300),
       unitPrice: p.price,
-      station: p.category?.sector ?? 'KITCHEN',
+      station: 'KITCHEN', // placeholder — sobrescrito abaixo com o setor da categoria
       prepTime: p.prepTime,
     }
   })

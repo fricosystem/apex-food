@@ -65,3 +65,20 @@ Work Log:
 Stage Summary:
 - Auth e splash com logo sólida grande e "APEX FOOD" maiúsculo; sidebar/cliente/QR mantêm chip laranja conforme escopo do pedido
 - Screenshots: scripts/shot-39 (login desktop), shot-43/45 (splash light/dark), shot-46 (login mobile)
+
+---
+Task ID: 4
+Agent: Super Z (main)
+Task: FOOD em laranja (igual "mais inteligente.") + correção do bug do acesso rápido voltando ao login
+
+Work Log:
+- Cor laranja #FF7B2E aplicada ao "FOOD" em: login desktop, bloco mobile do login e splash de carregamento (page.tsx)
+- Diagnóstico do bug: cookie de sessão usava SameSite=Lax — em iframes cross-site (preview) navegadores bloqueiam o cookie; login 200 mas me→401 → bounce para login em todos os acessos
+- Fix: sessionCookieAttributes() em auth.ts — https → SameSite=None + Secure + Partitioned (CHIPS); http local → Lax. Aplicado em login e logout (logout espelha atributos)
+- Hardening me query: retry 2, staleTime 60s, refetchOnWindowFocus false (evita loops de refetch em iframe)
+- Bugs latentes corrigidos via tsc: waiter-view ActiveTab mutationFn não desestruturava itemId (ReferenceError em "marcar servido" das comandas ativas); orders/route.ts removido acesso p.category inexistente (placeholder já sobrescrito pelo setor real)
+- Verificações: tsc app limpo, lint 0/0, cookie https = "Secure; HttpOnly; SameSite=none; Partitioned" e http = Lax (via curl com X-Forwarded-Proto), E2E dos 5 acessos rápidos (admin/gerente/garçom/cozinha/caixa) todos entram e sessão persiste após reload
+
+Stage Summary:
+- Acesso rápido funcional em todos os perfis inclusive em contexto de iframe/preview; marca com destaque laranja consistente
+- Screenshots: shot-47 (dark), shot-48 (light)

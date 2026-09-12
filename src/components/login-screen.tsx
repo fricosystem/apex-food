@@ -64,7 +64,7 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
         {/* Topo — logo sólida */}
         <div className="relative flex items-center gap-3.5">
           <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-16 w-16 object-contain drop-shadow-lg" />
-          <p className="font-extrabold text-2xl xl:text-[1.9rem] tracking-tight leading-none">APEX FOOD</p>
+          <p className="font-extrabold text-2xl xl:text-[1.9rem] tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
         </div>
 
         {/* Apresentação */}
@@ -103,7 +103,7 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
         <div className="w-full max-w-md apex-enter">
           <div className="lg:hidden flex items-center gap-3 mb-8">
             <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-12 w-12 object-contain invert dark:invert-0" />
-            <span className="font-extrabold text-xl tracking-tight">APEX FOOD</span>
+            <span className="font-extrabold text-xl tracking-tight">APEX <span className="text-[#FF7B2E]">FOOD</span></span>
           </div>
 
           <h2 className="text-2xl font-bold tracking-tight">Acessar painel</h2>

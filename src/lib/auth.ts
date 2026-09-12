@@ -6,6 +6,23 @@ const SECRET = process.env.AUTH_SECRET || 'apex-food-2026-secret-key'
 export const SESSION_COOKIE = 'apex_session'
 const SESSION_HOURS = 12
 
+/**
+ * Atributos do cookie de sessão.
+ * Em HTTPS (preview/proxy) usa SameSite=None + Partitioned + Secure para o cookie
+ * funcionar dentro de iframes cross-site; em HTTP local mantém Lax.
+ */
+export function sessionCookieAttributes(proto: string | null | undefined) {
+  const isHttps = (proto ?? '').split(',')[0].trim() === 'https'
+  return {
+    httpOnly: true as const,
+    path: '/',
+    maxAge: SESSION_HOURS * 3600,
+    ...(isHttps
+      ? { sameSite: 'none' as const, secure: true, partitioned: true as const }
+      : { sameSite: 'lax' as const }),
+  }
+}
+
 export type SessionUser = {
   id: string
   name: string

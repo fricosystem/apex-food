@@ -47,6 +47,9 @@ export default function Page() {
     queryKey: ['me'],
     queryFn: () => api<MeResponse>('/api/auth/me'),
     enabled: bootstrapped && !clientToken,
+    retry: 2,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   })
 
   // Tela do cliente via QR Code
@@ -60,7 +63,7 @@ export default function Page() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-background">
         <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-24 w-24 object-contain invert dark:invert-0" />
         <div className="flex flex-col items-center gap-2">
-          <p className="text-3xl font-extrabold tracking-tight">APEX FOOD</p>
+          <p className="text-3xl font-extrabold tracking-tight">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Loader2 className="h-4 w-4 animate-spin" />
             Carregando…

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { verifyPassword, createToken, SESSION_COOKIE } from '@/lib/auth'
+import { verifyPassword, createToken, SESSION_COOKIE, sessionCookieAttributes } from '@/lib/auth'
 import { readJson, bad } from '@/lib/api'
 
 export async function POST(req: NextRequest) {
@@ -17,11 +17,6 @@ export async function POST(req: NextRequest) {
   const res = NextResponse.json({
     user: { id: user.id, name: user.name, email: user.email, role: user.role, status: user.status },
   })
-  res.cookies.set(SESSION_COOKIE, createToken(user.id), {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 12 * 3600,
-  })
+  res.cookies.set(SESSION_COOKIE, createToken(user.id), sessionCookieAttributes(req.headers.get('x-forwarded-proto')))
   return res
 }

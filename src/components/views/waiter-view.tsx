@@ -174,7 +174,7 @@ function ActiveTab({ orders }: { orders: OrderDTO[] }) {
   const qc = useQueryClient()
 
   const act = useMutation({
-    mutationFn: ({ id, action }: { id: string; action: string; itemId?: string }) =>
+    mutationFn: ({ id, action, itemId }: { id: string; action: string; itemId?: string }) =>
       itemId ? apiPatch(`/api/orders/${id}/items/${itemId}`, { action }) : apiPatch(`/api/orders/${id}`, { action }),
     onSuccess: (_d, vars) => {
       void qc.invalidateQueries({ queryKey: ['orders'] })
