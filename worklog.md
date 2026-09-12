@@ -365,3 +365,18 @@ Work Log:
 Stage Summary:
 - Login exibe notificação de teste com logo APEX + boas-vindas personalizada por perfil, in-app (sempre) e na barra do sistema (quando permitido)
 - Screenshots: shot-105-bem-vindo-login.png, shot-106-bem-vindo-mobile.png
+
+---
+Task ID: 21
+Agent: Super Z (main)
+Task: Substituir "SYSTEM" por "EMPÓRIO RESTAURANTE" abaixo do APEX FOOD
+
+Work Log:
+- app-shell.tsx: 2 ocorrências do subtítulo da marca (sidebar admin/gerente + header compacto garçom/cozinha/caixa) trocadas de "SYSTEM" para "EMPÓRIO RESTAURANTE", com classe truncate adicionada por segurança
+- Rodapé do login "Desenvolvido por APEX HUB SYSTEM" preservado (elemento distinto)
+- ESLint 0/0; home 200
+- E2E: sidebar admin "APEX FOOD / EMPÓRIO RESTAURANTE" sem truncamento; header do perfil Cozinha idem; zero page errors
+- Screenshots: shot-107-sidebar-emporio.png, shot-108-header-emporio.png
+
+Stage Summary:
+- Marca agora exibe "APEX FOOD / EMPÓRIO RESTAURANTE" em todo o app; nenhum "SYSTEM" remanescente da marca

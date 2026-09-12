@@ -122,7 +122,7 @@ export function AppShell({ user }: { user: SessionUser }) {
         {!sidebarCollapsed && (
           <div className="min-w-0">
             <p className="font-bold tracking-tight leading-none text-sidebar-foreground">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">SYSTEM</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 truncate">EMPÓRIO RESTAURANTE</p>
           </div>
         )}
       </div>
@@ -257,7 +257,7 @@ export function AppShell({ user }: { user: SessionUser }) {
                 <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-11 w-auto shrink-0 invert dark:invert-0" />
                 <div className="min-w-0 hidden sm:block">
                   <p className="font-bold tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">SYSTEM</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate">EMPÓRIO RESTAURANTE</p>
                 </div>
               </div>
               <div className="h-8 w-px bg-border shrink-0 hidden md:block" aria-hidden />
