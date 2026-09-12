@@ -126,6 +126,7 @@ export function AppShell({ user }: { user: SessionUser }) {
           <div className="min-w-0">
             <p className="font-bold tracking-tight leading-none text-sidebar-foreground">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
             <p className="text-[10px] text-muted-foreground mt-0.5 truncate">EMPÓRIO RESTAURANTE</p>
+            <p className="text-[9px] font-semibold text-primary mt-0.5 truncate tracking-wide">CNPJ 12.345.678/0001-90</p>
           </div>
         )}
       </div>
@@ -260,24 +261,28 @@ export function AppShell({ user }: { user: SessionUser }) {
         >
           {isCompact ? (
             <>
-              {/* Marca — coluna esquerda do grid */}
+              {/* Marca — coluna esquerda do grid, com logo ampliada nestas telas */}
               <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-9 sm:h-11 w-auto shrink-0 invert dark:invert-0" />
+                <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-11 sm:h-14 w-auto shrink-0 invert dark:invert-0" />
                 <div className="min-w-0 hidden lg:block">
                   <p className="font-bold tracking-tight leading-none text-sm">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
                   <p className="text-[10px] text-muted-foreground mt-0.5 truncate">EMPÓRIO RESTAURANTE</p>
+                  <p className="text-[9px] font-semibold text-primary mt-0.5 truncate tracking-wide">CNPJ 12.345.678/0001-90</p>
                 </div>
               </div>
 
-              {/* Título da tela — coluna central, truncado sem sobrepor as laterais */}
+              {/* Estabelecimento como título + descrição da tela — coluna central */}
               <div className="w-full min-w-0 justify-self-center text-center px-1">
-                <h1 className="text-sm sm:text-base font-semibold tracking-tight leading-tight truncate text-foreground">
-                  {currentMeta?.description}
+                <h1 className="text-sm sm:text-base md:text-lg font-bold tracking-tight leading-tight truncate text-primary">
+                  EMPÓRIO RESTAURANTE
                 </h1>
+                <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
+                  {currentMeta?.description}
+                </p>
               </div>
 
-              {/* Bolinha do perfil — coluna direita, abre o menu de opções */}
-              <div className="justify-self-end">
+              {/* Bolinha do perfil — coluna direita, colada no canto do header */}
+              <div className="justify-self-end -mr-1.5 sm:-mr-2 lg:-mr-3">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button

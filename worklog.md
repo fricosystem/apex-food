@@ -422,3 +422,20 @@ Stage Summary:
 - Dashboard agora com 15 visualizações (11 existentes + 4 novas), todas animadas na paleta laranja da marca
 - API /api/metrics: +byWeekday, +heatmap, prev corrigido
 - Lint 0/0, home 200, sem erros de console
+
+---
+Task ID: 24
+Agent: Super Z (main)
+Task: Header das telas compactas — CNPJ laranja, EMPÓRIO RESTAURANTE como título, botão de perfil no canto direito e logo maior
+
+Work Log:
+- Lido app-shell.tsx (Task 22 já implementada: grid 3 colunas + menu de perfil)
+- CNPJ de teste "12.345.678/0001-90" (text-[9px] font-semibold text-primary) adicionado abaixo de EMPÓRIO RESTAURANTE em 2 locais: bloco da marca do sidebar (admin/gerente) e bloco da marca do header compacto (lg+)
+- Header compacto (Garçom/Cozinha/Caixa): título central agora é "EMPÓRIO RESTAURANTE" (h1, text-primary, font-bold, text-sm→md:text-lg) com a descrição da tela (ex.: "Fila de comandas e atendimentos ativos") abaixo em text-[10px]/[11px] muted
+- Bolinha do perfil: coluna direita com -mr-1.5/sm:-mr-2/lg:-mr-3 para colar no canto direito do header (compensa px-3/4/6)
+- Logo do header compacto ampliada: h-9 sm:h-11 → h-11 sm:h-14 (apenas nestas telas; sidebar e demais inalterados)
+- Lint 0/0; validação E2E shot-124→129: sidebar admin com CNPJ laranja; header Garçom desktop (logo grande + CNPJ + título laranja + bolinha no canto), mobile 390px e tablet 768px sem sobreposição; menu do perfil abre com todas as opções (Perfil do usuário, Sair, etc.); toast de boas-vindas do login intacto
+
+Stage Summary:
+- Identidade visual EMPÓRIO RESTAURANTE reforçada nas telas operacionais: marca completa (logo ampliada + CNPJ) à esquerda, estabelecimento como título laranja central, perfil colado no canto direito
+- Nenhuma alteração em admin/gerente além do CNPJ no sidebar
