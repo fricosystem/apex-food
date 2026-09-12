@@ -207,7 +207,6 @@ function QrDialog({ table, onClose }: { table: TableRow | null; onClose: () => v
           <div className="space-y-4">
             <div className="qr-print-area flex flex-col items-center gap-3 py-2">
               <div className="h-12 w-12 rounded-xl apex-gradient flex items-center justify-center">
-                { }
                 <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-8 w-8 object-contain" />
               </div>
               <p className="font-bold text-lg">APEX FOOD</p>

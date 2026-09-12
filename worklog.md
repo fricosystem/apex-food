@@ -49,3 +49,19 @@ Work Log:
 Stage Summary:
 - Validado no browser (dark e light): login fiel à referência, sidebar, tela do cliente (#m/{token}), dialog QR e splash exibindo a logo; favicon ativo no HTML
 - Lint 0 erros/0 warnings; home 200; imagem em public/apex-logo.png referenciada por /apex-logo.png
+
+---
+Task ID: 3
+Agent: Super Z (main)
+Task: Logo sólida (sem card laranja) e maior + nome APEX FOOD maiúsculo/grande na autenticação e no carregamento inicial
+
+Work Log:
+- login-screen.tsx: topo do painel de marca agora usa a logo sólida h-16 com drop-shadow (sem chip laranja) + "APEX FOOD" font-extrabold text-2xl/xl:text-[1.9rem]; bloco mobile do formulário também sólido h-12 com invert dark:invert-0 (visível em tema claro) + "APEX FOOD" extrabold
+- page.tsx (splash de carregamento): logo sólida h-24 (invert dark:invert-0) + título "APEX FOOD" text-3xl font-extrabold + "Carregando…" com spinner
+- Limpeza: removidos `{ }` JSX vazios deixados por eslint --fix em app-shell, client-view e tables-view
+- Verificação: splash capturado nos dois temas via condição temporária forçada (revertida em seguida, confirmado sem resíduos); dark real testado via localStorage theme=dark (variant dark: segue classe .dark, não media query); mobile 390px validado
+- Lint 0/0; home 200
+
+Stage Summary:
+- Auth e splash com logo sólida grande e "APEX FOOD" maiúsculo; sidebar/cliente/QR mantêm chip laranja conforme escopo do pedido
+- Screenshots: scripts/shot-39 (login desktop), shot-43/45 (splash light/dark), shot-46 (login mobile)

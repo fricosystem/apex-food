@@ -136,7 +136,6 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
       <header className="sticky top-0 z-20 apex-gradient text-white shadow-lg">
         <div className="max-w-md mx-auto px-4 h-14 flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-white/15 ring-1 ring-white/25 flex items-center justify-center">
-            { }
             <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-5 w-5 object-contain" />
           </div>
           <div className="flex-1 min-w-0">
@@ -245,7 +244,6 @@ function WelcomePhase({ tableNumber, hasOpen, onStart }: { tableNumber: number; 
   return (
     <div className="apex-enter text-center pt-10">
       <div className="mx-auto h-20 w-20 rounded-3xl apex-gradient apex-glow flex items-center justify-center">
-        { }
         <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-12 w-12 object-contain" />
       </div>
       <h2 className="text-2xl font-bold mt-6 tracking-tight">
