@@ -400,3 +400,25 @@ Stage Summary:
 - Header operacional limpo: marca | título centralizado sem sobreposição | bolinha com menu completo (opções, Perfil, Sair)
 - Responsividade validada em 390/768/1540 com desvio de centralização 0px
 - Screenshots: shot-109 (menu desktop), shot-110 (dialog perfil), shot-111 (menu mobile)
+
+---
+Task ID: 23
+Agent: Super Z (main)
+Task: Dashboard — adicionar mais gráficos diferentes (mantendo os existentes) e corrigir o "Comparativo com o período anterior" que exibia "sem base de comparação"
+
+Work Log:
+- Lida worklog.md e mapeado estado atual (dashboard-view.tsx 616 linhas, api/metrics/route.ts)
+- CAUSA RAIZ do comparativo encontrada: a API filtrava o período anterior a partir do array `paid`, que só contém comandas da janela ATUAL → prev era SEMPRE 0. Corrigido com consulta Prisma própria (prevPaid: where paidAt entre prevStart/prevEnd + filtro inTurn)
+- API estendida: novos campos `byWeekday` (7 dias da semana com revenue/orders) e `heatmap` (7×24=168 células dia×hora com orders/revenue)
+- DeltaBadge: quando anterior=0 e atual>0 agora exibe badge verde "novo" (antes retornava null)
+- Gauge Comparativo com 3 estados: (a) prev>0 → % real animado; (b) prev=0 mas atual>0 → arco cheio + "+100% / crescimento pleno"; (c) ambos 0 → "— / sem vendas registradas"
+- 4 novos gráficos (mesma paleta #FF6B1A, AnimatedNumber, animações 900ms): Evolução do ticket médio (LineChart + dots, melhor ticket no subtítulo), Faturamento acumulado (ComposedChart barras + área cumulativa), Movimento por dia da semana (RadialBarChart 7 anéis concêntricos + legenda % + centro "pico"), Mapa de calor (grid CSS 7×24 com opacidade laranja, tooltip title, legenda gradiente, overflow-x no mobile)
+- Insert layout: ticket/acumulado após "Comandas por hora"; semana/heatmap antes do Radar
+- Script scripts/seed-prev-orders.ts: moveu comandas pagas para ontem (17 comandas R$2.215,40) e 3 p/ 10 dias atrás (R$315,20) criando bases reais de comparação; createdAt/confirmedAt corrigidos (20min antes)
+- Validação E2E (shot-109→123): desktop 1540px (gauge 100% meta atingida c/ meta implícita R$461,10; depois 12% parcial no Hoje c/ deltas -87.7%), fallback +100% crescimento pleno, mobile 390px (filtros/KPIs/geram wrapper, heatmap com scroll-x), tablet 768px (cards empilhados full-width), períodos Hoje/Semana/Ano todos renderizando
+
+Stage Summary:
+- Comparativo corrigido em 2 camadas: query própria p/ período anterior (bug estrutural) + fallback visual "crescimento pleno" quando realmente não há base
+- Dashboard agora com 15 visualizações (11 existentes + 4 novas), todas animadas na paleta laranja da marca
+- API /api/metrics: +byWeekday, +heatmap, prev corrigido
+- Lint 0/0, home 200, sem erros de console

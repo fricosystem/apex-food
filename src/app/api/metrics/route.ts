@@ -129,13 +129,38 @@ export async function GET(req: NextRequest) {
     b.orders += 1
   }
 
+  // ---- Por dia da semana + mapa de calor (dia × hora) ----
+  const WEEKDAY_LABELS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
+  const byWeekday = WEEKDAY_LABELS.map((label, weekday) => ({ weekday, label, revenue: 0, orders: 0 }))
+  const heatmap: Array<{ weekday: number; hour: number; orders: number; revenue: number }> = []
+  for (let w = 0; w < 7; w++) {
+    for (let h = 0; h < 24; h++) heatmap.push({ weekday: w, hour: h, orders: 0, revenue: 0 })
+  }
+  for (const o of paidInTurn) {
+    if (!o.paidAt) continue
+    const w = o.paidAt.getDay()
+    const h = o.paidAt.getHours()
+    const wd = byWeekday[w]
+    wd.revenue += o.total
+    wd.orders += 1
+    const cell = heatmap[w * 24 + h]
+    cell.orders += 1
+    cell.revenue += o.total
+  }
+  for (const w of byWeekday) w.revenue = Math.round(w.revenue * 100) / 100
+
   // ---- Período anterior (mesma duração, imediatamente anterior) ----
+  // Consulta própria: `paid` contém apenas a janela atual, então o prev precisa buscar no banco.
   const prevEnd = new Date(start.getTime() - 1)
   const prevStart = new Date(prevEnd.getTime() - spanMs)
-  const prevOrders = paid.filter((o) => o.paidAt && o.paidAt >= prevStart && o.paidAt <= prevEnd && inTurn(o.paidAt, turn))
+  const prevPaid = await db.order.findMany({
+    where: { status: 'PAID', paidAt: { gte: prevStart, lte: prevEnd } },
+    select: { total: true, paidAt: true },
+  })
+  const prevInTurn = prevPaid.filter((o) => o.paidAt && inTurn(o.paidAt, turn))
   const prev = {
-    revenue: Math.round(prevOrders.reduce((a, o) => a + o.total, 0) * 100) / 100,
-    orders: prevOrders.length,
+    revenue: Math.round(prevInTurn.reduce((a, o) => a + o.total, 0) * 100) / 100,
+    orders: prevInTurn.length,
   }
 
   // ---- Produtos mais vendidos ----
@@ -230,6 +255,8 @@ export async function GET(req: NextRequest) {
     prev,
     revenueSeries: buckets,
     byHour,
+    byWeekday,
+    heatmap,
     byStation: Object.fromEntries(stationAgg),
     topProducts,
     waiterPerformance,

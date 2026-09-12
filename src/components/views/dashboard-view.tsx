@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   BarChart3, Clock3, Grid3x3, Receipt, TrendingUp, TrendingDown, Target, ChefHat, Wallet,
-  Users, Flame, History, PieChart as PieChartIcon,
+  Users, Flame, History, PieChart as PieChartIcon, Activity, Layers, CalendarDays, Zap,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, RadialBarChart, RadialBar, PolarAngleAxis, RadarChart, PolarGrid, Radar,
+  LineChart, Line, ComposedChart,
 } from 'recharts'
 import { cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,6 +31,8 @@ type Metrics = {
   prev: { revenue: number; orders: number }
   revenueSeries: Array<{ key: string; label: string; revenue: number; orders: number }>
   byHour: Array<{ hour: number; label: string; revenue: number; orders: number }>
+  byWeekday: Array<{ weekday: number; label: string; revenue: number; orders: number }>
+  heatmap: Array<{ weekday: number; hour: number; orders: number; revenue: number }>
   byStation: Record<string, number>
   topProducts: Array<{ name: string; qty: number; revenue: number }>
   waiterPerformance: Array<{ name: string; orders: number; revenue: number; avgResponse: number }>
@@ -44,6 +47,10 @@ const PERIOD_LABELS: Record<string, string> = {
 /** Paleta da marca — mesma família do laranja #FF6B1A do Faturamento por período */
 const ORANGE_SHADES = ['#FF6B1A', '#FF8A47', '#FFB27A', '#FFD1AE', '#E5550F', '#FF9E66']
 const TOOLTIP_STYLE = { background: '#16161A', border: '1px solid #2E2E38', borderRadius: 10, fontSize: 12, color: '#F4F4F5' }
+const WEEKDAY_ROWS: Array<{ w: number; label: string }> = [
+  { w: 0, label: 'dom' }, { w: 1, label: 'seg' }, { w: 2, label: 'ter' }, { w: 3, label: 'qua' },
+  { w: 4, label: 'qui' }, { w: 5, label: 'sex' }, { w: 6, label: 'sáb' },
+]
 
 function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -81,7 +88,16 @@ function AnimatedNumber({ value, format }: { value: number; format?: (v: number)
 
 /** Badge de variação vs. período anterior (verde ↑ / vermelho ↓) */
 function DeltaBadge({ current, previous }: { current: number; previous: number }) {
-  if (!previous || previous <= 0) return null
+  if (!previous || previous <= 0) {
+    if (current > 0) {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+          <TrendingUp className="h-3 w-3" /> novo
+        </span>
+      )
+    }
+    return null
+  }
   const pct = ((current - previous) / previous) * 100
   const up = pct >= 0
   return (
@@ -170,6 +186,28 @@ export function DashboardView({ user }: { user: SessionUser }) {
     comandas: Math.round((w.orders / maxWOrders) * 100),
     receita: Math.round((w.revenue / maxWRevenue) * 100),
   }))
+
+  // ---- Derivados dos gráficos extras (ticket médio, acumulado, semana, heatmap) ----
+  const ticketSeries = data.revenueSeries.map((b) => ({
+    ...b,
+    ticket: b.orders > 0 ? Math.round((b.revenue / b.orders) * 100) / 100 : 0,
+  }))
+  const bestTicket = [...ticketSeries].sort((a, b) => b.ticket - a.ticket)[0]
+  const cumSeries: Array<{ label: string; revenue: number; acc: number }> = []
+  let acc = 0
+  for (const b of data.revenueSeries) {
+    acc += b.revenue
+    cumSeries.push({ label: b.label, revenue: b.revenue, acc: Math.round(acc * 100) / 100 })
+  }
+  const byWeekday = data.byWeekday ?? []
+  const heatmap = data.heatmap ?? []
+  const weekdayMax = Math.max(1, ...byWeekday.map((w) => w.orders))
+  const peakWeekday = [...byWeekday].sort((a, b) => b.orders - a.orders)[0]
+  const maxHeat = Math.max(1, ...heatmap.map((c) => c.orders))
+  const peakHeatCell = [...heatmap].filter((c) => c.orders > 0).sort((a, b) => b.orders - a.orders)[0]
+  const peakHeat = peakHeatCell
+    ? { ...peakHeatCell, label: `${WEEKDAY_ROWS[peakHeatCell.weekday]?.label ?? ''} ${String(peakHeatCell.hour).padStart(2, '0')}h` }
+    : null
 
   const prevRevenue = data.prev.revenue
   const goalPct = prevRevenue > 0 ? Math.min(100, (kpis.periodRevenue / prevRevenue) * 100) : 100
@@ -308,6 +346,86 @@ export function DashboardView({ user }: { user: SessionUser }) {
         </Card>
       </div>
 
+      {/* Ticket médio + faturamento acumulado */}
+      <div className="grid lg:grid-cols-2 gap-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" /> Evolução do ticket médio
+            </CardTitle>
+            <p className="text-[11px] text-muted-foreground">
+              {bestTicket && bestTicket.ticket > 0
+                ? <>melhor: <span className="font-semibold text-primary">{currency(bestTicket.ticket)}</span> em {revLabelFmt(bestTicket.label)}</>
+                : 'sem comandas concluídas no período'}
+            </p>
+          </CardHeader>
+          <CardContent className="h-[240px] p-2">
+            {kpis.periodOrders === 0 ? (
+              <EmptyChart />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={ticketSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,138,0.15)" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} width={52} tickFormatter={(v) => `R$${v}`} />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(v: number) => [currency(v), 'Ticket médio']}
+                    labelFormatter={revLabelFmt}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="ticket"
+                    stroke="#FF6B1A"
+                    strokeWidth={2.5}
+                    dot={{ r: 2.5, fill: '#FF6B1A', strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#FF8A47', stroke: '#FF6B1A', strokeWidth: 2 }}
+                    animationDuration={900}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Layers className="h-4 w-4 text-primary" /> Faturamento acumulado
+            </CardTitle>
+            <p className="text-[11px] text-muted-foreground">
+              curva soma <AnimatedNumber value={kpis.periodRevenue} format={currency} /> ao longo do período
+            </p>
+          </CardHeader>
+          <CardContent className="h-[240px] p-2">
+            {kpis.periodRevenue === 0 ? (
+              <EmptyChart />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={cumSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="accLine" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#FF6B1A" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#FF6B1A" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,138,0.15)" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} width={44} tickFormatter={(v) => `R$${v}`} />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(v: number, name) => (name === 'acc' ? [currency(v), 'Acumulado'] : [currency(v), 'No período'])}
+                    labelFormatter={revLabelFmt}
+                  />
+                  <Bar dataKey="revenue" fill="rgba(255,107,26,0.28)" radius={[4, 4, 0, 0]} barSize={8} animationDuration={900} />
+                  <Area type="monotone" dataKey="acc" stroke="#FF6B1A" strokeWidth={2.5} fill="url(#accLine)" animationDuration={900} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Produtos + faturamento por estação */}
       <div className="grid lg:grid-cols-2 gap-3">
         <Card>
@@ -396,6 +514,119 @@ export function DashboardView({ user }: { user: SessionUser }) {
         </Card>
       </div>
 
+      {/* Dia da semana + mapa de calor */}
+      <div className="grid lg:grid-cols-2 gap-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-primary" /> Movimento por dia da semana
+            </CardTitle>
+            <p className="text-[11px] text-muted-foreground">
+              {peakWeekday && peakWeekday.orders > 0
+                ? <>pico: <span className="font-semibold text-primary capitalize">{peakWeekday.label}</span> · {peakWeekday.orders} comandas</>
+                : 'sem comandas concluídas no período'}
+            </p>
+          </CardHeader>
+          <CardContent className="p-2">
+            {kpis.periodOrders === 0 ? (
+              <EmptyChart className="h-[228px]" />
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center gap-2 h-[228px]">
+                <div className="relative h-[180px] w-full sm:w-[46%] shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadialBarChart
+                      innerRadius="24%"
+                      outerRadius="100%"
+                      startAngle={90}
+                      endAngle={-270}
+                      data={byWeekday.map((w) => ({ ...w, fill: ORANGE_SHADES[w.weekday % ORANGE_SHADES.length] }))}
+                    >
+                      <PolarAngleAxis type="number" domain={[0, weekdayMax]} tick={false} axisLine={false} />
+                      <RadialBar dataKey="orders" background={{ fill: 'rgba(128,128,138,0.12)' }} cornerRadius={5} animationDuration={900} />
+                      <Tooltip
+                        contentStyle={TOOLTIP_STYLE}
+                        formatter={(v: number, _n, p) => [`${v} comandas · ${currency(Number(p?.payload?.revenue ?? 0))}`, String(p?.payload?.label ?? '')]}
+                      />
+                    </RadialBarChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">pico</p>
+                    <p className="text-sm font-bold leading-tight text-primary capitalize">{peakWeekday?.label ?? '—'}</p>
+                  </div>
+                </div>
+                <div className="flex-1 w-full space-y-1.5 overflow-y-auto max-h-[228px] pr-1">
+                  {byWeekday.map((w) => (
+                    <div key={w.label} className="flex items-center gap-2 text-xs">
+                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: ORANGE_SHADES[w.weekday % ORANGE_SHADES.length] }} />
+                      <span className="flex-1 text-foreground capitalize">{w.label}</span>
+                      <span className="text-muted-foreground shrink-0">{w.orders}</span>
+                      <span className="font-semibold text-primary shrink-0 w-9 text-right">
+                        {weekdayMax ? `${Math.round((w.orders / weekdayMax) * 100)}%` : '0%'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Zap className="h-4 w-4 text-primary" /> Mapa de calor — horários de movimento
+            </CardTitle>
+            <p className="text-[11px] text-muted-foreground">
+              {peakHeat
+                ? <>pico: <span className="font-semibold text-primary">{peakHeat.label}</span> · {peakHeat.orders} comandas</>
+                : 'sem comandas concluídas no período'}
+            </p>
+          </CardHeader>
+          <CardContent className="p-2">
+            {kpis.periodOrders === 0 ? (
+              <EmptyChart className="h-[228px]" />
+            ) : (
+              <div className="overflow-x-auto pb-1">
+                <div className="min-w-[540px] space-y-1">
+                  <div className="grid gap-0.5" style={{ gridTemplateColumns: '30px repeat(24, minmax(0, 1fr))' }}>
+                    <span />
+                    {Array.from({ length: 24 }, (_, h) => (
+                      <span key={h} className="text-[8px] text-muted-foreground text-center leading-4">
+                        {h % 3 === 0 ? `${h}h` : ''}
+                      </span>
+                    ))}
+                  </div>
+                  {WEEKDAY_ROWS.map((wd) => (
+                    <div key={wd.w} className="grid gap-0.5" style={{ gridTemplateColumns: '30px repeat(24, minmax(0, 1fr))' }}>
+                      <span className="text-[9px] text-muted-foreground leading-5">{wd.label}</span>
+                      {Array.from({ length: 24 }, (_, h) => {
+                        const cell = heatmap[wd.w * 24 + h]
+                        const intensity = cell && cell.orders > 0 ? 0.12 + 0.88 * Math.pow(cell.orders / maxHeat, 0.8) : 0
+                        return (
+                          <span
+                            key={h}
+                            title={cell && cell.orders > 0
+                              ? `${wd.label} ${String(h).padStart(2, '0')}h — ${cell.orders} comandas · ${currency(cell.revenue)}`
+                              : `${wd.label} ${String(h).padStart(2, '0')}h — sem comandas`}
+                            className="h-5 rounded-[3px]"
+                            style={{ background: intensity > 0 ? `rgba(255,107,26,${intensity.toFixed(2)})` : 'rgba(128,128,138,0.10)' }}
+                          />
+                        )
+                      })}
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-2 pt-1 text-[9px] text-muted-foreground">
+                    <span>menos movimento</span>
+                    <span className="h-1.5 flex-1 rounded-full" style={{ background: 'linear-gradient(90deg, rgba(128,128,138,0.10), rgba(255,107,26,1))' }} />
+                    <span>mais movimento</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Radar da equipe + comparativo com período anterior */}
       <div className="grid lg:grid-cols-2 gap-3">
         <Card>
@@ -430,13 +661,15 @@ export function DashboardView({ user }: { user: SessionUser }) {
             <p className="text-[11px] text-muted-foreground">
               {prevRevenue > 0
                 ? <>meta implícita: <span className="font-semibold">{currency(prevRevenue)}</span> (período anterior)</>
-                : 'sem base de comparação'}
+                : kpis.periodRevenue > 0
+                  ? 'anterior sem vendas — crescimento pleno'
+                  : 'sem vendas nos dois períodos'}
             </p>
           </CardHeader>
           <CardContent className="p-4">
             <div className="relative h-[168px]">
               <ResponsiveContainer width="100%" height="100%">
-                <RadialBarChart innerRadius="76%" outerRadius="100%" startAngle={90} endAngle={-270} data={[{ name: 'meta', value: prevRevenue > 0 ? goalPct : 0 }]}>
+                <RadialBarChart innerRadius="76%" outerRadius="100%" startAngle={90} endAngle={-270} data={[{ name: 'meta', value: prevRevenue > 0 ? goalPct : kpis.periodRevenue > 0 ? 100 : 0 }]}>
                   <PolarAngleAxis type="number" domain={[0, 100]} tick={false} axisLine={false} />
                   <RadialBar
                     dataKey="value"
@@ -449,9 +682,17 @@ export function DashboardView({ user }: { user: SessionUser }) {
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <p className="text-3xl font-bold tracking-tight text-primary">
-                  {prevRevenue > 0 ? <AnimatedNumber value={goalPct} format={(v) => `${Math.round(v)}%`} /> : '—'}
+                  {prevRevenue > 0 ? (
+                    <AnimatedNumber value={goalPct} format={(v) => `${Math.round(v)}%`} />
+                  ) : kpis.periodRevenue > 0 ? (
+                    <AnimatedNumber value={100} format={(v) => `+${Math.round(v)}%`} />
+                  ) : (
+                    '—'
+                  )}
                 </p>
-                <p className="text-[10px] text-muted-foreground">{prevRevenue > 0 ? 'da meta atingida' : 'sem base de comparação'}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {prevRevenue > 0 ? 'da meta atingida' : kpis.periodRevenue > 0 ? 'crescimento pleno' : 'sem vendas registradas'}
+                </p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 mt-2">
