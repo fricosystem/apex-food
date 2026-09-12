@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "APEX FOOD — Gestão Premium para Restaurantes",
   description:
-    "Plataforma SaaS de gestão e operação para restaurantes: comandas em tempo real, distribuição inteligente, KDS, caixa e métricas analíticas.",
-  keywords: ["APEX FOOD", "restaurante", "gestão", "comanda digital", "KDS", "SaaS"],
+    "Plataforma SaaS de gestão e operação para restaurantes: comandas em tempo real, distribuição inteligente, cozinha, caixa e métricas analíticas.",
+  keywords: ["APEX FOOD", "restaurante", "gestão", "comanda digital", "cozinha", "SaaS"],
 };
 
 export const viewport: Viewport = {

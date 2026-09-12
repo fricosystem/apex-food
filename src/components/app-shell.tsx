@@ -34,7 +34,7 @@ import { SettingsView } from '@/components/views/settings-view'
 const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: typeof LayoutDashboard; description: string }> = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Visão geral da operação em tempo real' },
   { key: 'garcom', label: 'Garçom', icon: ClipboardList, description: 'Fila de comandas e atendimentos ativos' },
-  { key: 'cozinha', label: 'Cozinha (KDS)', icon: ChefHat, description: 'Fila de preparo, cronômetro e estações' },
+  { key: 'cozinha', label: 'Cozinha', icon: ChefHat, description: 'Fila de preparo, cronômetro e estações' },
   { key: 'caixa', label: 'Caixa', icon: Wallet, description: 'Pagamentos e fechamento de comandas' },
   { key: 'gestao', label: 'Gestão', icon: Settings2, description: 'Produtos, equipe, metas e operação' },
   { key: 'mesas', label: 'Mesas & QR', icon: Grid3x3, description: 'Mesas, QR Codes e status em tempo real' },
@@ -122,7 +122,7 @@ export function AppShell({ user }: { user: SessionUser }) {
         {!sidebarCollapsed && (
           <div className="min-w-0">
             <p className="font-bold tracking-tight leading-none text-sidebar-foreground">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Operação premium</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">SYSTEM</p>
           </div>
         )}
       </div>
@@ -257,7 +257,7 @@ export function AppShell({ user }: { user: SessionUser }) {
                 <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-11 w-auto shrink-0 invert dark:invert-0" />
                 <div className="min-w-0 hidden sm:block">
                   <p className="font-bold tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Operação premium</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">SYSTEM</p>
                 </div>
               </div>
               <div className="h-8 w-px bg-border shrink-0 hidden md:block" aria-hidden />

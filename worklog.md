@@ -306,3 +306,24 @@ Stage Summary:
 - Avisos aparecem na barra de notificações do SO (desktop/tablet/PWA) com som personalizado por tipo de ação e vibração no celular; clique no aviso leva à tela certa do fluxo
 - Perfil operacional (garçom/cozinha/caixa) agora acessa Configurações pelo Bell no header, comVoltar ao atendimento no banner
 - Screenshots: shot-99 a shot-102; sons em public/sounds/ (6 WAVs)
+
+---
+Task ID: 18
+Agent: Super Z (main)
+Task: Renomear em todo o sistema "Cozinha (KDS)" → "Cozinha" e "Operação premium" → "SYSTEM"
+
+Work Log:
+- Grep em src/ e public/: localizadas todas as ocorrências de KDS e "Operação premium"
+- app-shell.tsx: NAV_ITEMS label 'Cozinha (KDS)' → 'Cozinha'; 2 subtítulos da marca 'Operação premium' → 'SYSTEM' (sidebar + header compacto)
+- login-screen.tsx: desc do acesso rápido 'KDS — preparo' → 'Fila de preparo'; tag 'Módulo 03 · Cozinha (KDS)' → 'Módulo 03 · Cozinha'
+- settings-view.tsx: PERMISSION_MATRIX area 'Cozinha (KDS)' → 'Cozinha'
+- layout.tsx: metadata description "KDS, caixa..." → "cozinha, caixa..."; keywords "KDS" → "cozinha"
+- globals.css: comentário "Timer estourado no KDS" → "Timer estourado na Cozinha"
+- Preservados identificadores internos (KdsView, kds-view.tsx, queryKey 'orders/kds') — não visíveis ao usuário
+- ESLint: 0 erros / 0 warnings
+- E2E agent-browser: login admin (sidebar "APEX FOOD / SYSTEM", nav "Cozinha"), login screen (botão "Cozinha Fila de preparo", "MÓDULO 03 · COZINHA"), perfil cozinha (header marca SYSTEM + título sem KDS), Configurações admin (matriz "Cozinha"); kdsFound/premiumFound = false em todas as telas; 0 page errors; console limpo
+
+Stage Summary:
+- Sistema sem qualquer "Cozinha (KDS)" ou "KDS" visível; marca exibe "APEX FOOD / SYSTEM"
+- Screenshots: shot-99-cozinha-renomeado.png, shot-100-config-renomeado.png
+- Lint 0/0; validado admin, login e perfil cozinha

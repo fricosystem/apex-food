@@ -19,7 +19,7 @@ const DEMO_ACCOUNTS = [
   { email: 'admin@apexfood.com', label: 'Administrador', desc: 'Acesso total' },
   { email: 'gerente@apexfood.com', label: 'Gerente', desc: 'Operação e métricas' },
   { email: 'rafael@apexfood.com', label: 'Garçom', desc: 'Comandas e atendimento' },
-  { email: 'cozinha@apexfood.com', label: 'Cozinha', desc: 'KDS — preparo' },
+  { email: 'cozinha@apexfood.com', label: 'Cozinha', desc: 'Fila de preparo' },
   { email: 'caixa@apexfood.com', label: 'Caixa', desc: 'Pagamentos' },
 ]
 
@@ -40,7 +40,7 @@ const MODULE_SECTIONS = [
   },
   {
     icon: ChefHat,
-    tag: 'Módulo 03 · Cozinha (KDS)',
+    tag: 'Módulo 03 · Cozinha',
     title: 'Produção organizada por setor, sem papel',
     desc: 'Cada pedido cai direto na fila do setor certo — cozinha, churrascaria ou pizzaria — com cronômetro por item e fluxo claro: pendente, em preparo, pronto e servido.',
     chips: ['Filas em tempo real', 'Cronômetro por item', 'Alertas de atraso'],

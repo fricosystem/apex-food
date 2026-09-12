@@ -45,7 +45,7 @@ const EST_TYPES = [
 const PERMISSION_MATRIX = [
   { area: 'Dashboard analítico', roles: ['ADMIN', 'MANAGER'] },
   { area: 'Tela do garçom', roles: ['ADMIN', 'MANAGER', 'WAITER'] },
-  { area: 'Cozinha (KDS)', roles: ['ADMIN', 'MANAGER', 'KITCHEN'] },
+  { area: 'Cozinha', roles: ['ADMIN', 'MANAGER', 'KITCHEN'] },
   { area: 'Caixa e pagamentos', roles: ['ADMIN', 'MANAGER', 'CASHIER'] },
   { area: 'Gestão (produtos, equipe, metas)', roles: ['ADMIN', 'MANAGER'] },
   { area: 'Mesas e QR Codes', roles: ['ADMIN', 'MANAGER'] },
