@@ -239,11 +239,26 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
         backgroundAttachment: 'fixed',
       }}
     >
-      {/* Decoração fixa — brilho e arcos laranja acompanhando a viewport */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 82% 94%, rgba(255,107,26,0.14) 0, transparent 42%)' }} />
-        <div className="absolute -bottom-44 -right-20 h-[460px] w-[460px] rounded-full border border-[#FF6B1A]/30" />
-        <div className="absolute -bottom-64 -right-36 h-[640px] w-[640px] rounded-full border border-[#FF6B1A]/12" />
+      {/* Decoração fixa — brilho suave + marca de círculos animada acompanhando a viewport */}
+      <div aria-hidden className="apex-login-decor pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 82% 94%, rgba(255,107,26,0.10) 0, transparent 42%)' }} />
+        {/* Marca de círculos — centralizada na lateral de divisão entre a apresentação (esquerda) e o formulário (direita) */}
+        <div className="hidden lg:block absolute inset-y-0 right-[480px] xl:right-[520px] w-px">
+          {/* fio de luz sutil acompanhando a divisão */}
+          <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-transparent via-[#FF6B1A]/20 to-transparent" />
+          {/* halo de luz pulsante no centro da divisão */}
+          <div
+            className="apex-ring-halo absolute left-1/2 top-1/2 h-[640px] w-[640px] rounded-full"
+            style={{ background: 'radial-gradient(circle, rgba(255,107,26,0.11) 0%, rgba(255,107,26,0.04) 40%, transparent 68%)' }}
+          />
+          {/* anéis concêntricos: respiração + rotação lenta */}
+          <div className="apex-ring-outer absolute left-1/2 top-1/2 h-[700px] w-[700px] rounded-full border border-[#FF6B1A]/12" />
+          <div className="apex-ring-mid absolute left-1/2 top-1/2 h-[540px] w-[540px] rounded-full border border-dashed border-[#FF6B1A]/25" />
+          <div className="apex-ring-inner absolute left-1/2 top-1/2 h-[380px] w-[380px] rounded-full border border-[#FF6B1A]/30" />
+          {/* pulso radar + núcleo laranja */}
+          <div className="apex-ring-pulse absolute left-1/2 top-1/2 h-[380px] w-[380px] rounded-full border border-[#FF6B1A]/45" />
+          <div className="absolute left-1/2 top-1/2 -ml-[5px] -mt-[5px] h-2.5 w-2.5 rounded-full apex-gradient shadow-[0_0_18px_4px_rgba(255,107,26,0.55)] apex-live-dot" />
+        </div>
       </div>
 
       <FadeCtx.Provider value={fade}>

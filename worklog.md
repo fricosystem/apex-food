@@ -459,3 +459,18 @@ Stage Summary:
 - Nenhum overflow horizontal em Dashboard e Configurações no mobile (390) e tablet (768); heatmap/dia da semana com scroll interno controlado
 - Abrir o drawer mobile não altera mais nenhuma largura de card (fix estrutural modal={false}, beneficia qualquer página com drawer)
 - Nenhum impacto no visual desktop; lint limpo
+
+---
+Task ID: 26
+Agent: Super Z (main)
+Task: Tela de autenticação — transformar a marca de círculos em animada e movê-la de baixo dos botões de acesso rápido para a lateral de divisão da seção da esquerda
+
+Work Log:
+- Removidos os 2 anéis estáticos do canto inferior direito (ficavam abaixo dos botões de acesso rápido da equipe)
+- globals.css: novos keyframes apex-ring-breathe (respiração com translate(-50%,-50%) embutido), apex-ring-spin (rotação lenta), apex-ring-ping (pulso radar) e apex-halo-breathe; utilitários .apex-ring-outer/.apex-ring-inner/.apex-ring-mid/.apex-ring-pulse/.apex-ring-halo; desativados via prefers-reduced-motion
+- login-screen.tsx: container .apex-login-decor (fixed, overflow-hidden) com wrapper na divisão — right-[480px] xl:right-[520px] (largura do formulário), fio de luz em gradiente ao longo do divisor, halo radial pulsante 640px, anéis concêntricos 700px (respiração 9s), 540px tracejado (rotação 46s), 380px (respiração 6.5s defasada), anel de ping radar 3.8s e núcleo laranja apex-gradient com glow e apex-live-dot no centro; hidden lg:block (mobile fica limpo)
+- Lint 0/0; E2E: anéis com animationName confirmado (breathe/spin/ping), centro em x=1020 = exatamente o divisor (1540−520), centerY=386≈metade da viewport, marca permanece fixa no divisor com a coluna esquerda rolada (shot-132/133); mobile 390px sem anéis e sem overflow (shot-134)
+
+Stage Summary:
+- Login desktop ganhou marca de círculos animada exatamente na lateral de divisão entre apresentação e formulário (respiração + rotação + radar + núcleo pulsante), fixa durante o scroll
+- Nada mais abaixo dos botões de acesso rápido; mobile sem a marca (layout limpo)
