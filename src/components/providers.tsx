@@ -18,6 +18,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   )
   const mounted = useRef(false)
   useEffect(() => {
+    // Marcador de fim de hidratação — consumido pela guarda anti-extensão no layout
+    // (antes dele, remoção de hidden em elementos nativos só pode vir de extensão)
+    document.documentElement.setAttribute('data-apex-hydrated', '1')
     if (mounted.current) return
     mounted.current = true
     getSharedSocket()

@@ -491,3 +491,25 @@ Work Log:
 Stage Summary:
 - Balão de boas-vindas agora exibe SOMENTE bordas arredondadas (wrapper do sonner neutralizado por style por-toast; nenhuma caixa quadrada interna ou externa)
 - Todos os demais toasts (success/info/warning/error) permanecem inalterados (data-styled=true, raio 8px nativo do sonner)
+
+---
+Task ID: 28
+Agent: Super Z (principal)
+Task: Eliminar o erro de hidratação ("Hydration failed") causado pela extensão Translate Web Pages, que sequestra o <div hidden> do Next antes da hidratação
+
+Work Log:
+- Diagnóstico: o diff do erro mostra hidden={true} vs hidden={null} + className="translate-tooltip-mtz blue sm-root translate hidden_translate" — a extensão remove o atributo hidden do container de metadata do Next e injeta as próprias classes antes do React hidratar; o ExtensionNotice existente apenas avisava, o erro continuava
+- Correção em src/app/layout.tsx: guarda inline (primeiro elemento do body, roda no parse do HTML — antes do document_idle das extensões e antes da hidratação):
+  - MutationObserver em documentElement (childList+attributes, filtro class/hidden)
+  - Registra todo elemento que NASCE com hidden (WeakMap el→wasClassless; fallback p/ ambientes sem WeakMap)
+  - maybeRevert em queueMicrotask (vê o lote inteiro de mutações): reverte hidden + classes quando há assinatura da extensão (MARK), quando o elemento já foi sequestrado (taint permanente via WeakSet) ou quando ainda é pré-hidratação (isHydrated)
+  - Elementos que nasceram SEM classe (container de metadata) têm class removido por inteiro no revert — DOM fica idêntico ao HTML do servidor; os que nasceram com classe perdem só os tokens da extensão
+  - Limpa classes marcadoras de html/body; não toca nos elementos criados pela própria extensão
+- src/components/providers.tsx: useEffect de montagem grava data-apex-hydrated="1" no <html> — marcador confiável de fim de hidratação consumido pela guarda
+- Correções de design durante o desenvolvimento: (1) handler de class limpava as marcas antes do microtask verificar a assinatura → taint registrado ANTES do clean; (2) reversão incondicional quebraria mudanças legítimas do app (ex.: Radix removendo hidden de painéis) → reversão condicionada a assinatura/taint/pré-hidratação
+- E2E (shots 135): marcador de hidratação presente; TESTE 1 ataque pós-hidratação (hidden removido + classes injetadas) → revertido por completo (hidden restaurado, class removido); TESTE 2 limpo (só hidden, sem classes) → tolerado (guarda não interfere); elemento contaminado permanece sob proteção permanente; login/navegação/filtros do Dashboard funcionando (aba Hoje → "período: hoje"); agent-browser errors vazio
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+
+Stage Summary:
+- Erro "Hydration failed" da extensão de tradução eliminado na raiz: a guarda reverte o sequestro do DOM antes do React hidratar, sem interferir no funcionamento do app nem da extensão para outros sites
+- ExtensionNotice mantido como aviso informativo ao usuário
