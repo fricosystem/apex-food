@@ -55,8 +55,10 @@ export default function RootLayout({
       for (var i = 0; i < fallback.length; i++) if (fallback[i][0] === el) return fallback[i][1];
       return undefined;
     }
-    function guard(el) {
-      var wasClassless = !el.getAttribute('class');
+    function guard(el, flag) {
+      // flag null = UNKNOWN (registrado tarde, após o sequestro — o estado original
+      // da classe é desconhecido e será resolvido pelo oldValue do record de class)
+      var wasClassless = arguments.length > 1 ? flag : !el.getAttribute('class');
       if (info) info.set(el, wasClassless);
       else fallback.push([el, wasClassless]);
     }
@@ -126,21 +128,49 @@ export default function RootLayout({
         var m = records[i];
         if (m.type === 'childList') {
           for (var j = 0; j < m.addedNodes.length; j++) scan(m.addedNodes[j]);
-        } else if (m.type === 'attributes') {
-          var el = m.target;
-          var attr = m.attributeName;
-          if (el === document.documentElement || el === document.body) {
-            if (attr === 'class') cleanClasses(el);
-            continue;
-          }
-          if (findEntry(el) === undefined) continue;
-          if (attr === 'class') {
-            // Registra a assinatura da extensão ANTES de limpar — o clean apaga a prova
-            if (MARK.test(String(el.className || ''))) taint(el);
-            cleanClasses(el);
-          }
-          else if (attr === 'hidden') maybeRevert(el);
+          continue;
         }
+        if (m.type !== 'attributes') continue;
+        var el = m.target;
+        var attr = m.attributeName;
+        if (el === document.documentElement || el === document.body) {
+          if (attr === 'class') cleanClasses(el);
+          continue;
+        }
+        if (attr === 'hidden') {
+          // oldValue não-nulo prova que o elemento TINHA hidden — mesmo sem registro
+          // prévio (criado e sequestrado no mesmo task: o scan do callback chega tarde
+          // e o elemento já perdeu o hidden). Registra com flag UNKNOWN.
+          if (m.oldValue !== null && findEntry(el) === undefined) guard(el, null);
+          if (findEntry(el) === undefined) continue;
+          maybeRevert(el);
+          continue;
+        }
+        // attr === 'class'
+        if (!MARK.test(String(el.className || ''))) {
+          if (findEntry(el) !== undefined) cleanClasses(el);
+          continue;
+        }
+        // Assinatura da extensão = certeza do sequestro: reverte SINCRONAMENTE (sem
+        // esperar o microtask) para fechar a janela entre o sequestro e a leitura do
+        // DOM pelo React durante a hidratação; restaura hidden se já foi removido.
+        taint(el);
+        var entry = findEntry(el);
+        if (entry === undefined) { guard(el, null); entry = null; }
+        if (entry === null) {
+          // Registrado tarde: o oldValue do record revela se o elemento nasceu sem classe
+          entry = (m.oldValue === null || m.oldValue === '');
+          if (info) info.set(el, entry);
+          else for (var k = 0; k < fallback.length; k++) if (fallback[k][0] === el) fallback[k][1] = entry;
+        }
+        if (entry) {
+          // Nasceu sem classe (ex.: container de metadata do Next): qualquer classe é
+          // injeção da extensão — remove tudo para o DOM bater com o HTML do servidor
+          try { el.removeAttribute('class'); } catch (e) {}
+        } else {
+          cleanClasses(el);
+        }
+        try { if (!el.hasAttribute('hidden')) el.setAttribute('hidden', ''); } catch (e) {}
       }
     });
     mo.observe(document.documentElement, {
@@ -148,6 +178,7 @@ export default function RootLayout({
       subtree: true,
       attributes: true,
       attributeFilter: ['class', 'hidden'],
+      attributeOldValue: true,
     });
   } catch (e) {}
 })();`,

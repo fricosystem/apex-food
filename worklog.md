@@ -603,3 +603,23 @@ Work Log:
 Stage Summary:
 - Caixa agora tem 2 comandas a receber com valores exatos R$ 350,00 e R$ 273,30, compostas por itens reais do cardápio — métricas derivadas naturalmente (2 comandas · R$ 623,30 · 31 min)
 - Script persistido em scripts/criar-comandas-caixa.ts para reuso (pagar as comandas ou criar novas com outros valores)
+
+---
+Task ID: 34
+Agent: Super Z (principal)
+Task: Erro "Hydration failed" da extensão Translate Web Pages VOLTOU — reforçar a guarda anti-extensão (Task 28) para cobrir as lacunas identificadas
+
+Work Log:
+- Diagnóstico do HTML servido: o <div hidden> de metadata do Next é emitido DEPOIS de <body> mas ANTES do script da guarda — o scan(documentElement) inicial já o captura, por isso os ataques clássicos revertiam (E2E confirmou). O erro do usuário veio de uma LACUNA REAL descoberta por testes: elemento CRIADO E ATACADO NO MESMO TASK escapa da proteção — o scan do callback roda depois do task, quando o hidden já foi removido (registro impossível) e o guard sob demanda estava em CÓDIGO MORTO (depois do "continue" que barra não-registrados)
+- Correções em src/app/layout.tsx (3 blindagens):
+  1. attributeOldValue: true no observe — o oldValue do record PROVA que o elemento TINHA hidden ("") mesmo sem registro prévio; no handler de hidden, elemento não-registrado com oldValue não-nulo é registrado na hora (guard(el, null) — flag UNKNOWN)
+  2. Handler de class com assinatura MARK reverte SINCRONAMENTE (antes era só cleanClasses + microtask) — fecha a janela entre o sequestro e a leitura do DOM pelo React; flag UNKNOWN resolvida pelo oldValue do record de class (null = nasceu classless → remove class inteiro)
+  3. Handler reestruturado: hidden tratado antes do continue (registro sob demanda alcançável); class não-registrado sem assinatura é ignorado (não é alvo da guarda)
+- Correções de iteração: 1ª tentativa (sync revert via findEntry) não cobria o caso C — teste com observer instrumentado revelou o código morto e o oldValue funcional; 2ª versão (handler reestruturado + flags UNKNOWN) passou em todos os cenários
+- E2E completo (4 cenários): TESTE A ataque na metadata pós-hidratação → revertido (hidden restaurado + class removido); TESTE B ataque em pré-hidratação simulada → revertido; TESTE C elemento criado+atacado no mesmo task → revertido (a lacuna corrigida); TOLERÂNCIA mutação legítima do app (hidden removido sem assinatura, pós-hidratação) → respeitada (hidden permanece removido, classe intacta)
+- Nota de teste: o falso fracasso da tolerância no primeiro rodada foi artefato da ordem (o Teste B remove o marcador data-apex-hydrated da mesma página; sem marcador, toda remoção é tratada como ataque — comportamento correto por design)
+- Shot 147; Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+
+Stage Summary:
+- Guarda anti-extensão v3: cobre elementos do HTML do servidor (scan inicial), elementos criados pelo React e elementos criados+atacados no mesmo task (via attributeOldValue) — com reversão síncrona quando há assinatura da extensão e tolerância a mutações legítimas pós-hidratação
+- Erro "Hydration failed" da extensão eliminado em todos os cenários reproduzíveis
