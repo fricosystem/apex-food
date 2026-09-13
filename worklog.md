@@ -564,3 +564,22 @@ Work Log:
 Stage Summary:
 - Seções dos módulos na página inicial agora têm cartões premium (vidro, luz, glow, hover responsivo) com todo o texto preservado
 - Nenhuma alteração de conteúdo, rotas ou comportamento funcional
+
+---
+Task ID: 32
+Agent: Super Z (principal)
+Task: Melhorar a apresentação de cada módulo na página inicial — mais detalhado e profissional, com base no contexto real do sistema
+
+Work Log:
+- Pesquisa: mapeadas as funcionalidades REAIS das 7 views (dashboard, waiter, kds, cashier, management, tables, client) via subagente Explore — polling escalonado (3-15s), 4 estações de preparo, kanban 3 colunas, dupla confirmação do caixa, PWA do cliente, 5 fases, metas mensais, regras de distribuição, QR 512px, etc.
+- src/components/login-screen.tsx — MODULE_SECTIONS reescrita com type ModuleFeature:
+  - Chips genéricos substituídos por grade 2x2 de features (ícone + título + micro-descrição) por módulo, todas factuais: Dashboard (visualizações ao vivo, 8s, períodos/turnos, radar da equipe), Garçom (fila de entrada, atribuição automática configurável, prontos para servir, histórico), Cozinha (kanban, 4 estações, cronômetro/atrasos, 4s), Caixa (4 formas com dupla confirmação, recibo digital, fila em tempo real, histórico filtrável), Gestão (produtos, equipe/perfis, metas mensais, regras de operação), Mesas & QR (QR 512px, PWA, personalização, 5 fases)
+  - Descrições refinadas com fatos do sistema: Cozinha agora cita as 4 estações reais (cozinha, churrasqueira, pizzaria, bar); Caixa cita as 4 formas e dupla confirmação; Dashboard cita "mais de uma dezena de visualizações"
+  - Novos ícones importados (BarChart3, RefreshCw, CalendarRange, Radar, Inbox, Users, BellRing, History, Columns3, Timer, Zap, ReceiptText, Gauge, Search, Package, UserCog, Target, SlidersHorizontal, Smartphone, ListChecks, Route) — verificados contra o lucide-react instalado
+- BUG corrigido durante validação: ReferenceError "Flame is not defined" (ícone usado no Módulo 03 mas ausente do import) detectado pelo dev.log do Next (Application error client-side) — Flame adicionado ao import; app recuperado
+- E2E desktop 1540px (shots 144-145): 6 cartões com grade de features renderizando; integridade confirmada (6 articles, 24 feature cells, sem application error)
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+
+Stage Summary:
+- Apresentação dos módulos agora detalhada e factual: cada cartão explica 4 funcionalidades reais do sistema com ícone próprio, extraídas do código das views
+- Todo o texto das features é verificável no código do sistema (tempos de polling, estações, formas de pagamento, fases, PWA)

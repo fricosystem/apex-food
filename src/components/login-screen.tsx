@@ -5,7 +5,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   Loader2, Lock, Mail, ArrowRight, LayoutDashboard, ClipboardList,
-  ChefHat, CreditCard, Settings2, QrCode,
+  ChefHat, CreditCard, Settings2, QrCode, BarChart3, RefreshCw,
+  CalendarRange, Radar, Inbox, Users, BellRing, History, Columns3,
+  Timer, Zap, Flame, ReceiptText, Gauge, Search, Package, UserCog,
+  Target, SlidersHorizontal, Smartphone, ListChecks, Route,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -25,48 +28,86 @@ const DEMO_ACCOUNTS = [
   { email: 'caixa@apexfood.com', label: 'Caixa', desc: 'Pagamentos' },
 ]
 
-const MODULE_SECTIONS = [
+type ModuleFeature = { icon: React.ElementType; title: string; desc: string }
+
+const MODULE_SECTIONS: {
+  icon: React.ElementType
+  tag: string
+  title: string
+  desc: string
+  features: ModuleFeature[]
+}[] = [
   {
     icon: LayoutDashboard,
     tag: 'Módulo 01 · Dashboard',
     title: 'Decisões guiadas por dados, em tempo real',
-    desc: 'Acompanhe faturamento, ticket médio, tempo médio de atendimento e ocupação das mesas em painéis que se atualizam sozinhos enquanto a operação acontece.',
-    chips: ['Faturamento por período', 'Produtos mais vendidos', 'Desempenho por garçom'],
+    desc: 'Faturamento, ticket médio, tempo de atendimento e ocupação das mesas em mais de uma dezena de visualizações que se atualizam sozinhos enquanto a operação acontece.',
+    features: [
+      { icon: BarChart3, title: 'Visualizações ao vivo', desc: 'Comandas por hora, produtos mais vendidos, estações e mapa de calor' },
+      { icon: RefreshCw, title: 'Renovação a cada 8s', desc: 'Indicadores e gráficos acompanham o salão sem recarregar a página' },
+      { icon: CalendarRange, title: 'Períodos e turnos', desc: 'Hoje, semana, mês, ano, datas personalizadas e manhã, tarde ou noite' },
+      { icon: Radar, title: 'Desempenho da equipe', desc: 'Ranking de garçons, metas mensais e eficiência da cozinha' },
+    ],
   },
   {
     icon: ClipboardList,
     tag: 'Módulo 02 · Garçom',
     title: 'Comandas digitais do atendimento à entrega',
-    desc: 'Abra comandas, lance pedidos por mesa e acompanhe cada item até o cliente. O sistema atribui automaticamente um garçom disponível para cada comanda aberta pelo QR Code.',
-    chips: ['Abertura e lançamento rápido', 'Atribuição automática', 'Controle de itens servidos'],
+    desc: 'Abra comandas, acompanhe cada item até o cliente e veja a fila de entrada do QR Code. O sistema atribui automaticamente cada comanda ao garçom disponível.',
+    features: [
+      { icon: Inbox, title: 'Fila de entrada', desc: 'Comandas do QR com badges Nova e Distribuída prontas para assumir' },
+      { icon: Users, title: 'Atribuição automática', desc: 'Menor carga ativa ou demanda do dia — regra configurável na Gestão' },
+      { icon: BellRing, title: 'Prontos para servir', desc: 'Aviso pulsante assim que a cozinha finaliza cada prato' },
+      { icon: History, title: 'Histórico do garçom', desc: 'Comandas finalizadas com valores e forma de pagamento' },
+    ],
   },
   {
     icon: ChefHat,
     tag: 'Módulo 03 · Cozinha',
     title: 'Produção organizada por setor, sem papel',
-    desc: 'Cada pedido cai direto na fila do setor certo — cozinha, churrascaria ou pizzaria — com cronômetro por item e fluxo claro: pendente, em preparo, pronto e servido.',
-    chips: ['Filas em tempo real', 'Cronômetro por item', 'Alertas de atraso'],
+    desc: 'Cada pedido cai direto na fila do setor certo — cozinha, churrasqueira, pizzaria ou bar — com cronômetro por item e fluxo claro: pendente, em preparo, pronto e servido.',
+    features: [
+      { icon: Columns3, title: 'Kanban de preparo', desc: 'Fila, em preparo e pronto com contadores por coluna' },
+      { icon: Flame, title: '4 estações de preparo', desc: 'Cozinha, churrasqueira, pizzaria e bar com filtros dedicados' },
+      { icon: Timer, title: 'Cronômetro e atrasos', desc: 'Barra de progresso por item e alerta vermelho ao estourar o tempo' },
+      { icon: Zap, title: 'Do salão para a fila', desc: 'Pedidos chegam a cada 4s com o tempo cadastrado por produto' },
+    ],
   },
   {
     icon: CreditCard,
     tag: 'Módulo 04 · Caixa',
     title: 'Fechamento rápido, com recibo na hora',
-    desc: 'Receba por múltiplas formas de pagamento, encerre comandas com dois toques e envie o recibo digital direto para a tela do cliente.',
-    chips: ['Pagamentos flexíveis', 'Encerramento em 2 toques', 'Recibo digital'],
+    desc: 'Receba por crédito, débito, PIX ou dinheiro com dupla confirmação, encerre comandas em dois toques e envie o recibo digital direto para a tela do cliente.',
+    features: [
+      { icon: CreditCard, title: '4 formas de pagamento', desc: 'Crédito, débito, PIX e dinheiro físico com confirmação dupla' },
+      { icon: ReceiptText, title: 'Recibo digital', desc: 'Comprovante final aparece na hora na tela do cliente' },
+      { icon: Gauge, title: 'Fila em tempo real', desc: 'Valor a receber e tempo médio de permanência a cada 4s' },
+      { icon: Search, title: 'Histórico filtrável', desc: 'Por data, garçom, método, número da mesa e código da comanda' },
+    ],
   },
   {
     icon: Settings2,
     tag: 'Módulo 05 · Gestão',
     title: 'Cardápio, equipe e permissões sob controle',
     desc: 'Cadastre produtos, categorias e preços, organize os setores de preparo e controle o acesso da equipe com perfis de administrador, gerente, garçom, cozinha e caixa.',
-    chips: ['Produtos e categorias', 'Perfis de acesso', 'Setores de preparo'],
+    features: [
+      { icon: Package, title: 'Produtos completos', desc: 'Preço, tempo de preparo, emoji e imagem que alimentam o cardápio' },
+      { icon: UserCog, title: 'Equipe e perfis', desc: 'Cinco cargos com troca inline e ativação imediata' },
+      { icon: Target, title: 'Metas mensais', desc: 'Objetivo de comandas por garçom com barra de progresso' },
+      { icon: SlidersHorizontal, title: 'Regras de operação', desc: 'Distribuição de comandas, tempos e métodos de pagamento aceitos' },
+    ],
   },
   {
     icon: QrCode,
     tag: 'Módulo 06 · Mesas & QR',
     title: 'Autoatendimento que chega na mesa do cliente',
     desc: 'Cada mesa tem um QR Code exclusivo. O cliente escaneia, monta a comanda, personaliza os itens — como retirar ingredientes — e envia direto para o garçom e a cozinha, acompanhando o preparo em tempo real.',
-    chips: ['QR exclusivo por mesa', 'Personalização de itens', 'Acompanhamento em 5 fases'],
+    features: [
+      { icon: QrCode, title: 'QR exclusivo por mesa', desc: 'Download em PNG de 512px e impressão com a marca' },
+      { icon: Smartphone, title: 'Aplicativo do cliente', desc: 'PWA instalável com cardápio e comanda no celular' },
+      { icon: ListChecks, title: 'Personalização de itens', desc: 'Retirar ingredientes, ponto da carne e observações livres' },
+      { icon: Route, title: 'Acompanhamento em 5 fases', desc: 'Da boas-vindas ao recibo, com stepper por prato' },
+    ],
   },
 ]
 
@@ -345,16 +386,23 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
                 </h2>
                 <p className="relative mt-4 text-white/65 leading-relaxed max-w-lg">{m.desc}</p>
 
-                <div className="relative flex flex-wrap gap-2.5 mt-7">
-                  {m.chips.map((chip) => (
-                    <span
-                      key={chip}
-                      className="inline-flex items-center gap-2 rounded-full border border-white/[0.09] bg-white/[0.05] px-3.5 py-2 text-xs font-medium text-white/85 backdrop-blur transition-colors duration-300 group-hover:border-white/[0.16]"
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#FF6B1A] shadow-[0_0_8px_1.5px_rgba(255,107,26,0.5)]" aria-hidden />
-                      {chip}
-                    </span>
-                  ))}
+                {/* Grade de funcionalidades reais do módulo */}
+                <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {m.features.map((f) => {
+                    const FeatureIcon = f.icon
+                    return (
+                      <div
+                        key={f.title}
+                        className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 transition-colors duration-300 group-hover:border-white/[0.13]"
+                      >
+                        <div className="flex items-center gap-2">
+                          <FeatureIcon className="h-3.5 w-3.5 shrink-0 text-[#FF9A57]" aria-hidden />
+                          <p className="text-xs font-semibold text-white/90 leading-tight">{f.title}</p>
+                        </div>
+                        <p className="text-[11px] text-white/55 leading-relaxed mt-1.5">{f.desc}</p>
+                      </div>
+                    )
+                  })}
                 </div>
               </article>
             </ScrollFade>

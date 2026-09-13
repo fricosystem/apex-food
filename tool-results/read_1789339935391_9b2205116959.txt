@@ -1,0 +1,857 @@
+     1→'use client'
+     2→
+     3→import { useEffect, useRef, useState } from 'react'
+     4→import { useQuery } from '@tanstack/react-query'
+     5→import {
+     6→  BarChart3, Clock3, Grid3x3, Receipt, TrendingUp, TrendingDown, Target, ChefHat, Wallet,
+     7→  Users, Flame, History, PieChart as PieChartIcon, Activity, Layers, CalendarDays, Zap,
+     8→} from 'lucide-react'
+     9→import {
+    10→  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    11→  PieChart, Pie, Cell, RadialBarChart, RadialBar, PolarAngleAxis, RadarChart, PolarGrid, Radar,
+    12→  LineChart, Line, ComposedChart,
+    13→} from 'recharts'
+    14→import { cn } from '@/lib/utils'
+    15→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    16→import { Badge } from '@/components/ui/badge'
+    17→import { Progress } from '@/components/ui/progress'
+    18→import { Skeleton } from '@/components/ui/skeleton'
+    19→import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    20→import { api } from '@/lib/fetcher'
+    21→import { currency, formatDuration, PAYMENT_LABELS, SECTOR_LABELS } from '@/lib/types'
+    22→import type { SessionUser } from '@/lib/auth'
+    23→
+    24→type Granularity = 'hour' | 'day' | 'month'
+    25→type Metrics = {
+    26→  kpis: {
+    27→    occupiedTables: number; totalTables: number; openOrders: number
+    28→    avgService: number; avgTicket: number; periodRevenue: number; periodOrders: number
+    29→  }
+    30→  period: { key: string; granularity: Granularity; start: string; end: string }
+    31→  prev: { revenue: number; orders: number }
+    32→  revenueSeries: Array<{ key: string; label: string; revenue: number; orders: number }>
+    33→  byHour: Array<{ hour: number; label: string; revenue: number; orders: number }>
+    34→  byWeekday: Array<{ weekday: number; label: string; revenue: number; orders: number }>
+    35→  heatmap: Array<{ weekday: number; hour: number; orders: number; revenue: number }>
+    36→  byStation: Record<string, number>
+    37→  topProducts: Array<{ name: string; qty: number; revenue: number }>
+    38→  waiterPerformance: Array<{ name: string; orders: number; revenue: number; avgResponse: number }>
+    39→  kitchenEfficiency: Array<{ product: string; registered: number; actual: number; count: number }>
+    40→  payments: Record<string, number>
+    41→}
+    42→type GoalRow = { id: string; title: string; target: number; achieved: number; user: { id: string; name: string; role: string } }
+    43→
+    44→const PERIOD_LABELS: Record<string, string> = {
+    45→  today: 'hoje', week: '7 dias', month: '30 dias', year: '12 meses', custom: 'personalizado',
+    46→}
+    47→/** Paleta da marca — mesma família do laranja #FF6B1A do Faturamento por período */
+    48→const ORANGE_SHADES = ['#FF6B1A', '#FF8A47', '#FFB27A', '#FFD1AE', '#E5550F', '#FF9E66']
+    49→const TOOLTIP_STYLE = { background: '#16161A', border: '1px solid #2E2E38', borderRadius: 10, fontSize: 12, color: '#F4F4F5' }
+    50→const WEEKDAY_ROWS: Array<{ w: number; label: string }> = [
+    51→  { w: 0, label: 'dom' }, { w: 1, label: 'seg' }, { w: 2, label: 'ter' }, { w: 3, label: 'qua' },
+    52→  { w: 4, label: 'qui' }, { w: 5, label: 'sex' }, { w: 6, label: 'sáb' },
+    53→]
+    54→
+    55→function isoDate(d: Date): string {
+    56→  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    57→}
+    58→
+    59→/** Número com animação count-up (ease-out cúbico), respeitando prefers-reduced-motion */
+    60→function AnimatedNumber({ value, format }: { value: number; format?: (v: number) => string }) {
+    61→  const [display, setDisplay] = useState(value)
+    62→  const prevRef = useRef(value)
+    63→
+    64→  useEffect(() => {
+    65→    const from = prevRef.current
+    66→    const to = value
+    67→    prevRef.current = value
+    68→    if (from === to) return
+    69→    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    70→      const id = requestAnimationFrame(() => setDisplay(to))
+    71→      return () => cancelAnimationFrame(id)
+    72→    }
+    73→    const duration = 900
+    74→    let raf = 0
+    75→    const t0 = performance.now()
+    76→    const tick = (t: number) => {
+    77→      const p = Math.min(1, (t - t0) / duration)
+    78→      const eased = 1 - Math.pow(1 - p, 3)
+    79→      setDisplay(from + (to - from) * eased)
+    80→      if (p < 1) raf = requestAnimationFrame(tick)
+    81→    }
+    82→    raf = requestAnimationFrame(tick)
+    83→    return () => cancelAnimationFrame(raf)
+    84→  }, [value])
+    85→
+    86→  return <>{format ? format(display) : Math.round(display).toLocaleString('pt-BR')}</>
+    87→}
+    88→
+    89→/** Badge de variação vs. período anterior (verde ↑ / vermelho ↓) */
+    90→function DeltaBadge({ current, previous }: { current: number; previous: number }) {
+    91→  if (!previous || previous <= 0) {
+    92→    if (current > 0) {
+    93→      return (
+    94→        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+    95→          <TrendingUp className="h-3 w-3" /> novo
+    96→        </span>
+    97→      )
+    98→    }
+    99→    return null
+   100→  }
+   101→  const pct = ((current - previous) / previous) * 100
+   102→  const up = pct >= 0
+   103→  return (
+   104→    <span
+   105→      className={cn(
+   106→        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border',
+   107→        up
+   108→          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+   109→          : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30',
+   110→      )}
+   111→    >
+   112→      {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+   113→      {up ? '+' : ''}{pct.toFixed(1)}%
+   114→    </span>
+   115→  )
+   116→}
+   117→
+   118→export function DashboardView({ user }: { user: SessionUser }) {
+   119→  const [period, setPeriod] = useState('week')
+   120→  const [turn, setTurn] = useState('all')
+   121→  const [customFrom, setCustomFrom] = useState(() => {
+   122→    const d = new Date(); d.setDate(d.getDate() - 6); return isoDate(d)
+   123→  })
+   124→  const [customTo, setCustomTo] = useState(() => isoDate(new Date()))
+   125→
+   126→  const { data, isLoading } = useQuery<Metrics>({
+   127→    queryKey: ['metrics', period, customFrom, customTo, turn],
+   128→    queryFn: () => api(`/api/metrics?period=${period}&from=${customFrom}&to=${customTo}&turn=${turn}`),
+   129→    refetchInterval: 8000,
+   130→  })
+   131→  const { data: goalsData } = useQuery<{ goals: GoalRow[] }>({
+   132→    queryKey: ['goals'],
+   133→    queryFn: () => api('/api/goals'),
+   134→    refetchInterval: 15000,
+   135→  })
+   136→
+   137→  if (isLoading || !data) {
+   138→    return (
+   139→      <div className="space-y-4">
+   140→        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)}</div>
+   141→        <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-72 rounded-xl" />)}</div>
+   142→      </div>
+   143→    )
+   144→  }
+   145→
+   146→  const { kpis } = data
+   147→  const granularity = data.period.granularity
+   148→  const periodLabel = PERIOD_LABELS[data.period.key] ?? '7 dias'
+   149→
+   150→  const kpiCards: Array<{ label: string; icon: typeof Grid3x3; hint: string; value: React.ReactNode }> = [
+   151→    {
+   152→      label: 'Mesas ocupadas',
+   153→      value: <><AnimatedNumber value={kpis.occupiedTables} />/{kpis.totalTables}</>,
+   154→      icon: Grid3x3, hint: 'agora',
+   155→    },
+   156→    {
+   157→      label: 'Comandas abertas',
+   158→      value: <AnimatedNumber value={kpis.openOrders} />,
+   159→      icon: Receipt, hint: 'ativas no momento',
+   160→    },
+   161→    {
+   162→      label: 'Tempo médio de atendimento',
+   163→      value: kpis.avgService ? formatDuration(kpis.avgService) : '—',
+   164→      icon: Clock3, hint: 'confirmação → pagamento',
+   165→    },
+   166→    {
+   167→      label: 'Ticket médio',
+   168→      value: <AnimatedNumber value={kpis.avgTicket} format={currency} />,
+   169→      icon: Wallet, hint: `período: ${periodLabel}`,
+   170→    },
+   171→  ]
+   172→
+   173→  const goals = (goalsData?.goals ?? []).filter((g) => g.user.role === 'WAITER')
+   174→
+   175→  // ---- Derivados dos novos gráficos ----
+   176→  const peakHour = [...data.byHour].sort((a, b) => b.orders - a.orders)[0]
+   177→  const stationData = Object.entries(data.byStation)
+   178→    .map(([key, v]) => ({ key, name: SECTOR_LABELS[key] ?? key, value: Math.round(v * 100) / 100 }))
+   179→    .sort((a, b) => b.value - a.value)
+   180→  const stationTotal = stationData.reduce((a, s) => a + s.value, 0)
+   181→
+   182→  const maxWOrders = Math.max(1, ...data.waiterPerformance.map((w) => w.orders))
+   183→  const maxWRevenue = Math.max(1, ...data.waiterPerformance.map((w) => w.revenue))
+   184→  const radarData = data.waiterPerformance.slice(0, 6).map((w) => ({
+   185→    name: w.name,
+   186→    comandas: Math.round((w.orders / maxWOrders) * 100),
+   187→    receita: Math.round((w.revenue / maxWRevenue) * 100),
+   188→  }))
+   189→
+   190→  // ---- Derivados dos gráficos extras (ticket médio, acumulado, semana, heatmap) ----
+   191→  const ticketSeries = data.revenueSeries.map((b) => ({
+   192→    ...b,
+   193→    ticket: b.orders > 0 ? Math.round((b.revenue / b.orders) * 100) / 100 : 0,
+   194→  }))
+   195→  const bestTicket = [...ticketSeries].sort((a, b) => b.ticket - a.ticket)[0]
+   196→  const cumSeries: Array<{ label: string; revenue: number; acc: number }> = []
+   197→  let acc = 0
+   198→  for (const b of data.revenueSeries) {
+   199→    acc += b.revenue
+   200→    cumSeries.push({ label: b.label, revenue: b.revenue, acc: Math.round(acc * 100) / 100 })
+   201→  }
+   202→  const byWeekday = data.byWeekday ?? []
+   203→  const heatmap = data.heatmap ?? []
+   204→  const weekdayMax = Math.max(1, ...byWeekday.map((w) => w.orders))
+   205→  const peakWeekday = [...byWeekday].sort((a, b) => b.orders - a.orders)[0]
+   206→  const maxHeat = Math.max(1, ...heatmap.map((c) => c.orders))
+   207→  const peakHeatCell = [...heatmap].filter((c) => c.orders > 0).sort((a, b) => b.orders - a.orders)[0]
+   208→  const peakHeat = peakHeatCell
+   209→    ? { ...peakHeatCell, label: `${WEEKDAY_ROWS[peakHeatCell.weekday]?.label ?? ''} ${String(peakHeatCell.hour).padStart(2, '0')}h` }
+   210→    : null
+   211→
+   212→  const prevRevenue = data.prev.revenue
+   213→  const goalPct = prevRevenue > 0 ? Math.min(100, (kpis.periodRevenue / prevRevenue) * 100) : 100
+   214→  const revLabelFmt = granularity === 'day' ? (l: string) => `Dia ${l}` : (l: string) => l
+   215→
+   216→  return (
+   217→    <div className="space-y-4">
+   218→      {/* Filtros */}
+   219→      <div className="flex flex-col gap-2">
+   220→        <div className="flex flex-wrap items-center gap-2 justify-between">
+   221→          <Tabs value={period} onValueChange={setPeriod}>
+   222→            <TabsList className="max-w-full overflow-x-auto">
+   223→              <TabsTrigger value="today">Hoje</TabsTrigger>
+   224→              <TabsTrigger value="week">Semana</TabsTrigger>
+   225→              <TabsTrigger value="month">Mês</TabsTrigger>
+   226→              <TabsTrigger value="year">Ano</TabsTrigger>
+   227→              <TabsTrigger value="custom">Personalizado</TabsTrigger>
+   228→            </TabsList>
+   229→          </Tabs>
+   230→          <Tabs value={turn} onValueChange={setTurn}>
+   231→            <TabsList className="max-w-full overflow-x-auto">
+   232→              <TabsTrigger value="all">Todos os turnos</TabsTrigger>
+   233→              <TabsTrigger value="morning">Manhã</TabsTrigger>
+   234→              <TabsTrigger value="afternoon">Tarde</TabsTrigger>
+   235→              <TabsTrigger value="night">Noite</TabsTrigger>
+   236→            </TabsList>
+   237→          </Tabs>
+   238→        </div>
+   239→        {period === 'custom' && (
+   240→          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+   241→            <input
+   242→              type="date"
+   243→              value={customFrom}
+   244→              max={customTo}
+   245→              onChange={(e) => setCustomFrom(e.target.value)}
+   246→              className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+   247→              aria-label="Data inicial"
+   248→            />
+   249→            <span className="text-xs">até</span>
+   250→            <input
+   251→              type="date"
+   252→              value={customTo}
+   253→              min={customFrom}
+   254→              max={isoDate(new Date())}
+   255→              onChange={(e) => setCustomTo(e.target.value)}
+   256→              className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+   257→              aria-label="Data final"
+   258→            />
+   259→          </div>
+   260→        )}
+   261→      </div>
+   262→
+   263→      {/* KPIs */}
+   264→      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 [&>*]:min-w-0">
+   265→        {kpiCards.map((k) => (
+   266→          <Card key={k.label} className="overflow-hidden">
+   267→            <CardContent className="p-4">
+   268→              <div className="flex items-center justify-between">
+   269→                <p className="text-xs text-muted-foreground">{k.label}</p>
+   270→                <k.icon className="h-4 w-4 text-muted-foreground/60" />
+   271→              </div>
+   272→              <p className="text-2xl font-bold mt-2 tracking-tight">{k.value}</p>
+   273→              <p className="text-[10px] text-muted-foreground mt-1">{k.hint}</p>
+   274→            </CardContent>
+   275→          </Card>
+   276→        ))}
+   277→      </div>
+   278→
+   279→      {/* Faturamento + comandas por hora */}
+   280→      <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
+   281→        <Card>
+   282→          <CardHeader className="pb-2">
+   283→            <CardTitle className="text-sm flex items-center gap-2">
+   284→              <TrendingUp className="h-4 w-4 text-primary" /> Faturamento por período
+   285→            </CardTitle>
+   286→            <p className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
+   287→              <span><AnimatedNumber value={kpis.periodRevenue} format={currency} /> em {kpis.periodOrders} comandas concluídas</span>
+   288→              <DeltaBadge current={kpis.periodRevenue} previous={data.prev.revenue} />
+   289→            </p>
+   290→          </CardHeader>
+   291→          <CardContent className="h-[240px] p-2">
+   292→            <ResponsiveContainer width="100%" height="100%">
+   293→              <AreaChart data={data.revenueSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+   294→                <defs>
+   295→                  <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
+   296→                    <stop offset="0%" stopColor="#FF6B1A" stopOpacity={0.35} />
+   297→                    <stop offset="100%" stopColor="#FF6B1A" stopOpacity={0.02} />
+   298→                  </linearGradient>
+   299→                </defs>
+   300→                <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,138,0.15)" vertical={false} />
+   301→                <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} />
+   302→                <YAxis tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} width={44} tickFormatter={(v) => `R$${v}`} />
+   303→                <Tooltip
+   304→                  contentStyle={TOOLTIP_STYLE}
+   305→                  formatter={(v: number, name) => (name === 'revenue' ? [currency(v), 'Faturamento'] : [v, 'Comandas'])}
+   306→                  labelFormatter={revLabelFmt}
+   307→                />
+   308→                <Area type="monotone" dataKey="revenue" stroke="#FF6B1A" strokeWidth={2} fill="url(#rev)" animationDuration={900} />
+   309→              </AreaChart>
+   310→            </ResponsiveContainer>
+   311→          </CardContent>
+   312→        </Card>
+   313→
+   314→        <Card>
+   315→          <CardHeader className="pb-2">
+   316→            <CardTitle className="text-sm flex items-center gap-2">
+   317→              <Flame className="h-4 w-4 text-primary" /> Comandas por hora
+   318→            </CardTitle>
+   319→            <p className="text-[11px] text-muted-foreground">
+   320→              {peakHour && peakHour.orders > 0
+   321→                ? <>pico às <span className="font-semibold text-primary">{peakHour.label}</span> · {peakHour.orders} comandas</>
+   322→                : 'sem comandas concluídas no período'}
+   323→            </p>
+   324→          </CardHeader>
+   325→          <CardContent className="h-[240px] p-2">
+   326→            <ResponsiveContainer width="100%" height="100%">
+   327→              <BarChart data={data.byHour} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+   328→                <defs>
+   329→                  <linearGradient id="revBar" x1="0" y1="0" x2="0" y2="1">
+   330→                    <stop offset="0%" stopColor="#FF8A47" stopOpacity={0.95} />
+   331→                    <stop offset="100%" stopColor="#FF6B1A" stopOpacity={0.35} />
+   332→                  </linearGradient>
+   333→                </defs>
+   334→                <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,138,0.15)" vertical={false} />
+   335→                <XAxis dataKey="label" tick={{ fontSize: 9 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} interval={2} />
+   336→                <YAxis tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} width={28} allowDecimals={false} />
+   337→                <Tooltip
+   338→                  cursor={{ fill: 'rgba(255,107,26,0.06)' }}
+   339→                  contentStyle={TOOLTIP_STYLE}
+   340→                  formatter={(v: number) => [`${v} comandas`, 'Concluídas']}
+   341→                />
+   342→                <Bar dataKey="orders" fill="url(#revBar)" radius={[5, 5, 0, 0]} barSize={10} animationDuration={900} />
+   343→              </BarChart>
+   344→            </ResponsiveContainer>
+   345→          </CardContent>
+   346→        </Card>
+   347→      </div>
+   348→
+   349→      {/* Ticket médio + faturamento acumulado */}
+   350→      <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
+   351→        <Card>
+   352→          <CardHeader className="pb-2">
+   353→            <CardTitle className="text-sm flex items-center gap-2">
+   354→              <Activity className="h-4 w-4 text-primary" /> Evolução do ticket médio
+   355→            </CardTitle>
+   356→            <p className="text-[11px] text-muted-foreground">
+   357→              {bestTicket && bestTicket.ticket > 0
+   358→                ? <>melhor: <span className="font-semibold text-primary">{currency(bestTicket.ticket)}</span> em {revLabelFmt(bestTicket.label)}</>
+   359→                : 'sem comandas concluídas no período'}
+   360→            </p>
+   361→          </CardHeader>
+   362→          <CardContent className="h-[240px] p-2">
+   363→            {kpis.periodOrders === 0 ? (
+   364→              <EmptyChart />
+   365→            ) : (
+   366→              <ResponsiveContainer width="100%" height="100%">
+   367→                <LineChart data={ticketSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+   368→                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,138,0.15)" vertical={false} />
+   369→                  <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} />
+   370→                  <YAxis tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} width={52} tickFormatter={(v) => `R$${v}`} />
+   371→                  <Tooltip
+   372→                    contentStyle={TOOLTIP_STYLE}
+   373→                    formatter={(v: number) => [currency(v), 'Ticket médio']}
+   374→                    labelFormatter={revLabelFmt}
+   375→                  />
+   376→                  <Line
+   377→                    type="monotone"
+   378→                    dataKey="ticket"
+   379→                    stroke="#FF6B1A"
+   380→                    strokeWidth={2.5}
+   381→                    dot={{ r: 2.5, fill: '#FF6B1A', strokeWidth: 0 }}
+   382→                    activeDot={{ r: 5, fill: '#FF8A47', stroke: '#FF6B1A', strokeWidth: 2 }}
+   383→                    animationDuration={900}
+   384→                  />
+   385→                </LineChart>
+   386→              </ResponsiveContainer>
+   387→            )}
+   388→          </CardContent>
+   389→        </Card>
+   390→
+   391→        <Card>
+   392→          <CardHeader className="pb-2">
+   393→            <CardTitle className="text-sm flex items-center gap-2">
+   394→              <Layers className="h-4 w-4 text-primary" /> Faturamento acumulado
+   395→            </CardTitle>
+   396→            <p className="text-[11px] text-muted-foreground">
+   397→              curva soma <AnimatedNumber value={kpis.periodRevenue} format={currency} /> ao longo do período
+   398→            </p>
+   399→          </CardHeader>
+   400→          <CardContent className="h-[240px] p-2">
+   401→            {kpis.periodRevenue === 0 ? (
+   402→              <EmptyChart />
+   403→            ) : (
+   404→              <ResponsiveContainer width="100%" height="100%">
+   405→                <ComposedChart data={cumSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+   406→                  <defs>
+   407→                    <linearGradient id="accLine" x1="0" y1="0" x2="0" y2="1">
+   408→                      <stop offset="0%" stopColor="#FF6B1A" stopOpacity={0.3} />
+   409→                      <stop offset="100%" stopColor="#FF6B1A" stopOpacity={0.02} />
+   410→                    </linearGradient>
+   411→                  </defs>
+   412→                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,138,0.15)" vertical={false} />
+   413→                  <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} />
+   414→                  <YAxis tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} width={44} tickFormatter={(v) => `R$${v}`} />
+   415→                  <Tooltip
+   416→                    contentStyle={TOOLTIP_STYLE}
+   417→                    formatter={(v: number, name) => (name === 'acc' ? [currency(v), 'Acumulado'] : [currency(v), 'No período'])}
+   418→                    labelFormatter={revLabelFmt}
+   419→                  />
+   420→                  <Bar dataKey="revenue" fill="rgba(255,107,26,0.28)" radius={[4, 4, 0, 0]} barSize={8} animationDuration={900} />
+   421→                  <Area type="monotone" dataKey="acc" stroke="#FF6B1A" strokeWidth={2.5} fill="url(#accLine)" animationDuration={900} />
+   422→                </ComposedChart>
+   423→              </ResponsiveContainer>
+   424→            )}
+   425→          </CardContent>
+   426→        </Card>
+   427→      </div>
+   428→
+   429→      {/* Produtos + faturamento por estação */}
+   430→      <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
+   431→        <Card>
+   432→          <CardHeader className="pb-2">
+   433→            <CardTitle className="text-sm flex items-center gap-2">
+   434→              <BarChart3 className="h-4 w-4 text-primary" /> Produtos mais vendidos
+   435→            </CardTitle>
+   436→            <p className="text-[11px] text-muted-foreground">quantidade no período</p>
+   437→          </CardHeader>
+   438→          <CardContent className="h-[240px] p-2">
+   439→            {data.topProducts.length === 0 ? (
+   440→              <EmptyChart />
+   441→            ) : (
+   442→              <ResponsiveContainer width="100%" height="100%">
+   443→                <BarChart data={data.topProducts} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 0 }}>
+   444→                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,138,0.15)" horizontal={false} />
+   445→                  <XAxis type="number" tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} />
+   446→                  <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.9)" tickLine={false} axisLine={false} />
+   447→                  <Tooltip
+   448→                    cursor={{ fill: 'rgba(255,107,26,0.06)' }}
+   449→                    contentStyle={TOOLTIP_STYLE}
+   450→                    formatter={(v: number, _n, p) => [`${v} un · ${currency(Number(p?.payload?.revenue ?? 0))}`, 'Vendido']}
+   451→                  />
+   452→                  <Bar dataKey="qty" fill="#FF6B1A" radius={[0, 6, 6, 0]} barSize={14} animationDuration={900} />
+   453→                </BarChart>
+   454→              </ResponsiveContainer>
+   455→            )}
+   456→          </CardContent>
+   457→        </Card>
+   458→
+   459→        <Card>
+   460→          <CardHeader className="pb-2">
+   461→            <CardTitle className="text-sm flex items-center gap-2">
+   462→              <PieChartIcon className="h-4 w-4 text-primary" /> Faturamento por estação
+   463→            </CardTitle>
+   464→            <p className="text-[11px] text-muted-foreground">distribuição da receita por setor de produção</p>
+   465→          </CardHeader>
+   466→          <CardContent className="p-2">
+   467→            {stationData.length === 0 ? (
+   468→              <EmptyChart className="h-[228px]" />
+   469→            ) : (
+   470→              <div className="flex flex-col sm:flex-row items-center gap-2 sm:h-[228px]">
+   471→                <div className="relative h-[180px] w-full sm:w-[46%] shrink-0">
+   472→                  <ResponsiveContainer width="100%" height="100%">
+   473→                    <PieChart>
+   474→                      <Tooltip
+   475→                        contentStyle={TOOLTIP_STYLE}
+   476→                        formatter={(v: number, _n, p) => [currency(v), String(p?.payload?.name ?? '')]}
+   477→                      />
+   478→                      <Pie
+   479→                        data={stationData}
+   480→                        dataKey="value"
+   481→                        nameKey="name"
+   482→                        innerRadius="62%"
+   483→                        outerRadius="92%"
+   484→                        paddingAngle={4}
+   485→                        cornerRadius={6}
+   486→                        animationDuration={900}
+   487→                        stroke="none"
+   488→                      >
+   489→                        {stationData.map((s, i) => (
+   490→                          <Cell key={s.key} fill={ORANGE_SHADES[i % ORANGE_SHADES.length]} />
+   491→                        ))}
+   492→                      </Pie>
+   493→                    </PieChart>
+   494→                  </ResponsiveContainer>
+   495→                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+   496→                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">total</p>
+   497→                    <p className="text-sm font-bold leading-tight"><AnimatedNumber value={stationTotal} format={currency} /></p>
+   498→                  </div>
+   499→                </div>
+   500→                <div className="flex-1 w-full space-y-1.5 overflow-y-auto max-h-[228px] pr-1">
+   501→                  {stationData.map((s, i) => (
+   502→                    <div key={s.key} className="flex items-center gap-2 text-xs">
+   503→                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: ORANGE_SHADES[i % ORANGE_SHADES.length] }} />
+   504→                      <span className="flex-1 truncate text-foreground">{s.name}</span>
+   505→                      <span className="font-semibold text-primary shrink-0">
+   506→                        {stationTotal ? `${Math.round((s.value / stationTotal) * 100)}%` : '0%'}
+   507→                      </span>
+   508→                    </div>
+   509→                  ))}
+   510→                </div>
+   511→              </div>
+   512→            )}
+   513→          </CardContent>
+   514→        </Card>
+   515→      </div>
+   516→
+   517→      {/* Dia da semana + mapa de calor */}
+   518→      <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
+   519→        <Card>
+   520→          <CardHeader className="pb-2">
+   521→            <CardTitle className="text-sm flex items-center gap-2">
+   522→              <CalendarDays className="h-4 w-4 text-primary" /> Movimento por dia da semana
+   523→            </CardTitle>
+   524→            <p className="text-[11px] text-muted-foreground">
+   525→              {peakWeekday && peakWeekday.orders > 0
+   526→                ? <>pico: <span className="font-semibold text-primary capitalize">{peakWeekday.label}</span> · {peakWeekday.orders} comandas</>
+   527→                : 'sem comandas concluídas no período'}
+   528→            </p>
+   529→          </CardHeader>
+   530→          <CardContent className="p-2">
+   531→            {kpis.periodOrders === 0 ? (
+   532→              <EmptyChart className="h-[228px]" />
+   533→            ) : (
+   534→              <div className="flex flex-col sm:flex-row items-center gap-2 sm:h-[228px]">
+   535→                <div className="relative h-[180px] w-full sm:w-[46%] shrink-0">
+   536→                  <ResponsiveContainer width="100%" height="100%">
+   537→                    <RadialBarChart
+   538→                      innerRadius="24%"
+   539→                      outerRadius="100%"
+   540→                      startAngle={90}
+   541→                      endAngle={-270}
+   542→                      data={byWeekday.map((w) => ({ ...w, fill: ORANGE_SHADES[w.weekday % ORANGE_SHADES.length] }))}
+   543→                    >
+   544→                      <PolarAngleAxis type="number" domain={[0, weekdayMax]} tick={false} axisLine={false} />
+   545→                      <RadialBar dataKey="orders" background={{ fill: 'rgba(128,128,138,0.12)' }} cornerRadius={5} animationDuration={900} />
+   546→                      <Tooltip
+   547→                        contentStyle={TOOLTIP_STYLE}
+   548→                        formatter={(v: number, _n, p) => [`${v} comandas · ${currency(Number(p?.payload?.revenue ?? 0))}`, String(p?.payload?.label ?? '')]}
+   549→                      />
+   550→                    </RadialBarChart>
+   551→                  </ResponsiveContainer>
+   552→                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+   553→                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">pico</p>
+   554→                    <p className="text-sm font-bold leading-tight text-primary capitalize">{peakWeekday?.label ?? '—'}</p>
+   555→                  </div>
+   556→                </div>
+   557→                <div className="flex-1 w-full space-y-1.5 overflow-y-auto max-h-[228px] pr-1">
+   558→                  {byWeekday.map((w) => (
+   559→                    <div key={w.label} className="flex items-center gap-2 text-xs">
+   560→                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: ORANGE_SHADES[w.weekday % ORANGE_SHADES.length] }} />
+   561→                      <span className="flex-1 text-foreground capitalize">{w.label}</span>
+   562→                      <span className="text-muted-foreground shrink-0">{w.orders}</span>
+   563→                      <span className="font-semibold text-primary shrink-0 w-9 text-right">
+   564→                        {weekdayMax ? `${Math.round((w.orders / weekdayMax) * 100)}%` : '0%'}
+   565→                      </span>
+   566→                    </div>
+   567→                  ))}
+   568→                </div>
+   569→              </div>
+   570→            )}
+   571→          </CardContent>
+   572→        </Card>
+   573→
+   574→        <Card>
+   575→          <CardHeader className="pb-2">
+   576→            <CardTitle className="text-sm flex items-center gap-2">
+   577→              <Zap className="h-4 w-4 text-primary" /> Mapa de calor — horários de movimento
+   578→            </CardTitle>
+   579→            <p className="text-[11px] text-muted-foreground">
+   580→              {peakHeat
+   581→                ? <>pico: <span className="font-semibold text-primary">{peakHeat.label}</span> · {peakHeat.orders} comandas</>
+   582→                : 'sem comandas concluídas no período'}
+   583→            </p>
+   584→          </CardHeader>
+   585→          <CardContent className="p-2">
+   586→            {kpis.periodOrders === 0 ? (
+   587→              <EmptyChart className="h-[228px]" />
+   588→            ) : (
+   589→              <div className="overflow-x-auto pb-1">
+   590→                <div className="min-w-[500px] space-y-1">
+   591→                  <div className="grid gap-0.5" style={{ gridTemplateColumns: '30px repeat(24, minmax(0, 1fr))' }}>
+   592→                    <span />
+   593→                    {Array.from({ length: 24 }, (_, h) => (
+   594→                      <span key={h} className="text-[8px] text-muted-foreground text-center leading-4">
+   595→                        {h % 3 === 0 ? `${h}h` : ''}
+   596→                      </span>
+   597→                    ))}
+   598→                  </div>
+   599→                  {WEEKDAY_ROWS.map((wd) => (
+   600→                    <div key={wd.w} className="grid gap-0.5" style={{ gridTemplateColumns: '30px repeat(24, minmax(0, 1fr))' }}>
+   601→                      <span className="text-[9px] text-muted-foreground leading-5">{wd.label}</span>
+   602→                      {Array.from({ length: 24 }, (_, h) => {
+   603→                        const cell = heatmap[wd.w * 24 + h]
+   604→                        const intensity = cell && cell.orders > 0 ? 0.12 + 0.88 * Math.pow(cell.orders / maxHeat, 0.8) : 0
+   605→                        return (
+   606→                          <span
+   607→                            key={h}
+   608→                            title={cell && cell.orders > 0
+   609→                              ? `${wd.label} ${String(h).padStart(2, '0')}h — ${cell.orders} comandas · ${currency(cell.revenue)}`
+   610→                              : `${wd.label} ${String(h).padStart(2, '0')}h — sem comandas`}
+   611→                            className="h-5 rounded-[3px]"
+   612→                            style={{ background: intensity > 0 ? `rgba(255,107,26,${intensity.toFixed(2)})` : 'rgba(128,128,138,0.10)' }}
+   613→                          />
+   614→                        )
+   615→                      })}
+   616→                    </div>
+   617→                  ))}
+   618→                  <div className="flex items-center gap-2 pt-1 text-[9px] text-muted-foreground">
+   619→                    <span>menos movimento</span>
+   620→                    <span className="h-1.5 flex-1 rounded-full" style={{ background: 'linear-gradient(90deg, rgba(128,128,138,0.10), rgba(255,107,26,1))' }} />
+   621→                    <span>mais movimento</span>
+   622→                  </div>
+   623→                </div>
+   624→              </div>
+   625→            )}
+   626→          </CardContent>
+   627→        </Card>
+   628→      </div>
+   629→
+   630→      {/* Radar da equipe + comparativo com período anterior */}
+   631→      <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
+   632→        <Card>
+   633→          <CardHeader className="pb-2">
+   634→            <CardTitle className="text-sm flex items-center gap-2">
+   635→              <Users className="h-4 w-4 text-primary" /> Radar de desempenho da equipe
+   636→            </CardTitle>
+   637→            <p className="text-[11px] text-muted-foreground">comandas e receita vs. liderança do período</p>
+   638→          </CardHeader>
+   639→          <CardContent className="h-[260px] p-2">
+   640→            {radarData.length < 3 ? (
+   641→              <EmptyChart label="Necessário pelo menos 3 garçons com comandas no período" />
+   642→            ) : (
+   643→              <ResponsiveContainer width="100%" height="100%">
+   644→                <RadarChart data={radarData} outerRadius="72%">
+   645→                  <PolarGrid stroke="rgba(128,128,138,0.2)" />
+   646→                  <PolarAngleAxis dataKey="name" tick={{ fontSize: 10, fill: 'rgba(128,128,138,0.9)' }} />
+   647→                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number, n) => [`${Math.round(v)}%`, String(n)]} />
+   648→                  <Radar name="Comandas" dataKey="comandas" stroke="#FF6B1A" fill="#FF6B1A" fillOpacity={0.28} animationDuration={900} />
+   649→                  <Radar name="Receita" dataKey="receita" stroke="#FFB27A" fill="#FFB27A" fillOpacity={0.16} animationDuration={900} />
+   650→                </RadarChart>
+   651→              </ResponsiveContainer>
+   652→            )}
+   653→          </CardContent>
+   654→        </Card>
+   655→
+   656→        <Card>
+   657→          <CardHeader className="pb-2">
+   658→            <CardTitle className="text-sm flex items-center gap-2">
+   659→              <History className="h-4 w-4 text-primary" /> Comparativo com o período anterior
+   660→            </CardTitle>
+   661→            <p className="text-[11px] text-muted-foreground">
+   662→              {prevRevenue > 0
+   663→                ? <>meta implícita: <span className="font-semibold">{currency(prevRevenue)}</span> (período anterior)</>
+   664→                : kpis.periodRevenue > 0
+   665→                  ? 'anterior sem vendas — crescimento pleno'
+   666→                  : 'sem vendas nos dois períodos'}
+   667→            </p>
+   668→          </CardHeader>
+   669→          <CardContent className="p-4">
+   670→            <div className="relative h-[168px]">
+   671→              <ResponsiveContainer width="100%" height="100%">
+   672→                <RadialBarChart innerRadius="76%" outerRadius="100%" startAngle={90} endAngle={-270} data={[{ name: 'meta', value: prevRevenue > 0 ? goalPct : kpis.periodRevenue > 0 ? 100 : 0 }]}>
+   673→                  <PolarAngleAxis type="number" domain={[0, 100]} tick={false} axisLine={false} />
+   674→                  <RadialBar
+   675→                    dataKey="value"
+   676→                    cornerRadius={14}
+   677→                    fill="#FF6B1A"
+   678→                    background={{ fill: 'rgba(128,128,138,0.15)' }}
+   679→                    animationDuration={900}
+   680→                  />
+   681→                </RadialBarChart>
+   682→              </ResponsiveContainer>
+   683→              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+   684→                <p className="text-3xl font-bold tracking-tight text-primary">
+   685→                  {prevRevenue > 0 ? (
+   686→                    <AnimatedNumber value={goalPct} format={(v) => `${Math.round(v)}%`} />
+   687→                  ) : kpis.periodRevenue > 0 ? (
+   688→                    <AnimatedNumber value={100} format={(v) => `+${Math.round(v)}%`} />
+   689→                  ) : (
+   690→                    '—'
+   691→                  )}
+   692→                </p>
+   693→                <p className="text-[10px] text-muted-foreground">
+   694→                  {prevRevenue > 0 ? 'da meta atingida' : kpis.periodRevenue > 0 ? 'crescimento pleno' : 'sem vendas registradas'}
+   695→                </p>
+   696→              </div>
+   697→            </div>
+   698→            <div className="grid grid-cols-2 gap-3 mt-2">
+   699→              <div className="rounded-lg border bg-muted/30 p-3">
+   700→                <div className="flex items-center justify-between">
+   701→                  <p className="text-[11px] text-muted-foreground">Faturamento</p>
+   702→                  <DeltaBadge current={kpis.periodRevenue} previous={prevRevenue} />
+   703→                </div>
+   704→                <p className="text-sm font-bold mt-1">{currency(kpis.periodRevenue)}</p>
+   705→                <p className="text-[10px] text-muted-foreground">anterior: {currency(prevRevenue)}</p>
+   706→              </div>
+   707→              <div className="rounded-lg border bg-muted/30 p-3">
+   708→                <div className="flex items-center justify-between">
+   709→                  <p className="text-[11px] text-muted-foreground">Comandas</p>
+   710→                  <DeltaBadge current={kpis.periodOrders} previous={data.prev.orders} />
+   711→                </div>
+   712→                <p className="text-sm font-bold mt-1">{kpis.periodOrders}</p>
+   713→                <p className="text-[10px] text-muted-foreground">anterior: {data.prev.orders}</p>
+   714→              </div>
+   715→            </div>
+   716→          </CardContent>
+   717→        </Card>
+   718→      </div>
+   719→
+   720→      {/* Garçons + cozinha */}
+   721→      <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
+   722→        <Card>
+   723→          <CardHeader className="pb-2">
+   724→            <CardTitle className="text-sm flex items-center gap-2">
+   725→              <TrendingUp className="h-4 w-4 text-primary" /> Desempenho por garçom
+   726→            </CardTitle>
+   727→            <p className="text-[11px] text-muted-foreground">comandas concluídas, resposta e receita</p>
+   728→          </CardHeader>
+   729→          <CardContent className="p-0">
+   730→            {data.waiterPerformance.length === 0 ? (
+   731→              <EmptyChart className="h-[220px]" />
+   732→            ) : (
+   733→              <div className="divide-y">
+   734→                {data.waiterPerformance.map((w, idx) => (
+   735→                  <div key={w.name + idx} className="flex items-center gap-3 px-4 py-3">
+   736→                    <div className="h-9 w-9 rounded-full apex-gradient text-white text-xs font-bold flex items-center justify-center shrink-0">
+   737→                      {w.name.slice(0, 2).toUpperCase()}
+   738→                    </div>
+   739→                    <div className="flex-1 min-w-0">
+   740→                      <p className="text-sm font-semibold leading-tight">{w.name}</p>
+   741→                      <p className="text-[11px] text-muted-foreground mt-0.5">
+   742→                        {w.orders} comandas · resposta média {w.avgResponse.toFixed(1)} min
+   743→                      </p>
+   744→                    </div>
+   745→                    <div className="text-right shrink-0">
+   746→                      <p className="text-sm font-bold text-primary">{currency(w.revenue)}</p>
+   747→                      {idx === 0 && <Badge className="mt-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/40 text-[9px]">destaque</Badge>}
+   748→                    </div>
+   749→                  </div>
+   750→                ))}
+   751→              </div>
+   752→            )}
+   753→          </CardContent>
+   754→        </Card>
+   755→
+   756→        <Card>
+   757→          <CardHeader className="pb-2">
+   758→            <CardTitle className="text-sm flex items-center gap-2">
+   759→              <ChefHat className="h-4 w-4 text-primary" /> Eficiência da cozinha
+   760→            </CardTitle>
+   761→            <p className="text-[11px] text-muted-foreground">tempo real de preparo vs. tempo cadastrado</p>
+   762→          </CardHeader>
+   763→          <CardContent className="p-0">
+   764→            {data.kitchenEfficiency.length === 0 ? (
+   765→              <EmptyChart className="h-[220px]" />
+   766→            ) : (
+   767→              <div className="divide-y max-h-[260px] overflow-y-auto">
+   768→                {data.kitchenEfficiency.map((k) => {
+   769→                  const diff = k.actual - k.registered
+   770→                  const ok = diff <= 2
+   771→                  return (
+   772→                    <div key={k.product} className="px-4 py-3">
+   773→                      <div className="flex items-center justify-between text-sm">
+   774→                        <p className="font-medium truncate">{k.product}</p>
+   775→                        <span className={cn('text-xs font-semibold shrink-0', ok ? 'text-emerald-500' : 'text-amber-500')}>
+   776→                          {k.actual.toFixed(1)}min / {k.registered}min
+   777→                        </span>
+   778→                      </div>
+   779→                      <div className="mt-1.5 h-1.5 rounded-full bg-muted overflow-hidden flex">
+   780→                        <div className={cn('h-full', ok ? 'bg-emerald-500' : 'bg-amber-500')} style={{ width: `${Math.min(100, (k.actual / Math.max(k.registered, 1)) * 100)}%` }} />
+   781→                      </div>
+   782→                      <p className="text-[10px] text-muted-foreground mt-1">{k.count} preparo(s) no período</p>
+   783→                    </div>
+   784→                  )
+   785→                })}
+   786→              </div>
+   787→            )}
+   788→          </CardContent>
+   789→        </Card>
+   790→      </div>
+   791→
+   792→      {/* Metas + pagamentos */}
+   793→      <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
+   794→        <Card>
+   795→          <CardHeader className="pb-2">
+   796→            <CardTitle className="text-sm flex items-center gap-2">
+   797→              <Target className="h-4 w-4 text-primary" /> Metas por funcionário — mês atual
+   798→            </CardTitle>
+   799→          </CardHeader>
+   800→          <CardContent className="space-y-3.5">
+   801→            {goals.length === 0 ? (
+   802→              <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma meta cadastrada. Defina em Gestão → Metas.</p>
+   803→            ) : (
+   804→              goals.map((g) => {
+   805→                const pct = Math.min(100, Math.round((g.achieved / Math.max(g.target, 1)) * 100))
+   806→                const done = g.achieved >= g.target
+   807→                return (
+   808→                  <div key={g.id}>
+   809→                    <div className="flex items-center justify-between text-sm mb-1.5">
+   810→                      <p className="font-medium">{g.user.name}</p>
+   811→                      <span className={cn('text-xs font-semibold', done ? 'text-emerald-500' : 'text-muted-foreground')}>
+   812→                        {g.achieved}/{g.target} comandas
+   813→                      </span>
+   814→                    </div>
+   815→                    <Progress value={pct} className="h-2" />
+   816→                    <p className="text-[10px] text-muted-foreground mt-1">{pct}% da meta {done && '— concluída! 🎉'}</p>
+   817→                  </div>
+   818→                )
+   819→              })
+   820→            )}
+   821→          </CardContent>
+   822→        </Card>
+   823→
+   824→        <Card>
+   825→          <CardHeader className="pb-2">
+   826→            <CardTitle className="text-sm flex items-center gap-2">
+   827→              <Wallet className="h-4 w-4 text-primary" /> Receita por forma de pagamento
+   828→            </CardTitle>
+   829→          </CardHeader>
+   830→          <CardContent className="grid grid-cols-2 gap-3">
+   831→            {Object.keys(PAYMENT_LABELS).map((m) => {
+   832→              const v = data.payments[m] ?? 0
+   833→              return (
+   834→                <div key={m} className="rounded-lg border bg-muted/30 p-3">
+   835→                  <p className="text-[11px] text-muted-foreground">{PAYMENT_LABELS[m]}</p>
+   836→                  <p className="font-bold mt-0.5">{currency(v)}</p>
+   837→                  <div className="mt-1.5 h-1.5 rounded-full bg-muted overflow-hidden">
+   838→                    <div className="h-full apex-gradient" style={{ width: `${kpis.periodRevenue ? Math.min(100, (v / kpis.periodRevenue) * 100) : 0}%` }} />
+   839→                  </div>
+   840→                </div>
+   841→              )
+   842→            })}
+   843→          </CardContent>
+   844→        </Card>
+   845→      </div>
+   846→    </div>
+   847→  )
+   848→}
+   849→
+   850→function EmptyChart({ className, label = 'Sem dados no período selecionado' }: { className?: string; label?: string }) {
+   851→  return (
+   852→    <div className={cn('h-full flex items-center justify-center text-xs text-muted-foreground text-center px-4', className)}>
+   853→      {label}
+   854→    </div>
+   855→  )
+   856→}
+   857→
