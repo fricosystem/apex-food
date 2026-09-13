@@ -513,3 +513,20 @@ Work Log:
 Stage Summary:
 - Erro "Hydration failed" da extensão de tradução eliminado na raiz: a guarda reverte o sequestro do DOM antes do React hidratar, sem interferir no funcionamento do app nem da extensão para outros sites
 - ExtensionNotice mantido como aviso informativo ao usuário
+
+---
+Task ID: 29
+Agent: Super Z (principal)
+Task: Remover badge "Tempo real" do header; alterar "APEX FOOD · Operação em tempo real da mesa ao caixa" para "SISTEMA APEX FOOD"; título da página para "APEX FOOD - EMPÓRIO RESTAURANTE"
+
+Work Log:
+- src/components/app-shell.tsx: removido o pill de conexão (Wifi/WifiOff + "Tempo real"/"Offline" + dot) do header gerencial (não-compacto), com comentário apontando que o status de conexão segue no menu do perfil; badge de perfil (Administrador) preservado
+- src/components/app-shell.tsx: footer "APEX FOOD · Operação em tempo real da mesa ao caixa" → "SISTEMA APEX FOOD"
+- src/app/layout.tsx: metadata title "APEX FOOD — Gestão Premium para Restaurantes" → "APEX FOOD - EMPÓRIO RESTAURANTE" (nome da empresa exibido no sidebar)
+- E2E (shots 136-138): header sem badge "Tempo real" (desktop e compacta Garçom), badge de perfil preservado, footer "SISTEMA APEX FOOD" nas duas variantes de header, document.title = "APEX FOOD - EMPÓRIO RESTAURANTE"
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+
+Stage Summary:
+- Header gerencial sem o indicador "Tempo real" (status de conexão permanece acessível no menu do avatar)
+- Rodapé padronizado como "SISTEMA APEX FOOD"
+- Título da aba do navegador agora "APEX FOOD - EMPÓRIO RESTAURANTE"

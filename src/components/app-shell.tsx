@@ -377,17 +377,7 @@ export function AppShell({ user }: { user: SessionUser }) {
                 <h1 className="font-bold tracking-tight leading-tight truncate">{currentMeta?.label}</h1>
                 <p className="text-xs text-muted-foreground truncate hidden sm:block">{currentMeta?.description}</p>
               </div>
-              <div
-                className={cn(
-                  'flex items-center gap-1.5 text-xs font-medium rounded-full border px-2.5 py-1',
-                  connected ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'text-muted-foreground border-border'
-                )}
-                title={connected ? 'Conectado em tempo real' : 'Reconectando...'}
-              >
-                {connected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-                <span className="hidden sm:inline">{connected ? 'Tempo real' : 'Offline'}</span>
-                <span className={cn('h-1.5 w-1.5 rounded-full', connected ? 'bg-emerald-500 apex-live-dot' : 'bg-muted-foreground')} />
-              </div>
+              {/* Badge "Tempo real" removido a pedido — status de conexão segue disponível no menu do perfil */}
               <Badge variant="outline" className="hidden lg:inline-flex text-[11px] text-muted-foreground border-border">
                 {ROLE_LABELS[user.role as keyof typeof ROLE_LABELS]}
               </Badge>
@@ -453,7 +443,7 @@ export function AppShell({ user }: { user: SessionUser }) {
         </main>
 
         <footer className="mt-auto border-t py-3 px-6 text-center text-[11px] text-muted-foreground">
-          APEX FOOD · Operação em tempo real da mesa ao caixa
+          SISTEMA APEX FOOD
         </footer>
       </div>
     </div>
