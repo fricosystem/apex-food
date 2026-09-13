@@ -583,3 +583,23 @@ Work Log:
 Stage Summary:
 - Apresentação dos módulos agora detalhada e factual: cada cartão explica 4 funcionalidades reais do sistema com ícone próprio, extraídas do código das views
 - Todo o texto das features é verificável no código do sistema (tempos de polling, estações, formas de pagamento, fases, PWA)
+
+---
+Task ID: 33
+Agent: Super Z (principal)
+Task: Tela do caixa com métricas de valor a receber e comandas a receber exibindo os valores R$ 350,00 e R$ 273,30
+
+Work Log:
+- Estado inicial verificado: nenhuma comanda AWAITING_PAYMENT no banco (caixa vazio)
+- Decisão: criar comandas reais com esses valores (dados demo consistentes), em vez de hardcode na UI — as métricas do caixa são derivadas (contagem + soma das comandas abertas)
+- scripts/criar-comandas-caixa.ts (Prisma direto no SQLite): busca composição EXATA de itens com produtos reais do cardápio (busca de 1-3 produtos distintos, qty 1-4, em centavos; fallback com unitPrice residual que não foi necessário):
+  - C0066 · Mesa 04 · R$ 350,00 exato: 2× Bolinho de bacalhau (72) + 3× Costela assada (234) + 2× Caipirinha (44) · aberta há 24 min
+  - C0067 · Mesa 07 · R$ 273,30 exato: 3× Apex Burger (134,70) + 3× Chicken Crispy (110,70) + 1× Petit gâteau (27,90) · aberta há 38 min
+  - Status AWAITING_PAYMENT, garçom Carlos Mendes, itens SERVED, mesas → OCCUPIED, códigos na sequência (C0066/C0067), confirmedAt/finishedAt coerentes
+- Correção durante o desenvolvimento: model Category usa `sector` (não `station`) no select do Prisma
+- E2E (shot-146): login caixa@apexfood.com → KPIs "Comandas a receber: 2", "Tempo médio de permanência: 31 min", "Valor a receber: R$ 623,30"; cards Mesa 04 com Total R$ 350,00 e Mesa 07 com Total R$ 273,30 exibidos na lista; badge "A receber 2"
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos (nenhum código de app alterado)
+
+Stage Summary:
+- Caixa agora tem 2 comandas a receber com valores exatos R$ 350,00 e R$ 273,30, compostas por itens reais do cardápio — métricas derivadas naturalmente (2 comandas · R$ 623,30 · 31 min)
+- Script persistido em scripts/criar-comandas-caixa.ts para reuso (pagar as comandas ou criar novas com outros valores)
