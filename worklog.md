@@ -474,3 +474,20 @@ Work Log:
 Stage Summary:
 - Login desktop ganhou marca de círculos animada exatamente na lateral de divisão entre apresentação e formulário (respiração + rotação + radar + núcleo pulsante), fixa durante o scroll
 - Nada mais abaixo dos botões de acesso rápido; mobile sem a marca (layout limpo)
+
+---
+Task ID: 27
+Agent: Super Z (principal)
+Task: Ajustar o balão de notificação interna (boas-vindas) — remover as bordas quadradas por dentro; manter apenas bordas arredondadas
+
+Work Log:
+- Localizado o balão: WelcomeNotification em src/components/login-screen.tsx, renderizado via toast.custom do sonner (único toast.custom do app)
+- Causa raiz (sonner 2.0.7): toasts custom recebem data-styled="false" no wrapper <li>, o que desativa a regra CSS de border-radius do wrapper; porém o toastOptions.style global (providers.tsx: background #16161A + border 1px solid #2E2E38) continua aplicado inline no <li> — formando uma caixa de cantos retos com borda visível ao redor do balão rounded-xl ("bordas quadradas e redondas por dentro")
+- Correção: style por-toast no toast.custom (aplicado depois do global na ordem de spread do sonner ...style, ...toast.style): { background: 'transparent', border: 'none', boxShadow: 'none' } + comentário explicando o mecanismo
+- E2E desktop 1540px: logout → login → medições getComputedStyle: wrapper bg rgba(0,0,0,0), border 0px/none, shadow none (invisível); balão rounded com bg #141417 (shots 132/133)
+- E2E mobile 390px: cookies clear → login → wrapper invisível (0px/none/sem sombra), balão raio 14.4px, largura 358px contida (shot-134)
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+
+Stage Summary:
+- Balão de boas-vindas agora exibe SOMENTE bordas arredondadas (wrapper do sonner neutralizado por style por-toast; nenhuma caixa quadrada interna ou externa)
+- Todos os demais toasts (success/info/warning/error) permanecem inalterados (data-styled=true, raio 8px nativo do sonner)

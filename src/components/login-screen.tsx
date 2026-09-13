@@ -208,7 +208,17 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
       playSound('success')
       const firstName = data.user.name.split(' ')[0]
       const roleLabel = ROLE_LABELS[data.user.role] ?? data.user.role
-      toast.custom(() => <WelcomeNotification name={firstName} role={roleLabel} />, { duration: 5000 })
+      // O wrapper <li> do sonner em toasts custom fica sem border-radius (data-styled=false),
+      // mas recebe o fundo+borda globais do Toaster — formando uma caixa de cantos retos ao
+      // redor do balão arredondado. O style por-toast sobrescreve o global: wrapper invisível,
+      // apenas as bordas arredondadas do próprio balão permanecem.
+      toast.custom(
+        () => <WelcomeNotification name={firstName} role={roleLabel} />,
+        {
+          duration: 5000,
+          style: { background: 'transparent', border: 'none', boxShadow: 'none' },
+        }
+      )
       // Notificação de teste também na barra do sistema (quando permitido), com a logo da APEX
       void pushSystemNotification('alerta', {
         title: 'Bem-vindo(a) de volta!',
