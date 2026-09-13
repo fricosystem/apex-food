@@ -234,7 +234,7 @@ export function AppShell({ user }: { user: SessionUser }) {
             {SidebarContent}
             <button
               onClick={toggleSidebar}
-              className="absolute -right-3 top-20 h-6 w-6 rounded-full bg-background border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-background border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
               aria-label={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
             >
               {sidebarCollapsed ? <PanelLeft className="h-3 w-3" /> : <PanelLeftClose className="h-3 w-3" />}

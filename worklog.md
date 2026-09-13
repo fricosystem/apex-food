@@ -530,3 +530,17 @@ Stage Summary:
 - Header gerencial sem o indicador "Tempo real" (status de conexão permanece acessível no menu do avatar)
 - Rodapé padronizado como "SISTEMA APEX FOOD"
 - Título da aba do navegador agora "APEX FOOD - EMPÓRIO RESTAURANTE"
+
+---
+Task ID: 30
+Agent: Super Z (principal)
+Task: Mover o botão de expandir/recolher do sidebar para o centro vertical na linha de divisão (apenas mover, sem remover nem adicionar nada)
+
+Work Log:
+- src/components/app-shell.tsx: botão de toggle (única alteração na classe de posicionamento): "absolute -right-3 top-20 ..." → "absolute -right-3 top-1/2 -translate-y-1/2 ..." — mantém o botão metade sobre a linha de divisão (-right-3) e o centraliza verticalmente no aside (h-screen sticky = containing block do botão absolute); nenhum elemento adicionado ou removido, nenhum texto/handler alterado
+- E2E desktop 1540x772 (shots 139-140): medições getBoundingClientRect com sidebar expandido (centro do botão y=386 = centro do aside y=386; overflow à direita 11px) e recolhido (386 = 386, overflow 11px); toggle expandir/recolher funcionando nos dois estados
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos; agent-browser errors vazio
+
+Stage Summary:
+- Botão de expandir/recolher do sidebar agora fica no centro vertical exato da linha de divisão sidebar/conteúdo, em ambos os estados (expandido e recolhido)
+- Nenhuma outra alteração visual ou funcional no app
