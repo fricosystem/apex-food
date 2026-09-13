@@ -544,3 +544,23 @@ Work Log:
 Stage Summary:
 - Botão de expandir/recolher do sidebar agora fica no centro vertical exato da linha de divisão sidebar/conteúdo, em ambos os estados (expandido e recolhido)
 - Nenhuma outra alteração visual ou funcional no app
+
+---
+Task ID: 31
+Agent: Super Z (principal)
+Task: Melhorar a visualização dos módulos nas seções da página inicial (login) — apenas estilização premium, sem alterar nenhum texto
+
+Work Log:
+- src/components/login-screen.tsx: seções de MODULE_SECTIONS (6 módulos) saíram de blocos planos para cartões premium (texto 100% preservado — tag, título, descrição e chips idênticos):
+  - Cartão: rounded-2xl, vidro fosco (gradiente branco 5%→1% + backdrop-blur), borda hairline white/8%, sombra profunda, hover com borda laranja/35 + sombra laranja sutil
+  - Filete de luz no topo (gradiente via laranja/50) e glow radial de canto que intensifica no hover (opacity 60→100)
+  - Ícone: badge 12x12 com gradiente laranja, glow externo, filete de luz interno e scale-105 no hover; ícone em #FFB27A
+  - Título: gradiente metálico sutil (white → white/75, bg-clip-text)
+  - Chips: rounded-lg → pill (rounded-full), borda/fundo glass, dot laranja com glow; borda clareia no hover do cartão
+  - Ritmo vertical ajustado (pb-16 → pb-6, o cartão dá o respiro)
+- E2E desktop 1540px (shots 141-143): módulos 01/02/04/05 renderizados como cartões premium; hover real no Módulo 01 confirma borda laranja + glow de canto + ícone ampliado; primeira dobra e formulário intocados
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos; agent-browser errors vazio
+
+Stage Summary:
+- Seções dos módulos na página inicial agora têm cartões premium (vidro, luz, glow, hover responsivo) com todo o texto preservado
+- Nenhuma alteração de conteúdo, rotas ou comportamento funcional

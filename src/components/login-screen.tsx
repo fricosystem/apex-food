@@ -317,32 +317,46 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
           </ScrollFade>
         </div>
 
-        {/* Seções por módulo */}
+        {/* Seções por módulo — cartões premium: vidro fosco, filete de luz, glow de canto e chips pill */}
         {MODULE_SECTIONS.map((m, i) => {
           const Icon = m.icon
           return (
-            <ScrollFade key={m.tag} className={cn('max-w-xl', i === 0 ? 'pt-2' : 'pt-24', 'pb-16')}>
-              <div className="flex items-center gap-3">
-                <span className="h-10 w-10 rounded-xl border border-[#FF6B1A]/30 bg-[#FF6B1A]/10 flex items-center justify-center shrink-0">
-                  <Icon className="h-5 w-5 text-[#FF9A57]" aria-hidden />
-                </span>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/45">{m.tag}</p>
-              </div>
-              <h2 className="mt-5 text-[1.8rem] xl:text-[2.1rem] font-extrabold leading-tight tracking-tight">
-                {m.title}
-              </h2>
-              <p className="mt-4 text-white/65 leading-relaxed max-w-lg">{m.desc}</p>
-              <div className="flex flex-wrap gap-2.5 mt-7">
-                {m.chips.map((chip) => (
-                  <span
-                    key={chip}
-                    className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-white/80 backdrop-blur"
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#FF6B1A]" aria-hidden />
-                    {chip}
+            <ScrollFade key={m.tag} className={cn('max-w-xl', i === 0 ? 'pt-2' : 'pt-24', 'pb-6')}>
+              <article className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] via-white/[0.025] to-white/[0.01] p-6 xl:p-7 backdrop-blur-sm shadow-[0_24px_70px_-40px_rgba(0,0,0,0.9)] transition-[border-color,box-shadow] duration-300 hover:border-[#FF6B1A]/35 hover:shadow-[0_24px_70px_-36px_rgba(255,107,26,0.16)]">
+                {/* Filete de luz no topo do cartão */}
+                <div aria-hidden className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-[#FF6B1A]/50 to-transparent" />
+                {/* Glow de canto — intensifica no hover */}
+                <div
+                  aria-hidden
+                  className="absolute -top-28 -right-28 h-64 w-64 rounded-full opacity-60 transition-opacity duration-500 group-hover:opacity-100"
+                  style={{ background: 'radial-gradient(circle, rgba(255,107,26,0.14) 0%, transparent 65%)' }}
+                />
+
+                <div className="relative flex items-center gap-3.5">
+                  <span className="relative h-12 w-12 rounded-xl border border-[#FF6B1A]/30 bg-gradient-to-br from-[#FF6B1A]/20 via-[#FF6B1A]/10 to-transparent flex items-center justify-center shrink-0 shadow-[0_0_28px_-8px_rgba(255,107,26,0.55)] transition-transform duration-300 group-hover:scale-105">
+                    <span aria-hidden className="absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+                    <Icon className="h-5 w-5 text-[#FFB27A]" aria-hidden />
                   </span>
-                ))}
-              </div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/45">{m.tag}</p>
+                </div>
+
+                <h2 className="relative mt-5 text-[1.8rem] xl:text-[2.1rem] font-extrabold leading-tight tracking-tight bg-gradient-to-r from-white via-white to-white/75 bg-clip-text text-transparent">
+                  {m.title}
+                </h2>
+                <p className="relative mt-4 text-white/65 leading-relaxed max-w-lg">{m.desc}</p>
+
+                <div className="relative flex flex-wrap gap-2.5 mt-7">
+                  {m.chips.map((chip) => (
+                    <span
+                      key={chip}
+                      className="inline-flex items-center gap-2 rounded-full border border-white/[0.09] bg-white/[0.05] px-3.5 py-2 text-xs font-medium text-white/85 backdrop-blur transition-colors duration-300 group-hover:border-white/[0.16]"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#FF6B1A] shadow-[0_0_8px_1.5px_rgba(255,107,26,0.5)]" aria-hidden />
+                      {chip}
+                    </span>
+                  ))}
+                </div>
+              </article>
             </ScrollFade>
           )
         })}
