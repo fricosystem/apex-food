@@ -116,6 +116,7 @@ const MODULE_SECTIONS: {
   title: string
   desc: string
   features: ModuleFeature[]
+  details: string[]
 }[] = [
   {
     icon: LayoutDashboard,
@@ -127,6 +128,12 @@ const MODULE_SECTIONS: {
       { icon: RefreshCw, title: 'Renovação a cada 8s', desc: 'Indicadores e gráficos acompanham o salão sem recarregar a página' },
       { icon: CalendarRange, title: 'Períodos e turnos', desc: 'Hoje, semana, mês, ano, datas personalizadas e manhã, tarde ou noite' },
       { icon: Radar, title: 'Desempenho da equipe', desc: 'Ranking de garçons, metas mensais e eficiência da cozinha' },
+    ],
+    details: [
+      'Faturamento, ticket médio, tempo de atendimento e ocupação das mesas atualizados sozinhos',
+      'Períodos flexíveis: hoje, semana, mês, ano e datas personalizadas, com filtro por turno',
+      'Ranking de garçons, produtos mais vendidos e eficiência da cozinha com evolução ao longo do tempo',
+      'Metas mensais por garçom com barra de progresso em tempo real',
     ],
   },
   {
@@ -140,6 +147,12 @@ const MODULE_SECTIONS: {
       { icon: BellRing, title: 'Prontos para servir', desc: 'Aviso pulsante assim que a cozinha finaliza cada prato' },
       { icon: History, title: 'Histórico do garçom', desc: 'Comandas finalizadas com valores e forma de pagamento' },
     ],
+    details: [
+      'Comandas abertas pela mesa ou pelo QR do cliente chegam prontas para assumir',
+      'Distribuição automática para o garçom com menor carga ativa do turno',
+      'Aviso imediato quando um prato fica pronto para servir — sem atualizar a tela',
+      'Histórico do dia com valores, forma de pagamento e tempo de cada comanda',
+    ],
   },
   {
     icon: ChefHat,
@@ -151,6 +164,12 @@ const MODULE_SECTIONS: {
       { icon: Flame, title: '4 estações de preparo', desc: 'Cozinha, churrasqueira, pizzaria e bar com filtros dedicados' },
       { icon: Timer, title: 'Cronômetro e atrasos', desc: 'Barra de progresso por item e alerta vermelho ao estourar o tempo' },
       { icon: Zap, title: 'Do salão para a fila', desc: 'Pedidos chegam a cada 4s com o tempo cadastrado por produto' },
+    ],
+    details: [
+      'Kanban com fila, em preparo e pronto, e contadores por coluna',
+      'Quatro estações dedicadas: cozinha, churrasqueira, pizzaria e bar',
+      'Cronômetro por item com alerta visual ao estourar o tempo cadastrado',
+      'Observações do cliente em destaque: retirar ingredientes, ponto da carne e mais',
     ],
   },
   {
@@ -164,6 +183,12 @@ const MODULE_SECTIONS: {
       { icon: Gauge, title: 'Fila em tempo real', desc: 'Valor a receber e tempo médio de permanência a cada 4s' },
       { icon: Search, title: 'Histórico filtrável', desc: 'Por data, garçom, método, número da mesa e código da comanda' },
     ],
+    details: [
+      'Fila de comandas a receber com valor total e tempo de permanência sempre atuais',
+      'Recebimento por crédito, débito, PIX ou dinheiro com dupla confirmação',
+      'Recibo digital enviado na hora para a tela do cliente',
+      'Histórico filtrável por data, garçom, método, mesa e código da comanda',
+    ],
   },
   {
     icon: Settings2,
@@ -176,6 +201,12 @@ const MODULE_SECTIONS: {
       { icon: Target, title: 'Metas mensais', desc: 'Objetivo de comandas por garçom com barra de progresso' },
       { icon: SlidersHorizontal, title: 'Regras de operação', desc: 'Distribuição de comandas, tempos e métodos de pagamento aceitos' },
     ],
+    details: [
+      'Produtos e categorias com preço, tempo de preparo, emoji e imagem',
+      'Equipe com cinco perfis — administrador, gerente, garçom, cozinha e caixa',
+      'Metas mensais por garçom com acompanhamento de progresso',
+      'Regras da operação: distribuição de comandas, tempos e métodos aceitos',
+    ],
   },
   {
     icon: QrCode,
@@ -187,6 +218,12 @@ const MODULE_SECTIONS: {
       { icon: Smartphone, title: 'Aplicativo do cliente', desc: 'PWA instalável com cardápio e comanda no celular' },
       { icon: ListChecks, title: 'Personalização de itens', desc: 'Retirar ingredientes, ponto da carne e observações livres' },
       { icon: Route, title: 'Acompanhamento em 5 fases', desc: 'Da boas-vindas ao recibo, com stepper por prato' },
+    ],
+    details: [
+      'QR Code exclusivo por mesa com download em PNG e impressão com a marca',
+      'Aplicativo do cliente instalável no celular, com cardápio e comanda',
+      'Personalização de itens: retirar ingredientes, ponto da carne e observações livres',
+      'Acompanhamento em cinco fases, da boas-vindas ao recibo',
     ],
   },
 ]
@@ -472,7 +509,9 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
         <div className="flex min-h-screen flex-col">
           <ScrollFade startVisible className="max-w-xl pt-10">
             <div className="flex items-center gap-2">
-              <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-16 w-auto drop-shadow-lg" />
+              {/* Centro de massa do desenho é ~9,8% mais baixo que o centro do canvas —
+                  -translate-y-1.5 (6px em h-16) alinha a logo opticalmente ao título */}
+              <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-16 w-auto -translate-y-1.5 drop-shadow-lg" />
               <p className="font-extrabold text-3xl xl:text-[2.4rem] tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
             </div>
             <div className="pt-24">
@@ -490,7 +529,7 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
                 seu restaurante mais eficiente todos os dias.
               </p>
               <div className="flex flex-wrap gap-3 mt-9">
-                {['Operação em tempo real', 'Decisões mais rápidas', 'Visão do seu negócio'].map((chip) => (
+                {['Operação em tempo real', 'Decisões mais rápidas', 'Visão do seu negócio', 'Plataforma segura'].map((chip) => (
                   <span
                     key={chip}
                     className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-white/85 backdrop-blur"
@@ -511,11 +550,11 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
           </ScrollFade>
         </div>
 
-        {/* Seções por módulo — cartões premium: vidro fosco, filete de luz, glow de canto e chips pill */}
+        {/* Seções por módulo — cartões premium em LARGURA TOTAL da coluna esquerda */}
         {MODULE_SECTIONS.map((m, i) => {
           const Icon = m.icon
           return (
-            <ScrollFade key={m.tag} className={cn('max-w-xl', i === 0 ? 'pt-2' : 'pt-24', 'pb-6')}>
+            <ScrollFade key={m.tag} className={cn(i === 0 ? 'pt-2' : 'pt-24', 'pb-6')}>
               <article className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] via-white/[0.025] to-white/[0.01] p-6 xl:p-7 backdrop-blur-sm shadow-[0_24px_70px_-40px_rgba(0,0,0,0.9)] transition-[border-color,box-shadow] duration-300 hover:border-[#FF6B1A]/35 hover:shadow-[0_24px_70px_-36px_rgba(255,107,26,0.16)]">
                 {/* Filete de luz no topo do cartão */}
                 <div aria-hidden className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-[#FF6B1A]/50 to-transparent" />
@@ -557,6 +596,25 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
                     )
                   })}
                 </div>
+
+                {/* Detalhamento do módulo — o que ele entrega na operação */}
+                <div className="relative mt-5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 xl:p-5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">Dentro do módulo</p>
+                  <ul className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2">
+                    {m.details.map((d) => (
+                      <li key={d} className="flex items-start gap-2.5 text-[13px] leading-relaxed text-white/70">
+                        <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#FF6B1A]" aria-hidden />
+                        {d}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Segurança em destaque — reforço visual sem expor detalhes internos */}
+                <p className="relative mt-4 flex items-center gap-2 text-[11px] font-medium text-emerald-300/80">
+                  <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  Sistema seguro — operação protegida do login ao fechamento do dia
+                </p>
               </article>
             </ScrollFade>
           )

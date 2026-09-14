@@ -917,3 +917,24 @@ Work Log:
 
 Stage Summary:
 - O campo de e-mail (login e cadastro) agora tem exatamente o mesmo visual/estrutura dos inputs de senha do sistema — mesmo fundo, borda, sombra, raio, altura, tipografia e paddings — mantendo o comportamento de digitar só o nome com sufixo fixo @apexfood.com; nenhum cambio nos campos de senha
+
+---
+Task ID: 52
+Agent: Super Z (principal)
+Task: Logo centralizada na altura do título; cards dos módulos em largura total à esquerda; detalhamento por módulo sem expor segurança e ressaltando sistema seguro
+
+Work Log:
+- Diagnóstico da logo: caixas da logo e do título já estavam matematicamente centradas (ambas centro=72px), mas o centro de massa do desenho (chapéu) fica +9,8% abaixo do centro do canvas (~6px em h-16) — por isso parecia baixa
+- src/components/login-screen.tsx:
+  · Logo da primeira dobra com -translate-y-1.5 (6px) + comentário com a medida — alinhamento óptico com o título APEX FOOD
+  · Cards dos módulos: removido max-w-xl do ScrollFade — agora ocupam toda a largura da coluna esquerda (908px medidos = largura da coluna); descrição mantém max-w-lg para leitura
+  · MODULE_SECTIONS: novo campo details: string[] com 4 detalhes operacionais por módulo (Dashboard, Garçom, Cozinha, Caixa, Gestão, Mesas & QR) — sem expor nada interno de segurança dos dados (sem menção a storage, sessões, isolamento, criptografia ou senhas; validado por regex no E2E)
+  · Card render: painel "Dentro do módulo" (lista 2 colunas com marcadores laranja) + rodapé de segurança por card: ShieldCheck verde + "Sistema seguro — operação protegida do login ao fechamento do dia"
+  · Primeira dobra: chip "Plataforma segura" adicionado aos destaques
+  · Correção de regressão: edit acidental removeu lg:hidden/mb-8 do bloco da logo mobile (coluna direita) — restaurado imediatamente; coluna de autenticação permanece intocada
+  · Não há card de Desenvolvedor CEO na coluna esquerda (é painel interno) — detalhamento cobriu os 6 módulos operacionais
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+- E2E: logo opticamente centrada (shot-200 vs shot-198); card 1: largura 908px = coluna, "Dentro do módulo" com 4 itens, selo seguro (shot-201); 6/6 cards com detalhes e selo; exposição de segurança = false; sem erros de console (shot-202)
+
+Stage Summary:
+- Logo alinhada opticalmente ao título APEX FOOD na primeira dobra; cards dos módulos em largura total da coluna esquerda com painel de detalhes operacionais por módulo e selo "Sistema seguro" em todos, sem expor nenhum detalhe interno de segurança; coluna de autenticação à direita inalterada
