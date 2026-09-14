@@ -158,27 +158,18 @@ export function AppShell({ user }: { user: SessionUser }) {
         })}
       </nav>
 
-      {/* Rodapé do sidebar: tema + usuário */}
+      {/* Rodapé do sidebar: sons + usuário (alternador de tema vive nas Configurações) */}
       <div className="border-t border-sidebar-border p-3 space-y-2.5 shrink-0">
         <div className={cn('flex gap-1.5', sidebarCollapsed && 'flex-col items-center')}>
           <Button
             variant="ghost"
             size="sm"
-            onClick={toggleTheme}
-            className={cn('flex-1 justify-center gap-2', sidebarCollapsed && 'px-0')}
-            aria-label="Alternar tema"
-          >
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            {!sidebarCollapsed && <span className="text-xs">{theme === 'dark' ? 'Tema claro' : 'Tema escuro'}</span>}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
             onClick={toggleSound}
-            className={cn(sidebarCollapsed && 'px-0')}
+            className={cn('flex-1 justify-center gap-2', sidebarCollapsed && 'px-0')}
             aria-label="Alternar sons"
           >
             {isSoundEnabled() ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            {!sidebarCollapsed && <span className="text-xs">{isSoundEnabled() ? 'Sons ativados' : 'Sons desativados'}</span>}
           </Button>
         </div>
 

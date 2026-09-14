@@ -665,3 +665,18 @@ Work Log:
 Stage Summary:
 - Nova tela Relatório Geral (admin/gerente) no menu, com o MESMO filtro periódico do Dashboard (mesma queryKey → valores sempre consistentes entre as duas telas) e apresentação em formato de relatório consolidado: resumo executivo com variações, detalhamento temporal tabulado com total, distribuição por dia da semana, pagamentos, produtos, estações, equipe e cozinha
 - Impressão funcional (página limpa com apenas o conteúdo do relatório), contornando a regra print global do QR Code
+
+---
+Task ID: 37
+Agent: Super Z (principal)
+Task: Remover o alternador de tema do sidebar (tema permanece alternável nas Configurações)
+
+Work Log:
+- Verificação prévia: settings-view.tsx já oferece seletor de tema (Claro/Escuro) e o dropdown do perfil nas telas compactas também mantém o alternador — o botão do sidebar era redundante
+- src/components/app-shell.tsx (SidebarContent): botão "Tema claro/Tema escuro" removido do rodapé do sidebar; botão de sons herdou flex-1/justify-center e ganhou rótulo ("Sons ativados"/"Sons desativados"), preenchendo a linha como o de tema fazia; comentário atualizado ("alternador de tema vive nas Configurações")
+- toggleTheme, useTheme, Sun/Moon preservados — ainda usados no dropdown do perfil (telas compactas); nenhum import removido
+- E2E desktop 1540x772 (login admin): alternadorTemaNoSidebar=false; botão de sons presente ("Sons ativados"); 8 itens de menu íntegros; Configurações exibe controles "Claro"/"Escuro"; estado recolhido (68px) com botão de sons centralizado e sem botão de tema; shots 152-153; sem erros de console
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+
+Stage Summary:
+- Sidebar sem o alternador de tema (redundância eliminada); tema continua alternável nas Configurações e no menu do perfil das telas compactas; botão de sons ocupa a linha do rodapé do sidebar com rótulo explícito
