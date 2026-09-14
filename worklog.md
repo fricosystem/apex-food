@@ -981,3 +981,29 @@ Work Log:
 
 Stage Summary:
 - Task 53 confirmada integralmente entregue e duplamente validada (E2E original 203-227 + revalidação 228-239): contador do total acumulado, banner Pedir mais, lock de itens enviados com remoção exclusiva do garçom via modal, UI premium mobile-only e avaliação pós-pagamento com Volte sempre; lint 0/0
+
+---
+Task ID: 54
+Agent: Super Z (principal)
+Task: Input de email da autenticação desformatado → mesma forma do input de senha (login e cadastro); placeholder "Digite seu email"; remover rodapé "Lembrar login com caixa de diálogo · Salvamento seguro no local storage"
+
+Work Log:
+- Diagnóstico: SuffixedEmailField era um div customizado que imitava o Input (foco espelhado via focus-within), enquanto a senha usa o <Input> real dentro de div.relative com ícone absoluto — pequenas divergências de estrutura causavam o visual desformatado
+- src/components/login-screen.tsx — SuffixedEmailField reescrito com a estrutura EXATA do campo de senha:
+  · div.relative > Mail absoluto left-3 top-1/2 -translate-y-1/2 (z-10) + <Input> real do sistema
+  · Mesmas classes da senha: pl-9 h-11 bg-background text-foreground
+  · Sufixo @apexfood.com em span absoluto right-3 top-1/2 (pointer-events-none, text-sm muted); pr-32 aplicado somente com valor digitado — texto nunca invade o sufixo
+  · Placeholder "seu.usuario" → "Digite seu email"
+  · toEmailLocal e sanitização de domínio preservados (Task 50 intacta)
+- Removido o <p> de rodapé "Lembrar login com caixa de diálogo · Salvamento seguro no local storage" (o checkbox e o diálogo de confirmação do Lembrar login permanecem)
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos (exit 0)
+- E2E (shots 240-244):
+  · Estilos computados #email vs #password: height 44px, radius 8.4px, border rgb(46,46,56), bg oklab idêntico, padding-left 36px, font 14px — diferenças: [] (shot-240)
+  · Digitar bruno.bm3051 → sufixo @apexfood.com visível à direita, campo com 44px (shot-241)
+  · Rodapé removido confirmado no DOM (body não contém "Salvamento seguro no local storage")
+  · Aba Cadastrar (Radix exige pointerdown+mousedown+click): reg-email presente, estilos idênticos a reg-password (mesmas 6 propriedades), sufixo com trattoria.bella, anel de foco IGUAL ao da senha quando ambos com foco (iguaisComFoco: true) (shot-243)
+  · Mobile 390x844: campo 342px, sufixo sem sobrepor o texto (folga 12px), placeholder Digite seu email (shot-244)
+  · agent-browser errors: 0
+
+Stage Summary:
+- Campo de e-mail de login e cadastro agora usa o <Input> real do sistema com a mesma estrutura e classes do campo de senha (ícone absoluto + pl-9 h-11), estilos computados e anel de foco 100% idênticos comprovados; placeholder "Digite seu email"; rodapé "Lembrar login com caixa de diálogo · Salvamento seguro no local storage" removido; sufixo @apexfood.com fixo à direita sem colisão de texto; validado em desktop e mobile 390px

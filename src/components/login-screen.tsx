@@ -68,10 +68,10 @@ function toEmailLocal(raw: string): string {
 }
 
 /** Campo de e-mail APEX: digita-se só o nome; sufixo @apexfood.com fixo (não editável).
- *  Mesmo visual do <Input> padrão do sistema (idêntico aos campos de senha): mesmas
- *  classes base (dark:bg-input/30, border-input, rounded-md, shadow-xs, text-base
- *  md:text-sm) e os mesmos overrides pl-9/h-11/bg-background/text-foreground — o foco
- *  real fica no input interno e é espelhado no contêiner via focus-within.
+ *  Estrutura idêntica ao campo de senha: <Input> real do sistema dentro de div.relative,
+ *  ícone absoluto à esquerda (Mail no lugar do Lock) e as mesmas classes pl-9 h-11
+ *  bg-background text-foreground. O sufixo fica absoluto à direita e o pr-32 é aplicado
+ *  somente enquanto ele aparece — o texto digitado nunca invade a área do sufixo.
  */
 function SuffixedEmailField({ id, value, onChange, autoComplete, required }: {
   id: string
@@ -80,16 +80,11 @@ function SuffixedEmailField({ id, value, onChange, autoComplete, required }: {
   autoComplete?: string
   required?: boolean
 }) {
+  const hasValue = value.trim() !== ''
   return (
-    <div
-      className={cn(
-        'dark:bg-input/30 border-input flex h-11 w-full min-w-0 items-center rounded-md border bg-transparent pl-9 pr-3 text-base shadow-xs transition-[color,box-shadow] outline-none md:text-sm',
-        'bg-background text-foreground',
-        'focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]',
-      )}
-    >
-      <Mail className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-      <input
+    <div className="relative">
+      <Mail className="absolute left-3 top-1/2 z-10 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+      <Input
         id={id}
         type="text"
         inputMode="email"
@@ -97,14 +92,19 @@ function SuffixedEmailField({ id, value, onChange, autoComplete, required }: {
         autoCorrect="off"
         spellCheck={false}
         autoComplete={autoComplete}
-        placeholder="seu.usuario"
+        placeholder="Digite seu email"
         required={required}
-        className="h-full min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground"
+        className={cn('pl-9 h-11 bg-background text-foreground', hasValue && 'pr-32')}
         value={value}
         onChange={(e) => onChange(toEmailLocal(e.target.value))}
       />
-      {value.trim() !== '' && (
-        <span className="shrink-0 select-none">@apexfood.com</span>
+      {hasValue && (
+        <span
+          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 select-none text-sm text-muted-foreground"
+          aria-hidden
+        >
+          @apexfood.com
+        </span>
       )}
     </div>
   )
@@ -850,10 +850,6 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
               </DialogFooter>
             </DialogContent>
           </Dialog>
-
-          <p className="text-[11px] text-white/50 mt-8 text-center">
-            Lembrar login com caixa de diálogo · Salvamento seguro no local storage
-          </p>
         </div>
       </div>
     </div>
