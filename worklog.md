@@ -824,3 +824,17 @@ Work Log:
 
 Stage Summary:
 - Desenvolvedor CEO, Administrador e Gerente são agora cargos de acesso pleno: todos veem as 10 opções do sidebar (incluindo "Desenvolvedor CEO" com rota para o painel da plataforma) e as APIs da plataforma aceitam os três cargos; Garçom/Cozinha/Caixa continuam com header compacto e navegação restrita
+
+---
+Task ID: 47
+Agent: Super Z (principal)
+Task: Mover a opção "Desenvolvedor CEO" para o fim da lista no sidebar
+
+Work Log:
+- src/components/app-shell.tsx: item { key: 'plataforma' } movido da primeira para a última posição do NAV_ITEMS (ordem: Dashboard → Garçom → Cozinha → Caixa → Gestão → Mesas & QR → Relatório Geral → Administração → Configurações → Desenvolvedor CEO); rótulo, ícone Building2, rota e descrição inalterados
+- Verificado que NAV_ITEMS só é consumido no app-shell (ordem do sidebar + currentMeta do header); DEFAULT_VIEW (store.ts) segue levando o CEO à tela 'plataforma' no login
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+- E2E desktop 1540x772: Administrador (sessão ativa) com sidebar na nova ordem, CEO como último item; login dev@apexfood.com → sidebar com "Desenvolvedor CEO" em último e ativo (aria-current=page), cai direto no painel da plataforma (header + KPIs); sem erros de página/console; shots 186-187
+
+Stage Summary:
+- A opção "Desenvolvedor CEO" agora é o último item do sidebar para todos os cargos de gestão; a rota para o painel da plataforma e o destino pós-login do CEO permanecem funcionando

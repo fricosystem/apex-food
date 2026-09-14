@@ -38,7 +38,6 @@ import { PlatformView } from '@/components/views/platform-view'
 import { SettingsView } from '@/components/views/settings-view'
 
 const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: typeof LayoutDashboard; description: string }> = [
-  { key: 'plataforma', label: 'Desenvolvedor CEO', icon: Building2, description: 'Painel da plataforma — estabelecimentos, planos e cobranças' },
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Visão geral da operação em tempo real' },
   { key: 'garcom', label: 'Garçom', icon: ClipboardList, description: 'Fila de comandas e atendimentos ativos' },
   { key: 'cozinha', label: 'Cozinha', icon: ChefHat, description: 'Fila de preparo, cronômetro e estações' },
@@ -48,6 +47,7 @@ const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: typeof LayoutDashboa
   { key: 'relatorio', label: 'Relatório Geral', icon: FileText, description: 'Relatório consolidado da operação por período e turno' },
   { key: 'administracao', label: 'Administração', icon: ShieldCheck, description: 'Funcionários e permissões, gestão geral, produtos e refeições' },
   { key: 'configuracoes', label: 'Configurações', icon: Settings2, description: 'Preferências, notificações e estabelecimento' },
+  { key: 'plataforma', label: 'Desenvolvedor CEO', icon: Building2, description: 'Painel da plataforma — estabelecimentos, planos e cobranças' },
 ]
 
 /** Clique numa notificação da barra do sistema leva à tela certa do tipo */
