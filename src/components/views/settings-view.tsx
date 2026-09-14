@@ -43,7 +43,7 @@ const EST_TYPES = [
 ]
 
 const PERMISSION_MATRIX = [
-  { area: 'Painel da plataforma (gestão dos estabelecimentos)', roles: ['SUPER_ADMIN'] },
+  { area: 'Painel da plataforma (gestão dos estabelecimentos)', roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER'] },
   { area: 'Dashboard analítico', roles: ['ADMIN', 'MANAGER'] },
   { area: 'Tela do garçom', roles: ['ADMIN', 'MANAGER', 'WAITER'] },
   { area: 'Cozinha', roles: ['ADMIN', 'MANAGER', 'KITCHEN'] },

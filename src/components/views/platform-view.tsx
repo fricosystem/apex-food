@@ -375,6 +375,7 @@ function PermissionsDialog({ est, onClose }: { est: EstablishmentRow | null; onC
           </DialogTitle>
           <DialogDescription>
             Define quais cargos acessam cada tela deste estabelecimento. Deixe igual ao padrão para herdar a configuração base.
+            Desenvolvedor CEO, Administrador e Gerente têm acesso irrestrito a todas as telas.
           </DialogDescription>
         </DialogHeader>
         <div className="overflow-x-auto max-h-[52vh] overflow-y-auto">

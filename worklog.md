@@ -808,3 +808,19 @@ Work Log:
 
 Stage Summary:
 - Sidebar do Desenvolvedor CEO agora exibe a opção "Desenvolvedor CEO" (antes "Plataforma") roteando para o painel de gestão dos estabelecimentos; visibilidade continua exclusiva do cargo SUPER_ADMIN
+
+---
+Task ID: 46
+Agent: Super Z (principal)
+Task: Remover o filtro de permissões entre Desenvolvedor CEO, Administrador e Gerente — os três cargos veem todas as opções do sidebar
+
+Work Log:
+- src/components/app-shell.tsx: can() agora retorna true para SUPER_ADMIN/ADMIN/MANAGER (cargos de gestão, sem filtro por tela); o filtro de permissões por tela continua aplicando-se apenas aos perfis operacionais (Garçom/Cozinha/Caixa). Com isso o sidebar exibe as 10 opções para os três cargos — antes o Administrador/Gerente não viam "Desenvolvedor CEO" e o CEO via apenas o item da plataforma
+- src/lib/permissions.ts: nova constante PLATFORM_ROLES = ['SUPER_ADMIN','ADMIN','MANAGER'] (cargos com acesso pleno); PLATFORM_VIEW_ROLES.plataforma usa PLATFORM_ROLES — a tela da plataforma passa a ser acessível aos três cargos
+- APIs da plataforma (requireUser([...PLATFORM_ROLES]) em todos os handlers): establishments/route.ts (GET/POST), establishments/[id]/route.ts (GET/PATCH/DELETE), plans/route.ts (GET/POST), plans/[id]/route.ts (PATCH/DELETE) — antes exclusivas do SUPER_ADMIN; sem isso a tela quebraria para Admin/Gerente
+- Consistência visual: settings-view PERMISSION_MATRIX "Painel da plataforma" agora lista Desenvolvedor CEO + Administrador + Gerente; administration-view card "Permissões por cargo" — linha do CEO fixa "Todas as áreas do sistema — plataforma e restaurante, sem restrições" e subtítulo atualizado; platform-view diálogo Permissões ganhou a nota "Desenvolvedor CEO, Administrador e Gerente têm acesso irrestrito a todas as telas"
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+- E2E desktop 1540x772: gerente@apexfood.com → sidebar com 10 opções, clique em "Desenvolvedor CEO" carrega o painel com KPIs reais (5 ativos, 3 trial, 1 vencido, MRR R$ 289,80) e tabela de estabelecimentos; login vazio → Ana Costa (Administrador) com 10 opções e painel da plataforma carregado; dev@apexfood.com → CEO agora vê as 10 opções (antes só 1) e o Dashboard do restaurante renderiza com dados (7/12 mesas, 5 comandas, R$ 4.979,30); regressão Garçom: header compacto sem sidebar mantido; card "Permissões por cargo" com CEO/Admin/Gerente corretos; matriz de Configurações "Painel da plataforma" com 3 cargos; sem erros de página/console; shots 180-185
+
+Stage Summary:
+- Desenvolvedor CEO, Administrador e Gerente são agora cargos de acesso pleno: todos veem as 10 opções do sidebar (incluindo "Desenvolvedor CEO" com rota para o painel da plataforma) e as APIs da plataforma aceitam os três cargos; Garçom/Cozinha/Caixa continuam com header compacto e navegação restrita

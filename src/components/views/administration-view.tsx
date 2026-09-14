@@ -191,10 +191,12 @@ function StaffTab({ user }: { user: SessionUser }) {
                 <ShieldCheck className="h-4 w-4 text-primary" />
                 <p className="font-semibold text-sm">Permissões por cargo</p>
               </div>
-              <p className="text-[11px] text-muted-foreground">Áreas que cada cargo acessa no sistema, incluindo o acesso do Desenvolvedor CEO à plataforma</p>
+              <p className="text-[11px] text-muted-foreground">Áreas que cada cargo acessa no sistema. Desenvolvedor CEO, Administrador e Gerente têm acesso completo a todas as telas</p>
               <div className="space-y-2.5">
                 {ALL_ROLE_ENTRIES.map(([role, roleLabel]) => {
-                  const areas = Object.entries(user.permissions).filter(([, roles]) => roles.includes(role)).map(([key]) => AREA_LABELS[key] ?? key)
+                  const areas = role === 'SUPER_ADMIN'
+                    ? ['Todas as áreas do sistema — plataforma e restaurante, sem restrições']
+                    : Object.entries(user.permissions).filter(([, roles]) => roles.includes(role)).map(([key]) => AREA_LABELS[key] ?? key)
                   return (
                     <div key={role} className={cn('rounded-lg border p-2.5', role === 'SUPER_ADMIN' && 'border-dashed border-primary/40 bg-primary/5')}>
                       <Badge variant="outline" className={cn('text-[10px] mb-1.5', role === 'SUPER_ADMIN' && 'border-primary/40 text-primary')}>{roleLabel}</Badge>

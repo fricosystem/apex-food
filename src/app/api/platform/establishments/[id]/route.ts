@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireUser, isResponse, readJson, bad } from '@/lib/api'
 import { broadcast } from '@/lib/realtime'
-import { DEFAULT_VIEW_ROLES, TENANT_ROLES } from '@/lib/permissions'
+import { DEFAULT_VIEW_ROLES, TENANT_ROLES, PLATFORM_ROLES } from '@/lib/permissions'
 
 type Ctx = { params: Promise<{ id: string }> }
 
-/** GET /api/platform/establishments/[id] — detalhe do tenant (SUPER_ADMIN) */
+/** GET /api/platform/establishments/[id] — detalhe do tenant (cargos de gestão da plataforma) */
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireUser(['SUPER_ADMIN'])
+  const auth = await requireUser([...PLATFORM_ROLES])
   if (isResponse(auth)) return auth
   const { id } = await params
   const est = await db.establishment.findUnique({
@@ -46,9 +46,9 @@ function parseDate(v: string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? (undefined as unknown as null) : d
 }
 
-/** PATCH /api/platform/establishments/[id] — atualiza dados, plano/cobrança e permissões (SUPER_ADMIN) */
+/** PATCH /api/platform/establishments/[id] — atualiza dados, plano/cobrança e permissões (cargos de gestão da plataforma) */
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const auth = await requireUser(['SUPER_ADMIN'])
+  const auth = await requireUser([...PLATFORM_ROLES])
   if (isResponse(auth)) return auth
   const { id } = await params
   const est = await db.establishment.findUnique({ where: { id } })
@@ -128,9 +128,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   })
 }
 
-/** DELETE /api/platform/establishments/[id] — remove o tenant e todos os seus dados (SUPER_ADMIN) */
+/** DELETE /api/platform/establishments/[id] — remove o tenant e todos os seus dados (cargos de gestão da plataforma) */
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireUser(['SUPER_ADMIN'])
+  const auth = await requireUser([...PLATFORM_ROLES])
   if (isResponse(auth)) return auth
   const { id } = await params
   const est = await db.establishment.findUnique({ where: { id } })

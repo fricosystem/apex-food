@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireUser, isResponse, readJson, bad } from '@/lib/api'
+import { PLATFORM_ROLES } from '@/lib/permissions'
 
 type Ctx = { params: Promise<{ id: string }> }
 
-/** PATCH /api/platform/plans/[id] — atualiza plano (SUPER_ADMIN) */
+/** PATCH /api/platform/plans/[id] — atualiza plano (cargos de gestão da plataforma) */
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const auth = await requireUser(['SUPER_ADMIN'])
+  const auth = await requireUser([...PLATFORM_ROLES])
   if (isResponse(auth)) return auth
   const { id } = await params
   const plan = await db.plan.findUnique({ where: { id } })
@@ -26,9 +27,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   return NextResponse.json({ plan: updated })
 }
 
-/** DELETE /api/platform/plans/[id] — remove plano sem assinantes (SUPER_ADMIN) */
+/** DELETE /api/platform/plans/[id] — remove plano sem assinantes (cargos de gestão da plataforma) */
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireUser(['SUPER_ADMIN'])
+  const auth = await requireUser([...PLATFORM_ROLES])
   if (isResponse(auth)) return auth
   const { id } = await params
   const plan = await db.plan.findUnique({ where: { id } })

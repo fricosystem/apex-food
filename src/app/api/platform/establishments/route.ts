@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireUser, isResponse, readJson, bad } from '@/lib/api'
 import { broadcast } from '@/lib/realtime'
+import { PLATFORM_ROLES } from '@/lib/permissions'
 
-/** GET /api/platform/establishments — lista todos os tenants com contadores (SUPER_ADMIN) */
+/** GET /api/platform/establishments — lista todos os tenants com contadores (cargos de gestão da plataforma) */
 export async function GET() {
-  const auth = await requireUser(['SUPER_ADMIN'])
+  const auth = await requireUser([...PLATFORM_ROLES])
   if (isResponse(auth)) return auth
 
   const establishments = await db.establishment.findMany({
@@ -77,9 +78,9 @@ type CreateBody = {
   plan?: string; billingStatus?: string; trialDays?: number
 }
 
-/** POST /api/platform/establishments — cria estabelecimento manualmente (SUPER_ADMIN) */
+/** POST /api/platform/establishments — cria estabelecimento manualmente (cargos de gestão da plataforma) */
 export async function POST(req: NextRequest) {
-  const auth = await requireUser(['SUPER_ADMIN'])
+  const auth = await requireUser([...PLATFORM_ROLES])
   if (isResponse(auth)) return auth
   const body = await readJson<CreateBody>(req)
   const name = body?.name?.trim()

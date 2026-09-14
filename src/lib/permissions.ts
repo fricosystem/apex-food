@@ -1,5 +1,12 @@
 import type { ViewKey } from '@/lib/types'
 
+/**
+ * Cargos de gestão com acesso pleno: Desenvolvedor CEO, Administrador e Gerente.
+ * Não são filtrados pelas permissões por tela — veem todas as opções do sidebar
+ * e acessam inclusive o painel da plataforma.
+ */
+export const PLATFORM_ROLES = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'] as const
+
 /** Papéis padrão autorizados por tela (sem override do estabelecimento) */
 export const DEFAULT_VIEW_ROLES: Record<ViewKey, string[]> = {
   dashboard: ['ADMIN', 'MANAGER'],
@@ -13,9 +20,9 @@ export const DEFAULT_VIEW_ROLES: Record<ViewKey, string[]> = {
   configuracoes: ['ADMIN', 'MANAGER', 'WAITER', 'KITCHEN', 'CASHIER'],
 }
 
-/** Tela exclusiva do painel do desenvolvedor (SUPER_ADMIN) */
+/** Tela do painel do desenvolvedor — aberta aos cargos de gestão (PLATFORM_ROLES) */
 export const PLATFORM_VIEW_ROLES: Record<string, string[]> = {
-  plataforma: ['SUPER_ADMIN'],
+  plataforma: [...PLATFORM_ROLES],
 }
 
 /** Cargos que podem ser atribuídos dentro de um estabelecimento */

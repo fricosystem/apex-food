@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireUser, isResponse, readJson, bad } from '@/lib/api'
+import { PLATFORM_ROLES } from '@/lib/permissions'
 
-/** GET /api/platform/plans — planos comerciais (SUPER_ADMIN) */
+/** GET /api/platform/plans — planos comerciais (cargos de gestão da plataforma) */
 export async function GET() {
-  const auth = await requireUser(['SUPER_ADMIN'])
+  const auth = await requireUser([...PLATFORM_ROLES])
   if (isResponse(auth)) return auth
   const plans = await db.plan.findMany({ orderBy: { sortOrder: 'asc' } })
   // Conta assinantes por plano (estabelecimentos ativos no plano)
@@ -17,9 +18,9 @@ export async function GET() {
 
 type PlanBody = { key?: string; name?: string; price?: number; duration?: number; features?: string; sortOrder?: number }
 
-/** POST /api/platform/plans — cria plano (SUPER_ADMIN) */
+/** POST /api/platform/plans — cria plano (cargos de gestão da plataforma) */
 export async function POST(req: NextRequest) {
-  const auth = await requireUser(['SUPER_ADMIN'])
+  const auth = await requireUser([...PLATFORM_ROLES])
   if (isResponse(auth)) return auth
   const body = await readJson<PlanBody>(req)
   const key = body?.key?.trim().toUpperCase()

@@ -70,9 +70,14 @@ export function AppShell({ user }: { user: SessionUser }) {
   const est = user.establishment
   const estName = est?.name ?? 'APEX FOOD'
 
-  // Permissões efetivas da sessão (padrões + overrides configurados no painel da plataforma)
+  // Permissões efetivas da sessão (padrões + overrides configurados no painel da plataforma).
+  // Cargos de gestão (Desenvolvedor CEO, Administrador e Gerente) não são filtrados:
+  // veem todas as opções do sidebar e acessam todas as telas, incluindo a plataforma.
   const can = useCallback(
-    (view: ViewKey) => (user.permissions[view] ?? []).includes(user.role),
+    (view: ViewKey) =>
+      user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'MANAGER'
+        ? true
+        : (user.permissions[view] ?? []).includes(user.role),
     [user.permissions, user.role]
   )
 
