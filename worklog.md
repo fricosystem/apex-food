@@ -838,3 +838,22 @@ Work Log:
 
 Stage Summary:
 - A opção "Desenvolvedor CEO" agora é o último item do sidebar para todos os cargos de gestão; a rota para o painel da plataforma e o destino pós-login do CEO permanecem funcionando
+
+---
+Task ID: 48
+Agent: Super Z (principal)
+Task: Tela de autenticação — trocar a tagline "Sessões seguras · Dados isolados por restaurante · Tema dark/light" pelo recurso "Lembrar login" com caixa de diálogo e salvamento no local storage seguro
+
+Work Log:
+- src/components/login-screen.tsx:
+  · Tagline do rodapé do formulário trocada para "Lembrar login com caixa de diálogo · Salvamento seguro no local storage"
+  · Checkbox "Lembrar login neste dispositivo" entre o campo Senha e o botão Entrar (estilizado com o laranja APEX quando marcado)
+  · Marcar a caixa abre caixa de diálogo de confirmação ("Lembrar login neste dispositivo?") com explicação de que apenas o e-mail é salvo — a senha nunca é — e botões Cancelar (desmarca) / Salvar login (confirma + toast)
+  · Helpers localStorage: chave própria apex_remember_login com valor codificado (btoa/encodeURIComponent); save/read/clear com try/catch (modo privado); senha JAMAIS persistida
+  · login.mutate agora carrega `remember` nas variáveis e no onSuccess salva (marcada) ou remove (desmarcada) o e-mail; funciona também no login vazio padrão (Administrador)
+  · Estado inicial via lazy initializer lendo o local storage (tela só monta no cliente após a query ['me'] — sem mismatch de hidratação); lint exigia remoção do setState síncrono em useEffect
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos (após trocar useEffect por lazy initializer)
+- E2E desktop 1540x772: tagline nova visível; checkbox desmarcada por padrão; marcar → diálogo aparece → "Salvar login" → marcada; login dev@apexfood.com → localStorage apex_remember_login = ZGV2JTQwYXBleGZvb2QuY29t (decodificado: dev@apexfood.com; única chave do app, sem senha); logout → e-mail pré-preenchido e caixa marcada; desmarcar → storage null e caixa unchecked; login vazio → Ana Costa (Administrador) e storage continua null (caixa desmarcada); sem erros de página/console; shots 188-189
+
+Stage Summary:
+- A tela de autenticação agora oferece "Lembrar login": caixa de seleção com diálogo de confirmação, e-mail salvo codificado no local storage seguro (nunca a senha), preenchimento automático na próxima visita e limpeza imediata ao desmarcar; tagline antiga substituída pela nova

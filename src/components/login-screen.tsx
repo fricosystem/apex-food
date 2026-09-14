@@ -9,13 +9,15 @@ import {
   CalendarRange, Radar, Inbox, Users, BellRing, History, Columns3,
   Timer, Zap, Flame, ReceiptText, Gauge, Search, Package, UserCog,
   Target, SlidersHorizontal, Smartphone, ListChecks, Route,
-  Sparkles, Store, UserRound,
+  Sparkles, Store, UserRound, ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { apiPost } from '@/lib/fetcher'
 import { playSound } from '@/lib/sound'
 import { pushSystemNotification } from '@/lib/notification-service'
@@ -23,6 +25,38 @@ import { ROLE_LABELS } from '@/lib/types'
 import type { SessionUser } from '@/lib/auth'
 
 type ModuleFeature = { icon: React.ElementType; title: string; desc: string }
+
+/** ---------- Lembrar login (local storage seguro) ----------
+ * Salva APENAS o e-mail, codificado (nunca a senha), sob chave própria do app.
+ */
+const REMEMBER_KEY = 'apex_remember_login'
+
+function saveRememberEmail(email: string) {
+  try {
+    window.localStorage.setItem(REMEMBER_KEY, btoa(encodeURIComponent(email)))
+  } catch {
+    // local storage indisponível (modo privado etc.) → apenas não lembra
+  }
+}
+
+function readRememberEmail(): string | null {
+  try {
+    const raw = window.localStorage.getItem(REMEMBER_KEY)
+    if (!raw) return null
+    const email = decodeURIComponent(atob(raw))
+    return email.includes('@') ? email : null
+  } catch {
+    return null
+  }
+}
+
+function clearRememberEmail() {
+  try {
+    window.localStorage.removeItem(REMEMBER_KEY)
+  } catch {
+    // idem
+  }
+}
 
 const MODULE_SECTIONS: {
   icon: React.ElementType
@@ -231,8 +265,12 @@ function WelcomeNotification({ name, role }: { name: string; role: string }) {
 }
 
 export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) {
-  const [email, setEmail] = useState('')
+  // Tela montada apenas no cliente (após a query ['me'] resolver) — inicializador
+  // lazy pode ler o local storage sem risco de mismatch de hidratação
+  const [email, setEmail] = useState(() => (typeof window === 'undefined' ? '' : readRememberEmail() ?? ''))
   const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(() => (typeof window === 'undefined' ? false : readRememberEmail() !== null))
+  const [rememberDialog, setRememberDialog] = useState(false)
   const [regRestaurant, setRegRestaurant] = useState('')
   const [regName, setRegName] = useState('')
   const [regEmail, setRegEmail] = useState('')
@@ -241,9 +279,9 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
   const queryClient = useQueryClient()
 
   const login = useMutation({
-    mutationFn: (creds: { email: string; password: string }) =>
-      apiPost<{ user: SessionUser }>('/api/auth/login', creds),
-    onSuccess: (data) => {
+    mutationFn: (creds: { email: string; password: string; remember: boolean }) =>
+      apiPost<{ user: SessionUser }>('/api/auth/login', { email: creds.email, password: creds.password }),
+    onSuccess: (data, vars) => {
       playSound('success')
       const firstName = data.user.name.split(' ')[0]
       const roleLabel = ROLE_LABELS[data.user.role] ?? data.user.role
@@ -265,6 +303,9 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
         tag: 'apex-bem-vindo',
         icon: '/apex-logo.png',
       })
+      // Lembrar login: salva/remove o e-mail no local storage conforme a caixa marcada
+      if (vars.remember) saveRememberEmail(vars.email)
+      else clearRememberEmail()
       queryClient.setQueryData(['me'], { user: data.user })
       onLogin(data.user)
     },
@@ -275,14 +316,14 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
     e.preventDefault()
     // Sem dados nos campos → entra como Administrador (acesso padrão do sistema)
     if (!email.trim() && !password) {
-      login.mutate({ email: 'admin@apexfood.com', password: 'apex123' })
+      login.mutate({ email: 'admin@apexfood.com', password: 'apex123', remember })
       return
     }
     if (!email.trim() || !password) {
       toast.error('Preencha e-mail e senha')
       return
     }
-    login.mutate({ email: email.trim(), password })
+    login.mutate({ email: email.trim(), password, remember })
   }
 
   const register = useMutation({
@@ -513,6 +554,25 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
                     />
                   </div>
                 </div>
+                {/* Lembrar login — caixa + diálogo de confirmação + local storage seguro */}
+                <div className="flex items-center gap-2.5">
+                  <Checkbox
+                    id="remember"
+                    checked={remember}
+                    onCheckedChange={(v) => {
+                      if (v === true) setRememberDialog(true)
+                      else {
+                        setRemember(false)
+                        clearRememberEmail()
+                      }
+                    }}
+                    className="border-white/40 bg-white/5 data-[state=checked]:border-[#FF6B1A] data-[state=checked]:bg-[#FF6B1A] data-[state=checked]:text-white"
+                    aria-label="Lembrar login neste dispositivo"
+                  />
+                  <Label htmlFor="remember" className="text-xs font-normal text-zinc-300 cursor-pointer select-none">
+                    Lembrar login neste dispositivo
+                  </Label>
+                </div>
                 <Button type="submit" className="w-full h-11 apex-gradient text-white font-semibold hover:opacity-90 transition-opacity" disabled={login.isPending}>
                   {login.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                   Entrar
@@ -606,8 +666,43 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
             </TabsContent>
           </Tabs>
 
+          {/* Caixa de diálogo: confirmação do Lembrar login */}
+          <Dialog open={rememberDialog} onOpenChange={(v) => { if (!v) setRememberDialog(false) }}>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-[#FF6B1A]" /> Lembrar login neste dispositivo?
+                </DialogTitle>
+                <DialogDescription>
+                  Seu e-mail será salvo no local storage seguro do navegador e preenchido automaticamente na próxima visita. A senha nunca é salva.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setRememberDialog(false)
+                    setRemember(false)
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="apex-gradient text-white"
+                  onClick={() => {
+                    setRememberDialog(false)
+                    setRemember(true)
+                    toast.success('Login será lembrado neste dispositivo')
+                  }}
+                >
+                  <ShieldCheck className="h-4 w-4" /> Salvar login
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <p className="text-[11px] text-white/50 mt-8 text-center">
-            Sessões seguras · Dados isolados por restaurante · Tema dark/light
+            Lembrar login com caixa de diálogo · Salvamento seguro no local storage
           </p>
         </div>
       </div>
