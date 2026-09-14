@@ -623,3 +623,19 @@ Work Log:
 Stage Summary:
 - Guarda anti-extensão v3: cobre elementos do HTML do servidor (scan inicial), elementos criados pelo React e elementos criados+atacados no mesmo task (via attributeOldValue) — com reversão síncrona quando há assinatura da extensão e tolerância a mutações legítimas pós-hidratação
 - Erro "Hydration failed" da extensão eliminado em todos os cenários reproduzíveis
+
+---
+Task ID: 35
+Agent: Super Z (principal)
+Task: Tela inicial — remover os círculos do divisor e manter a bolinha na divisão
+
+Work Log:
+- Identificação: a decoração fixa do login (apex-login-decor) tinha uma "marca de círculos animada" centralizada na divisão entre a coluna de apresentação e o formulário — halo de luz (640px), 3 anéis concêntricos (700/540/380px, um tracejado) e pulso radar (380px), além da bolinha central laranja (10px) e do fio de luz vertical de 1px
+- src/components/login-screen.tsx — removidos os 5 elementos circulares (apex-ring-halo/outer/mid/inner/pulse); mantidos exatamente: fio de luz da divisão (w-px, gradiente via-[#FF6B1A]/20) e bolinha central (apex-gradient + glow + apex-live-dot pulsante); comentários atualizados; nada mais alterado
+- src/app/globals.css — limpeza do CSS órfão: keyframes apex-ring-breathe/sping/spin... (breathe, spin, ping) e apex-halo-breathe removidos junto com as 5 regras .apex-ring-*; preservados .apex-live-dot (apex-pulse), .apex-ring-subtle (usado no app-shell) e will-change/reduced-motion do decor
+- E2E desktop 1540x772 (shot-148): circlesRestantes=0 no DOM; bolinha visível com centro em x=1019.5 / y=386 (centro vertical exato da viewport; borda esquerda do formulário em x=1020, largura 520px — diferença de -0.5px, subpixel do fio de 1px, ou seja, cravada na divisão); fio de 1px presente; sem erros de console/hidratação
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+
+Stage Summary:
+- O divisor da tela inicial agora exibe apenas o fio de luz sutil e a bolinha laranja pulsante centralizada nele — todos os círculos (anéis/halo/radar) foram removidos do DOM e do CSS
+- Nenhum texto, layout ou funcionalidade alterada; shot-148

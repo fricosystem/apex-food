@@ -209,30 +209,7 @@
   font-weight: 700;
 }
 
-/* ===== Login — marca de círculos animada no divisor entre apresentação e formulário ===== */
-/* Os anéis são posicionados no centro do divisor via translate(-50%,-50%) embutido nos keyframes,
-   para que a animação (scale/rotate) não perca a centralização. */
-@keyframes apex-ring-breathe {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.9; }
-  50% { transform: translate(-50%, -50%) scale(1.055); opacity: 0.4; }
-}
-@keyframes apex-ring-spin {
-  from { transform: translate(-50%, -50%) rotate(0deg); }
-  to { transform: translate(-50%, -50%) rotate(360deg); }
-}
-@keyframes apex-ring-ping {
-  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.5; }
-  70%, 100% { transform: translate(-50%, -50%) scale(1.55); opacity: 0; }
-}
-@keyframes apex-halo-breathe {
-  0%, 100% { opacity: 0.75; }
-  50% { opacity: 0.35; }
-}
-.apex-ring-outer { animation: apex-ring-breathe 9s ease-in-out infinite; }
-.apex-ring-inner { animation: apex-ring-breathe 6.5s ease-in-out -3.2s infinite; }
-.apex-ring-mid { animation: apex-ring-spin 46s linear infinite; }
-.apex-ring-pulse { animation: apex-ring-ping 3.8s cubic-bezier(0, 0, 0.2, 1) infinite; }
-.apex-ring-halo { animation: apex-halo-breathe 9s ease-in-out infinite; }
+/* ===== Login — bolinha pulsante no divisor entre apresentação e formulário ===== */
 .apex-login-decor * { will-change: transform, opacity; }
 @media (prefers-reduced-motion: reduce) {
   .apex-login-decor * { animation: none !important; }
