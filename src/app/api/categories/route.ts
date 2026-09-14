@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireUser, isResponse, readJson, bad } from '@/lib/api'
+import { requireTenant, isResponse, readJson, bad } from '@/lib/api'
 import { broadcast } from '@/lib/realtime'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireUser()
+  const auth = await requireTenant()
   if (isResponse(auth)) return auth
   const includeInactive = new URL(req.url).searchParams.get('all') === '1'
   const categories = await db.category.findMany({
-    where: includeInactive ? {} : { active: true },
+    where: { establishmentId: auth.establishmentId, ...(includeInactive ? {} : { active: true }) },
     orderBy: { sortOrder: 'asc' },
     include: {
       products: {
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireUser(['ADMIN', 'MANAGER'])
+  const auth = await requireTenant(['ADMIN', 'MANAGER'])
   if (isResponse(auth)) return auth
   const body = await readJson<{ name?: string; sector?: string; icon?: string; sortOrder?: number }>(req)
   const name = body?.name?.trim()
@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
         sector: body?.sector || 'KITCHEN',
         icon: body?.icon || '🍽️',
         sortOrder: body?.sortOrder ?? 99,
+        establishmentId: auth.establishmentId,
       },
     })
     broadcast('dados:alterados', { type: 'category' })

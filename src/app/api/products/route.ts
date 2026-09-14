@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireUser, isResponse, readJson, bad } from '@/lib/api'
+import { requireTenant, isResponse, readJson, bad } from '@/lib/api'
 import { broadcast } from '@/lib/realtime'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireUser()
+  const auth = await requireTenant()
   if (isResponse(auth)) return auth
   const params = new URL(req.url).searchParams
   const includeInactive = params.get('all') === '1'
   const kind = params.get('kind')
   const products = await db.product.findMany({
     where: {
+      establishmentId: auth.establishmentId,
       ...(includeInactive ? {} : { active: true }),
       ...(kind === 'PRODUCT' || kind === 'MEAL' ? { kind } : {}),
     },
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireUser(['ADMIN', 'MANAGER'])
+  const auth = await requireTenant(['ADMIN', 'MANAGER'])
   if (isResponse(auth)) return auth
   const body = await readJson<{
     name?: string; description?: string; price?: number; prepTime?: number
@@ -31,6 +32,11 @@ export async function POST(req: NextRequest) {
   if (!name) return bad('Informe o nome do produto')
   if (!body?.categoryId) return bad('Selecione a categoria')
   if (!body?.price || body.price <= 0) return bad('Informe um preço válido')
+  // A categoria precisa pertencer ao próprio estabelecimento
+  const category = await db.category.findFirst({
+    where: { id: body.categoryId, establishmentId: auth.establishmentId },
+  })
+  if (!category) return bad('Categoria inválida', 404)
   const product = await db.product.create({
     data: {
       name,
@@ -41,6 +47,7 @@ export async function POST(req: NextRequest) {
       image: body?.image?.trim() || null,
       categoryId: body.categoryId,
       kind: body?.kind === 'MEAL' ? 'MEAL' : 'PRODUCT',
+      establishmentId: auth.establishmentId,
     },
     include: { category: true },
   })

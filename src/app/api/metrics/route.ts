@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireUser, isResponse } from '@/lib/api'
+import { requireTenant, isResponse } from '@/lib/api'
 
 type Bucket = { key: string; label: string; revenue: number; orders: number }
 
@@ -24,8 +24,9 @@ function parseLocalDate(s: string, endOfDay = false): Date | null {
 /** GET /api/metrics?period=today|week|month|year|custom&from=&to=&days=&turn=
  *  Agregações do dashboard com granularidade automática (hora/dia/mês). */
 export async function GET(req: NextRequest) {
-  const auth = await requireUser()
+  const auth = await requireTenant()
   if (isResponse(auth)) return auth
+  const estId = auth.establishmentId
   const sp = new URL(req.url).searchParams
   const period = sp.get('period') || 'week'
   const turn = sp.get('turn') || 'all'
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
   const granularity: 'hour' | 'day' | 'month' = spanDays <= 2 ? 'hour' : spanDays <= 62 ? 'day' : 'month'
 
   const paid = await db.order.findMany({
-    where: { status: 'PAID', paidAt: { gte: start, lte: end } },
+    where: { status: 'PAID', paidAt: { gte: start, lte: end }, establishmentId: estId },
     include: {
       waiter: { select: { id: true, name: true } },
       payments: { select: { method: true } },
@@ -68,8 +69,8 @@ export async function GET(req: NextRequest) {
 
   // ---- KPIs em tempo real ----
   const [openOrders, tables] = await Promise.all([
-    db.order.count({ where: { status: { in: ['PENDING_CONFIRM', 'IN_KITCHEN'] } } }),
-    db.restaurantTable.findMany({ where: { active: true }, select: { status: true } }),
+    db.order.count({ where: { status: { in: ['PENDING_CONFIRM', 'IN_KITCHEN'] }, establishmentId: estId } }),
+    db.restaurantTable.findMany({ where: { active: true, establishmentId: estId }, select: { status: true } }),
   ])
   const occupiedTables = tables.filter((t) => t.status === 'OCCUPIED').length
 
@@ -154,7 +155,7 @@ export async function GET(req: NextRequest) {
   const prevEnd = new Date(start.getTime() - 1)
   const prevStart = new Date(prevEnd.getTime() - spanMs)
   const prevPaid = await db.order.findMany({
-    where: { status: 'PAID', paidAt: { gte: prevStart, lte: prevEnd } },
+    where: { status: 'PAID', paidAt: { gte: prevStart, lte: prevEnd }, establishmentId: estId },
     select: { total: true, paidAt: true },
   })
   const prevInTurn = prevPaid.filter((o) => o.paidAt && inTurn(o.paidAt, turn))
@@ -203,7 +204,7 @@ export async function GET(req: NextRequest) {
       status: { in: ['READY', 'SERVED'] },
       startedAt: { not: null },
       readyAt: { not: null },
-      order: { status: 'PAID', paidAt: { gte: start } },
+      order: { status: 'PAID', paidAt: { gte: start }, establishmentId: estId },
     },
     take: 800,
   })

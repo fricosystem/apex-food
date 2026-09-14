@@ -7,9 +7,9 @@ import { db } from '@/lib/db'
  *  - least_load:   menor demanda acumulada (comandas abertas + itens em preparo no dia)
  * Retorna o id do garçom escolhido (ou null se não houver garçom disponível).
  */
-export async function pickWaiter(rule: string = 'least_active'): Promise<string | null> {
+export async function pickWaiter(rule: string = 'least_active', establishmentId?: string | null): Promise<string | null> {
   const waiters = await db.user.findMany({
-    where: { role: 'WAITER', active: true },
+    where: { role: 'WAITER', active: true, ...(establishmentId ? { establishmentId } : {}) },
     select: { id: true },
   })
   if (waiters.length === 0) return null
@@ -41,7 +41,10 @@ export async function pickWaiter(rule: string = 'least_active'): Promise<string 
   return scores[0]?.id ?? null
 }
 
-export async function getSetting(key: string, fallback: string): Promise<string> {
-  const s = await db.setting.findUnique({ where: { key } })
+export async function getSetting(key: string, fallback: string, establishmentId?: string | null): Promise<string> {
+  if (!establishmentId) return fallback
+  const s = await db.setting.findUnique({
+    where: { establishmentId_key: { establishmentId, key } },
+  })
   return s?.value ?? fallback
 }

@@ -744,3 +744,21 @@ Work Log:
 
 Stage Summary:
 - Coluna Produto do card Eficiência da cozinha (Relatório Geral e Dashboard, mesmo endpoint /api/metrics) exibe o nome completo dos produtos; sem truncamento em dados nem em CSS
+
+---
+Task ID: 42
+Agent: Super Z (principal)
+Task: Plataforma SaaS multi-restaurantes — auth com cadastro, isolamento por tenant e painel do desenvolvedor (planos/cobrança/permissões)
+
+Work Log:
+- Schema: novos modelos Establishment (tenant: dados cadastrais + plano, billingStatus TRIAL|PAID|OVERDUE|CANCELED, trialEndsAt, currentPeriodEnd, lastPaymentAt, notes, permissions JSON) e Plan (key, nome, preço, duração, recursos); establishmentId (nullable) em User/RestaurantTable/Category/Product/Order/Goal/Setting; uniques compostos [establishmentId+code], [+number], [+name], [+key]; papel SUPER_ADMIN; prisma db push OK
+- Migração scripts/migrate-multitenant.ts (idempotente): 4 planos (TRIAL grátis14d, BASIC 99,90, PRO 189,90, PREMIUM 329,90), super admin dev@apexfood.com/apex123, EMPÓRIO RESTAURANTE (PRO/Pago, 67 comandas vinculadas + 7 usuários + 12 mesas + 29 produtos), demos Pizzaria Bella Massa (BASIC/trial 9d), Burger House Downtown (BASIC/vencido), Cantina do Vale (trial expirado)
+- Auth: SessionUser agora carrega establishment (nome, CNPJ, logo, plano, cobrança, prazos) + permissions efetivas (resolveViewRoles mescla DEFAULT_VIEW_ROLES + overrides do tenant); sessão inválida se estabelecimento suspenso; /api/auth/register cria restaurante + owner ADMIN com trial 14d e auto-login; login bloqueado (403) para estabelecimento suspenso
+- APIs: requireTenant() com escopo obrigatório; usuários/mesas/categorias/produtos/comandas/metas/métricas/configurações 100% filtrados por establishmentId (ownership checks em [id]); pickWaiter/getSetting com escopo; código de comanda sequencial por tenant; QR do cliente resolve tenant pela mesa e bloqueia estabelecimento inativo; /api/settings GET agora retorna settings + establishment (nome/logo/tipo vão para o Establishment); novas rotas platform/establishments (GET KPIs+lista, POST criar), /[id] (GET, PATCH dados/cobrança/markPaidNow/extendDays/permissões validadas, DELETE em cascata), platform/plans CRUD com contagem de assinantes
+- Frontend: login-screen com abas Entrar / Cadastrar restaurante (banner 14 dias grátis) + chip Desenvolvedor; app-shell com marca dinâmica do estabelecimento (sidebar, header compacto, perfil), nav por user.permissions, BillingBanner (teste restante/vencido/cancelado); nova PlatformView: KPIs (ativos, trial, vencidos, MRR), tabela de estabelecimentos com badges de plano/cobrança e prazo ("Teste até 23/09 · 9d", "Venceu 09/09"), switch de suspensão, busca/filtro, diálogos Editar dados, Plano e cobrança (registrar pagamento/estender 30d/notas), Permissões (matriz tela×cargo com Restaurar padrão), Excluir com confirmação; aba Planos com cards editáveis; administration-view usa permissões efetivas e nunca lista SUPER_ADMIN; report-view com nome do estabelecimento da sessão
+- Fix no E2E: assinantes por plano exibiam 0 — establishments GET agora groupBy plan e retorna subscribers
+- E2E desktop 1540x772: dev → painel Plataforma (4 KPIs corretos, 4 linhas com badges e prazos); cobrança Burger House "Registrar pagamento agora" → Pago + vence 14/10 (+MRR 289,80); permissões EMPÓRIO dashboard+CAIXA salvas no JSON e Restaurar padrão → {}; aba Planos 4 cards com assinantes (TRIAL:1, BASIC:2, PRO:1); cadastro "Sushi Kaito Liberdade" (Kenji) → dashboard isolado 0 comandas/R$0 + banner "restam 14 dias"; Cantina suspensa → login severino bloqueado com toast; reativada; admin EMPÓRIO com 9 itens de nav SEM Plataforma e marca própria; garçom header EMPÓRIO RESTAURANTE; sem erros de console; shots 164-167
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+
+Stage Summary:
+- APEX FOOD virou SaaS multi-tenant: cadastro self-service com trial de 14 dias, dados totalmente isolados por estabelecimento em todas as APIs, painel do desenvolvedor (SUPER_ADMIN) para gerenciar estabelecimentos, planos, cobrança (vencimento/pago/teste) e permissões por tela×cargo — tudo no layout padrão do sistema

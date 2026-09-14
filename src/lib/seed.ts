@@ -5,6 +5,13 @@ function randomToken() {
   return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10)
 }
 
+const PLANS = [
+  { key: 'TRIAL', name: 'Teste grátis', price: 0, duration: 14, sortOrder: 0, features: 'Todos os módulos liberados\nAté 10 funcionários\nSuporte por e-mail' },
+  { key: 'BASIC', name: 'Básico', price: 99.9, duration: 30, sortOrder: 1, features: 'Comandas, cozinha e caixa\nCardápio digital com QR\nAté 15 funcionários\nSuporte em horário comercial' },
+  { key: 'PRO', name: 'Pro', price: 189.9, duration: 30, sortOrder: 2, features: 'Tudo do Básico\nDashboard completo e relatórios\nMesas ilimitadas\nPermissões por cargo\nSuporte prioritário' },
+  { key: 'PREMIUM', name: 'Premium', price: 329.9, duration: 30, sortOrder: 3, features: 'Tudo do Pro\nMúltiplas unidades\nGestão de refeições\nSuporte 24/7 com atendimento dedicado' },
+]
+
 const CATEGORIES = [
   { name: 'Entradas', sector: 'KITCHEN', icon: '🥗', sortOrder: 1 },
   { name: 'Pratos Principais', sector: 'KITCHEN', icon: '🍛', sortOrder: 2 },
@@ -47,31 +54,63 @@ const PRODUCTS: Array<[string, string, number, number, string, string]> = [
   ['Petit gâteau', 'Sobremesas', 27.9, 12, '🎂', 'Bolo quente de chocolate belga com sorvete de baunilha'],
 ]
 
+const day = 86_400_000
+
 export async function ensureSeed(): Promise<boolean> {
   const userCount = await db.user.count()
   if (userCount > 0) return false
 
-  // ---- Usuários ----
+  // ---- Planos da plataforma ----
+  for (const p of PLANS) {
+    await db.plan.upsert({ where: { key: p.key }, create: p, update: p })
+  }
+
+  // ---- Super admin (desenvolvedor da plataforma) ----
+  await db.user.upsert({
+    where: { email: 'dev@apexfood.com' },
+    create: { name: 'Equipe APEX · Dev', email: 'dev@apexfood.com', password: hashPassword('apex123'), role: 'SUPER_ADMIN', status: 'ONLINE' },
+    update: {},
+  })
+
+  // ---- Estabelecimento principal ----
+  const establishment = await db.establishment.create({
+    data: {
+      name: 'EMPÓRIO RESTAURANTE',
+      cnpj: '12.345.678/0001-90',
+      logo: '🍴',
+      type: 'RESTAURANTE',
+      active: true,
+      plan: 'PRO',
+      billingStatus: 'PAID',
+      trialEndsAt: new Date(Date.now() - 60 * day),
+      currentPeriodEnd: new Date(Date.now() + 18 * day),
+      lastPaymentAt: new Date(Date.now() - 12 * day),
+      notes: 'Cliente desde 2024 · renovação automática',
+    },
+  })
+  const estId = establishment.id
+
+  // ---- Usuários do estabelecimento ----
   const pwd = hashPassword('apex123')
-  const admin = await db.user.create({ data: { name: 'Ana Costa', email: 'admin@apexfood.com', password: pwd, role: 'ADMIN', status: 'ONLINE' } })
-  await db.user.create({ data: { name: 'Marcos Lima', email: 'gerente@apexfood.com', password: pwd, role: 'MANAGER', status: 'ONLINE' } })
-  const w1 = await db.user.create({ data: { name: 'Rafael Souza', email: 'rafael@apexfood.com', password: pwd, role: 'WAITER', status: 'ONLINE' } })
-  const w2 = await db.user.create({ data: { name: 'Juliana Alves', email: 'juliana@apexfood.com', password: pwd, role: 'WAITER', status: 'ONLINE' } })
-  const w3 = await db.user.create({ data: { name: 'Carlos Mendes', email: 'carlos@apexfood.com', password: pwd, role: 'WAITER', status: 'ONLINE' } })
-  await db.user.create({ data: { name: 'Equipe Cozinha', email: 'cozinha@apexfood.com', password: pwd, role: 'KITCHEN', status: 'BUSY' } })
-  const cashier = await db.user.create({ data: { name: 'Fernanda Rocha', email: 'caixa@apexfood.com', password: pwd, role: 'CASHIER', status: 'ONLINE' } })
+  const admin = await db.user.create({ data: { name: 'Ana Costa', email: 'admin@apexfood.com', password: pwd, role: 'ADMIN', status: 'ONLINE', establishmentId: estId } })
+  await db.user.create({ data: { name: 'Marcos Lima', email: 'gerente@apexfood.com', password: pwd, role: 'MANAGER', status: 'ONLINE', establishmentId: estId } })
+  const w1 = await db.user.create({ data: { name: 'Rafael Souza', email: 'rafael@apexfood.com', password: pwd, role: 'WAITER', status: 'ONLINE', establishmentId: estId } })
+  const w2 = await db.user.create({ data: { name: 'Juliana Alves', email: 'juliana@apexfood.com', password: pwd, role: 'WAITER', status: 'ONLINE', establishmentId: estId } })
+  const w3 = await db.user.create({ data: { name: 'Carlos Mendes', email: 'carlos@apexfood.com', password: pwd, role: 'WAITER', status: 'ONLINE', establishmentId: estId } })
+  await db.user.create({ data: { name: 'Equipe Cozinha', email: 'cozinha@apexfood.com', password: pwd, role: 'KITCHEN', status: 'BUSY', establishmentId: estId } })
+  const cashier = await db.user.create({ data: { name: 'Fernanda Rocha', email: 'caixa@apexfood.com', password: pwd, role: 'CASHIER', status: 'ONLINE', establishmentId: estId } })
 
   // ---- Categorias e produtos ----
   const catMap = new Map<string, string>()
   for (const c of CATEGORIES) {
-    const cat = await db.category.create({ data: c })
+    const cat = await db.category.create({ data: { ...c, establishmentId: estId } })
     catMap.set(c.name, cat.id)
   }
   const productMap = new Map<string, { id: string; price: number; prepTime: number; station: string; name: string }>()
   for (const [name, cat, price, prep, emoji, desc] of PRODUCTS) {
     const sector = CATEGORIES.find((c) => c.name === cat)?.sector ?? 'KITCHEN'
     const p = await db.product.create({
-      data: { name, description: desc, price, prepTime: prep, emoji, categoryId: catMap.get(cat)! },
+      data: { name, description: desc, price, prepTime: prep, emoji, categoryId: catMap.get(cat)!, establishmentId: estId },
     })
     productMap.set(name, { id: p.id, price, prepTime: prep, station: sector, name })
   }
@@ -80,7 +119,7 @@ export async function ensureSeed(): Promise<boolean> {
   const tables: Array<{ id: string; number: number }> = []
   for (let i = 1; i <= 12; i++) {
     const t = await db.restaurantTable.create({
-      data: { number: i, capacity: i <= 8 ? 4 : 6, qrToken: randomToken() },
+      data: { number: i, capacity: i <= 8 ? 4 : 6, qrToken: randomToken(), establishmentId: estId },
     })
     tables.push({ id: t.id, number: t.number })
   }
@@ -88,13 +127,13 @@ export async function ensureSeed(): Promise<boolean> {
   // ---- Metas ----
   const now = new Date()
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  await db.goal.create({ data: { userId: w1.id, title: 'Comandas atendidas no mês', target: 60, month } })
-  await db.goal.create({ data: { userId: w2.id, title: 'Comandas atendidas no mês', target: 50, month } })
-  await db.goal.create({ data: { userId: w3.id, title: 'Comandas atendidas no mês', target: 45, month } })
+  await db.goal.create({ data: { userId: w1.id, title: 'Comandas atendidas no mês', target: 60, month, establishmentId: estId } })
+  await db.goal.create({ data: { userId: w2.id, title: 'Comandas atendidas no mês', target: 50, month, establishmentId: estId } })
+  await db.goal.create({ data: { userId: w3.id, title: 'Comandas atendidas no mês', target: 45, month, establishmentId: estId } })
 
   // ---- Configurações ----
   const settings: Array<[string, string]> = [
-    ['establishmentName', 'APEX FOOD'],
+    ['establishmentName', 'EMPÓRIO RESTAURANTE'],
     ['establishmentType', 'RESTAURANTE'],
     ['establishmentLogo', '🍴'],
     ['distributionRule', 'least_active'],
@@ -108,7 +147,7 @@ export async function ensureSeed(): Promise<boolean> {
     ['defaultGoal', '50'],
   ]
   for (const [key, value] of settings) {
-    await db.setting.create({ data: { key, value } })
+    await db.setting.create({ data: { key, value, establishmentId: estId } })
   }
 
   // ---- Histórico de comandas pagas (7 dias) para métricas ----
@@ -152,6 +191,7 @@ export async function ensureSeed(): Promise<boolean> {
           confirmedAt: confirmed,
           finishedAt: paid,
           paidAt: paid,
+          establishmentId: estId,
         },
       })
       for (const it of itemsData) {
@@ -186,12 +226,13 @@ export async function ensureSeed(): Promise<boolean> {
         total: Math.round(total * 100) / 100,
         createdAt: created,
         confirmedAt: s.status === 'IN_KITCHEN' ? new Date(created.getTime() + 4 * 60000) : null,
+        establishmentId: estId,
       },
     })
     for (const it of items) {
       await db.orderItem.create({ data: { ...it, orderId: order.id } })
     }
-    await db.restaurantTable.update({ where: { id: tables[s.tableIdx].id }, data: { status: s.status === 'PENDING_CONFIRM' ? 'OCCUPIED' : 'OCCUPIED' } })
+    await db.restaurantTable.update({ where: { id: tables[s.tableIdx].id }, data: { status: 'OCCUPIED' } })
   }
 
   void admin

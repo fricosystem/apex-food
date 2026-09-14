@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireUser, isResponse, readJson, bad, serializeOrder } from '@/lib/api'
+import { requireTenant, isResponse, readJson, bad, serializeOrder } from '@/lib/api'
 import { broadcast } from '@/lib/realtime'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -10,7 +10,7 @@ type ActionBody = { action?: 'assign' | 'confirm' | 'finish' | 'pay' | 'cancel';
 const ACTIVE_STATUSES = ['PENDING_CONFIRM', 'IN_KITCHEN', 'AWAITING_PAYMENT']
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireUser()
+  const auth = await requireTenant()
   if (isResponse(auth)) return auth
   const { id } = await params
   const order = await db.order.findUnique({
@@ -22,12 +22,12 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       payments: { select: { method: true } },
     },
   })
-  if (!order) return bad('Comanda não encontrada', 404)
+  if (!order || order.establishmentId !== auth.establishmentId) return bad('Comanda não encontrada', 404)
   return NextResponse.json({ order: serializeOrder(order) })
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const auth = await requireUser()
+  const auth = await requireTenant()
   if (isResponse(auth)) return auth
   const { id } = await params
   const body = await readJson<ActionBody>(req)
@@ -37,13 +37,18 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     where: { id },
     include: { table: true, items: true },
   })
-  if (!order) return bad('Comanda não encontrada', 404)
+  if (!order || order.establishmentId !== auth.establishmentId) return bad('Comanda não encontrada', 404)
 
   // ---------- Assumir comanda (garçom atribui a si) ----------
   if (action === 'assign') {
     if (!ACTIVE_STATUSES.includes(order.status)) return bad('Comanda não está mais ativa')
     const target = auth.role === 'WAITER' ? auth.id : body?.waiterId || order.waiterId
     if (!target) return bad('Garçom inválido')
+    // O garçom precisa pertencer ao mesmo estabelecimento da comanda
+    const targetUser = await db.user.findUnique({ where: { id: target }, select: { establishmentId: true, role: true } })
+    if (!targetUser || targetUser.establishmentId !== auth.establishmentId || !['WAITER', 'ADMIN', 'MANAGER'].includes(targetUser.role)) {
+      return bad('Garçom inválido')
+    }
     const updated = await db.order.update({
       where: { id },
       data: { waiterId: target },

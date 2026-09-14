@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireUser, isResponse, readJson, bad } from '@/lib/api'
+import { requireTenant, isResponse, readJson, bad } from '@/lib/api'
 import { broadcast } from '@/lib/realtime'
 
 export async function GET() {
-  const auth = await requireUser()
+  const auth = await requireTenant()
   if (isResponse(auth)) return auth
   const tables = await db.restaurantTable.findMany({
+    where: { establishmentId: auth.establishmentId },
     orderBy: { number: 'asc' },
     include: {
       orders: {
@@ -42,16 +43,18 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireUser(['ADMIN', 'MANAGER'])
+  const auth = await requireTenant(['ADMIN', 'MANAGER'])
   if (isResponse(auth)) return auth
   const body = await readJson<{ number?: number; capacity?: number }>(req)
   const number = Number(body?.number)
   if (!number || number < 1) return bad('Informe um número de mesa válido')
-  const exists = await db.restaurantTable.findUnique({ where: { number } })
+  const exists = await db.restaurantTable.findFirst({
+    where: { establishmentId: auth.establishmentId, number },
+  })
   if (exists) return bad('Já existe uma mesa com esse número', 409)
   const token = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10)
   const table = await db.restaurantTable.create({
-    data: { number, capacity: Math.max(1, Number(body?.capacity) || 4), qrToken: token },
+    data: { number, capacity: Math.max(1, Number(body?.capacity) || 4), qrToken: token, establishmentId: auth.establishmentId },
   })
   broadcast('mesa:atualizada', { tableId: table.id })
   return NextResponse.json({ table })

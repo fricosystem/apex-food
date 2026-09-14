@@ -20,6 +20,7 @@ export const useAppStore = create<AppState>((set) => ({
 }))
 
 export const DEFAULT_VIEW: Record<string, ViewKey> = {
+  SUPER_ADMIN: 'plataforma',
   ADMIN: 'dashboard',
   MANAGER: 'dashboard',
   WAITER: 'garcom',
@@ -27,8 +28,13 @@ export const DEFAULT_VIEW: Record<string, ViewKey> = {
   CASHIER: 'caixa',
 }
 
-/** Papéis autorizados por tela */
+/**
+ * Papéis autorizados por tela — padrões de fallback.
+ * Em tempo de execução o app usa o mapa efetivo da sessão (user.permissions),
+ * que reflete os overrides configurados por estabelecimento no painel da plataforma.
+ */
 export const VIEW_ROLES: Record<ViewKey, string[]> = {
+  plataforma: ['SUPER_ADMIN'],
   dashboard: ['ADMIN', 'MANAGER'],
   garcom: ['ADMIN', 'MANAGER', 'WAITER'],
   cozinha: ['ADMIN', 'MANAGER', 'KITCHEN'],

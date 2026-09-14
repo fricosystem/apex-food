@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useEffect, useState } from 'react'
+import { useMemo, useEffect, useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
@@ -9,6 +9,7 @@ import {
   LayoutDashboard, ClipboardList, ChefHat, Wallet, Settings2,
   Grid3x3, PanelLeftClose, PanelLeft, Sun, Moon, LogOut, Volume2, VolumeX,
   Menu, Wifi, WifiOff, X, Bell, UserCircle2, ChevronRight, FileText, ShieldCheck,
+  Building2, ShieldAlert,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -16,7 +17,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { useAppStore, DEFAULT_VIEW, VIEW_ROLES } from '@/lib/store'
+import { useAppStore, DEFAULT_VIEW } from '@/lib/store'
 import type { ViewKey } from '@/lib/types'
 import { ROLE_LABELS } from '@/lib/types'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -33,9 +34,11 @@ import { ManagementView } from '@/components/views/management-view'
 import { TablesView } from '@/components/views/tables-view'
 import { ReportView } from '@/components/views/report-view'
 import { AdministrationView } from '@/components/views/administration-view'
+import { PlatformView } from '@/components/views/platform-view'
 import { SettingsView } from '@/components/views/settings-view'
 
 const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: typeof LayoutDashboard; description: string }> = [
+  { key: 'plataforma', label: 'Plataforma', icon: Building2, description: 'Estabelecimentos, planos e cobranças — painel do desenvolvedor' },
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Visão geral da operação em tempo real' },
   { key: 'garcom', label: 'Garçom', icon: ClipboardList, description: 'Fila de comandas e atendimentos ativos' },
   { key: 'cozinha', label: 'Cozinha', icon: ChefHat, description: 'Fila de preparo, cronômetro e estações' },
@@ -64,17 +67,23 @@ export function AppShell({ user }: { user: SessionUser }) {
   const [profileOpen, setProfileOpen] = useState(false)
   const { connected } = useRealtime(user.role, user.id)
 
+  const est = user.establishment
+  const estName = est?.name ?? 'APEX FOOD'
+
+  // Permissões efetivas da sessão (padrões + overrides configurados no painel da plataforma)
+  const can = useCallback(
+    (view: ViewKey) => (user.permissions[view] ?? []).includes(user.role),
+    [user.permissions, user.role]
+  )
+
   const allowedViews = useMemo(
-    () => NAV_ITEMS.filter((n) => VIEW_ROLES[n.key].includes(user.role)),
-    [user.role]
+    () => NAV_ITEMS.filter((n) => can(n.key)),
+    [can]
   )
   const current: ViewKey = useMemo(() => {
-    const target = activeView ?? DEFAULT_VIEW[user.role] ?? 'dashboard'
-    if (!VIEW_ROLES[target].includes(user.role)) {
-      return (allowedViews[0]?.key ?? 'dashboard') as ViewKey
-    }
-    return target
-  }, [activeView, user.role, allowedViews])
+    const target = activeView ?? DEFAULT_VIEW[user.role] ?? (allowedViews[0]?.key ?? 'dashboard')
+    return can(target) ? target : (allowedViews[0]?.key ?? 'dashboard')
+  }, [activeView, user.role, allowedViews, can])
 
   const logout = useMutation({
     mutationFn: () => apiPost('/api/auth/logout'),
@@ -109,13 +118,13 @@ export function AppShell({ user }: { user: SessionUser }) {
   useEffect(() => {
     const off = onNotificationClick((kind) => {
       const view = kind ? NOTIF_VIEW[kind] : null
-      if (view && VIEW_ROLES[view].includes(user.role)) {
+      if (view && can(view)) {
         playSound('click')
         setActiveView(view)
       }
     })
     return off
-  }, [user.role, setActiveView])
+  }, [can, setActiveView])
 
   // Perfis operacionais (garçom, cozinha, caixa): sem sidebar — apenas header + body,
   // com a marca (logo + APEX FOOD) no canto esquerdo do header. Admin/gerente mantêm sidebar.
@@ -129,8 +138,14 @@ export function AppShell({ user }: { user: SessionUser }) {
         {!sidebarCollapsed && (
           <div className="min-w-0">
             <p className="font-bold tracking-tight leading-none text-sidebar-foreground">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
-            <p className="text-[10px] text-muted-foreground mt-0.5 truncate">EMPÓRIO RESTAURANTE</p>
-            <p className="text-[9px] font-semibold text-primary mt-0.5 truncate tracking-wide">CNPJ 12.345.678/0001-90</p>
+            {est ? (
+              <>
+                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{estName}</p>
+                <p className="text-[9px] font-semibold text-primary mt-0.5 truncate tracking-wide">CNPJ {est.cnpj || '—'}</p>
+              </>
+            ) : (
+              <p className="text-[10px] font-semibold text-primary mt-0.5 truncate tracking-wide">Painel do desenvolvedor</p>
+            )}
           </div>
         )}
       </div>
@@ -249,15 +264,15 @@ export function AppShell({ user }: { user: SessionUser }) {
                 <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-11 sm:h-14 w-auto shrink-0 invert dark:invert-0" />
                 <div className="min-w-0 hidden lg:block">
                   <p className="font-bold tracking-tight leading-none text-sm">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate">EMPÓRIO RESTAURANTE</p>
-                  <p className="text-[9px] font-semibold text-primary mt-0.5 truncate tracking-wide">CNPJ 12.345.678/0001-90</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{estName}</p>
+                  {est?.cnpj && <p className="text-[9px] font-semibold text-primary mt-0.5 truncate tracking-wide">CNPJ {est.cnpj}</p>}
                 </div>
               </div>
 
               {/* Estabelecimento como título + descrição da tela — coluna central */}
               <div className="w-full min-w-0 justify-self-center text-center px-1">
                 <h1 className="text-sm sm:text-base md:text-lg font-bold tracking-tight leading-tight truncate text-primary">
-                  EMPÓRIO RESTAURANTE
+                  {estName}
                 </h1>
                 <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
                   {currentMeta?.description}
@@ -375,7 +390,7 @@ export function AppShell({ user }: { user: SessionUser }) {
                 <DialogTitle className="flex items-center gap-2">
                   <UserCircle2 className="h-5 w-5 text-primary" /> Perfil do usuário
                 </DialogTitle>
-                <DialogDescription>Seus dados de acesso no EMPÓRIO RESTAURANTE.</DialogDescription>
+                <DialogDescription>Seus dados de acesso no {estName}.</DialogDescription>
               </DialogHeader>
               <div className="flex items-center gap-3.5">
                 <div className="relative shrink-0">
@@ -405,15 +420,21 @@ export function AppShell({ user }: { user: SessionUser }) {
                 </div>
                 <div className="flex items-center justify-between px-3.5 py-2.5">
                   <span className="text-muted-foreground text-xs">Estabelecimento</span>
-                  <span className="font-medium">EMPÓRIO RESTAURANTE</span>
+                  <span className="font-medium">{estName}</span>
                 </div>
               </div>
             </DialogContent>
           </Dialog>
         )}
 
+        {/* Aviso de cobrança (teste/vencimento) — exclusivo de estabelecimentos */}
+        {est && (est.billingStatus === 'OVERDUE' || est.billingStatus === 'CANCELED' || (est.billingStatus === 'TRIAL' && est.trialEndsAt) || (est.currentPeriodEnd && new Date(est.currentPeriodEnd).getTime() < Date.now())) && (
+          <BillingBanner billingStatus={est.billingStatus} trialEndsAt={est.trialEndsAt} currentPeriodEnd={est.currentPeriodEnd} />
+        )}
+
         <main className="flex-1 p-4 lg:p-6 max-w-[1600px] w-full mx-auto">
           <div className="apex-enter" key={current}>
+            {current === 'plataforma' && <PlatformView />}
             {current === 'dashboard' && <DashboardView user={user} />}
             {current === 'garcom' && <WaiterView user={user} />}
             {current === 'cozinha' && <KdsView user={user} />}
@@ -441,6 +462,51 @@ function initials(name: string): string {
     .slice(0, 2)
     .map((p) => p[0]?.toUpperCase())
     .join('')
+}
+
+/** Faixa de cobrança exibida sob o header para estados de teste/vencido/cancelado */
+function BillingBanner({ billingStatus, trialEndsAt, currentPeriodEnd }: {
+  billingStatus: string
+  trialEndsAt: string | null
+  currentPeriodEnd: string | null
+}) {
+  const dayMs = 86_400_000
+  let tone: 'warn' | 'bad' = 'warn'
+  let message = ''
+
+  if (billingStatus === 'CANCELED') {
+    tone = 'bad'
+    message = 'Assinatura cancelada — entre em contato com o suporte APEX FOOD para regularizar.'
+  } else if (billingStatus === 'OVERDUE') {
+    tone = 'bad'
+    message = 'Assinatura vencida — regularize o pagamento para evitar a suspensão do acesso.'
+  } else if (billingStatus === 'TRIAL' && trialEndsAt) {
+    const days = Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / dayMs)
+    tone = days <= 3 ? 'bad' : 'warn'
+    message = days > 0
+      ? `Período de teste: restam ${days} ${days === 1 ? 'dia' : 'dias'}. Assine um plano para não perder o acesso.`
+      : 'Seu período de teste expirou — assine um plano para continuar usando o sistema.'
+  } else if (currentPeriodEnd && new Date(currentPeriodEnd).getTime() < Date.now()) {
+    tone = 'bad'
+    message = `Assinatura venceu em ${new Date(currentPeriodEnd).toLocaleDateString('pt-BR')} — regularize o pagamento para evitar a suspensão.`
+  }
+
+  if (!message) return null
+
+  return (
+    <div
+      role="status"
+      className={cn(
+        'flex items-center gap-2.5 px-4 lg:px-6 py-2 text-xs font-medium border-b',
+        tone === 'bad'
+          ? 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/25'
+          : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25'
+      )}
+    >
+      <ShieldAlert className={cn('h-4 w-4 shrink-0', tone === 'bad' ? 'text-red-500' : 'text-amber-500')} aria-hidden />
+      {message}
+    </div>
+  )
 }
 
 export { NAV_ITEMS }

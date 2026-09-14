@@ -7,16 +7,59 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============ APEX FOOD ============
+// ============ APEX FOOD — SaaS multi-restaurantes ============
+
+/** Plano comercial disponível na plataforma */
+model Plan {
+  id        String @id @default(cuid())
+  key       String @unique // TRIAL | BASIC | PRO | PREMIUM
+  name      String
+  price     Float  @default(0) // mensalidade (BRL)
+  duration  Int    @default(30) // dias por período de cobrança
+  features  String @default("") // recursos, um por linha
+  sortOrder Int    @default(0)
+}
+
+/** Estabelecimento (tenant) — cada restaurante da plataforma */
+model Establishment {
+  id               String    @id @default(cuid())
+  name             String
+  cnpj             String    @default("")
+  logo             String    @default("🍴")
+  type             String    @default("RESTAURANTE")
+  phone            String    @default("")
+  address          String    @default("")
+  active           Boolean   @default(true)
+  // ---- Plano e cobrança ----
+  plan             String    @default("TRIAL") // TRIAL | BASIC | PRO | PREMIUM (key do Plan)
+  billingStatus    String    @default("TRIAL") // TRIAL | PAID | OVERDUE | CANCELED
+  trialEndsAt      DateTime? // fim do período de teste
+  currentPeriodEnd DateTime? // vencimento do período pago
+  lastPaymentAt    DateTime?
+  notes            String    @default("")
+  // Overrides de permissão por tela: { "dashboard": ["ADMIN"], ... }
+  permissions      String    @default("{}")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  users            User[]
+  tables           RestaurantTable[]
+  categories       Category[]
+  products         Product[]
+  orders           Order[]
+  goals            Goal[]
+  settings         Setting[]
+}
 
 model User {
   id             String   @id @default(cuid())
   name           String
   email          String   @unique
   password       String
-  role           String   @default("WAITER") // ADMIN | MANAGER | WAITER | KITCHEN | CASHIER
+  role           String   @default("WAITER") // SUPER_ADMIN | ADMIN | MANAGER | WAITER | KITCHEN | CASHIER
   status         String   @default("ONLINE") // ONLINE | BUSY | OFFLINE
   active         Boolean  @default(true)
+  establishmentId String?
+  establishment  Establishment? @relation(fields: [establishmentId], references: [id])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   assignedOrders Order[]
@@ -25,25 +68,33 @@ model User {
 }
 
 model RestaurantTable {
-  id        String    @id @default(cuid())
-  number    Int       @unique
-  capacity  Int       @default(4)
-  active    Boolean   @default(true)
-  status    String    @default("FREE") // FREE | OCCUPIED | AWAITING_PAYMENT
-  qrToken   String    @unique
-  createdAt DateTime  @default(now())
-  orders    Order[]
+  id             String    @id @default(cuid())
+  number         Int
+  capacity       Int       @default(4)
+  active         Boolean   @default(true)
+  status         String    @default("FREE") // FREE | OCCUPIED | AWAITING_PAYMENT
+  qrToken        String    @unique
+  establishmentId String?
+  establishment  Establishment? @relation(fields: [establishmentId], references: [id])
+  createdAt      DateTime  @default(now())
+  orders         Order[]
+
+  @@unique([establishmentId, number])
 }
 
 model Category {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  sector    String    @default("KITCHEN") // KITCHEN | GRILL | PIZZERIA | BAR
-  icon      String    @default("🍽️")
-  sortOrder Int       @default(0)
-  active    Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  products  Product[]
+  id              String    @id @default(cuid())
+  name            String
+  sector          String    @default("KITCHEN") // KITCHEN | GRILL | PIZZERIA | BAR
+  icon            String    @default("🍽️")
+  sortOrder       Int       @default(0)
+  active          Boolean   @default(true)
+  establishmentId String?
+  establishment   Establishment? @relation(fields: [establishmentId], references: [id])
+  createdAt       DateTime  @default(now())
+  products        Product[]
+
+  @@unique([establishmentId, name])
 }
 
 model Product {
@@ -58,6 +109,8 @@ model Product {
   active     Boolean     @default(true)
   categoryId String
   category   Category    @relation(fields: [categoryId], references: [id])
+  establishmentId String?
+  establishment   Establishment? @relation(fields: [establishmentId], references: [id])
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   items      OrderItem[]
@@ -65,11 +118,13 @@ model Product {
 
 model Order {
   id            String           @id @default(cuid())
-  code          String           @unique
+  code          String
   tableId       String
   table         RestaurantTable  @relation(fields: [tableId], references: [id])
   waiterId      String?
   waiter        User?            @relation(fields: [waiterId], references: [id])
+  establishmentId String?
+  establishment   Establishment?   @relation(fields: [establishmentId], references: [id])
   status        String           @default("PENDING_CONFIRM") // PENDING_CONFIRM | IN_KITCHEN | AWAITING_PAYMENT | PAID | CANCELLED
   total         Float            @default(0)
   createdAt     DateTime         @default(now())
@@ -78,6 +133,8 @@ model Order {
   paidAt        DateTime?
   items         OrderItem[]
   payments      Payment[]
+
+  @@unique([establishmentId, code])
 }
 
 model OrderItem {
@@ -110,18 +167,24 @@ model Payment {
 }
 
 model Goal {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  title     String
-  target    Int      @default(20) // comandas no mês
-  month     String // YYYY-MM
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  title           String
+  target          Int      @default(20) // comandas no mês
+  month           String // YYYY-MM
+  active          Boolean  @default(true)
+  establishmentId String?
+  establishment   Establishment? @relation(fields: [establishmentId], references: [id])
+  createdAt       DateTime @default(now())
 }
 
 model Setting {
-  id    String @id @default(cuid())
-  key   String @unique
-  value String
+  id              String @id @default(cuid())
+  key             String
+  value           String
+  establishmentId String?
+  establishment   Establishment? @relation(fields: [establishmentId], references: [id])
+
+  @@unique([establishmentId, key])
 }

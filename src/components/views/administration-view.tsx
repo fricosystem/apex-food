@@ -23,7 +23,6 @@ import { Separator } from '@/components/ui/separator'
 import { api, apiPost, apiPatch, apiDelete } from '@/lib/fetcher'
 import { currency, SECTOR_LABELS, ROLE_LABELS, PRODUCT_KIND_LABELS } from '@/lib/types'
 import type { ProductKind } from '@/lib/types'
-import { VIEW_ROLES } from '@/lib/store'
 import type { SessionUser } from '@/lib/auth'
 
 type Category = { id: string; name: string; sector: string; icon: string; sortOrder: number; active: boolean }
@@ -48,6 +47,9 @@ const AREA_LABELS: Record<string, string> = {
   administracao: 'Administração (funcionários, gestão geral, catálogo)',
   configuracoes: 'Configurações e notificações',
 }
+
+/** Cargos atribuíveis dentro de um estabelecimento (SUPER_ADMIN é exclusivo da plataforma) */
+const TENANT_ROLE_ENTRIES = Object.entries(ROLE_LABELS).filter(([k]) => k !== 'SUPER_ADMIN')
 
 export function AdministrationView({ user }: { user: SessionUser }) {
   return (
@@ -158,7 +160,7 @@ function StaffTab({ user }: { user: SessionUser }) {
                     >
                       <SelectTrigger className="w-[128px] h-8 text-xs shrink-0"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {Object.entries(ROLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        {TENANT_ROLE_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <Switch checked={u.active} onCheckedChange={() => toggle.mutate(u)} aria-label="Ativar funcionário" />
@@ -187,8 +189,8 @@ function StaffTab({ user }: { user: SessionUser }) {
               </div>
               <p className="text-[11px] text-muted-foreground">Áreas que cada cargo acessa no sistema</p>
               <div className="space-y-2.5">
-                {Object.entries(ROLE_LABELS).map(([role, roleLabel]) => {
-                  const areas = Object.entries(VIEW_ROLES).filter(([, roles]) => roles.includes(role)).map(([key]) => AREA_LABELS[key] ?? key)
+                {TENANT_ROLE_ENTRIES.map(([role, roleLabel]) => {
+                  const areas = Object.entries(user.permissions).filter(([, roles]) => roles.includes(role)).map(([key]) => AREA_LABELS[key] ?? key)
                   return (
                     <div key={role} className="rounded-lg border p-2.5">
                       <Badge variant="outline" className="text-[10px] mb-1.5">{roleLabel}</Badge>
@@ -258,7 +260,7 @@ function UserDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(ROLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  {TENANT_ROLE_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -306,7 +308,7 @@ function EditUserDialog({ user, onClose }: { user: UserRow; onClose: () => void 
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(ROLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  {TENANT_ROLE_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

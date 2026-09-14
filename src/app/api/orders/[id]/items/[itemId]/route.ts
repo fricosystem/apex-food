@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireUser, isResponse, readJson, bad, serializeOrder } from '@/lib/api'
+import { requireTenant, isResponse, readJson, bad, serializeOrder } from '@/lib/api'
 import { broadcast } from '@/lib/realtime'
 
 type Ctx = { params: Promise<{ id: string; itemId: string }> }
 
 /** Transição de status de um item: start | ready | served */
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const auth = await requireUser()
+  const auth = await requireTenant()
   if (isResponse(auth)) return auth
   const { id, itemId } = await params
   const body = await readJson<{ action?: 'start' | 'ready' | 'served' }>(req)
@@ -15,6 +15,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
   const item = await db.orderItem.findUnique({ where: { id: itemId }, include: { order: { include: { table: true } } } })
   if (!item || item.orderId !== id) return bad('Item não encontrado', 404)
+  // Isolamento: a comanda precisa pertencer ao estabelecimento do usuário
+  if (item.order.establishmentId !== auth.establishmentId) return bad('Item não encontrado', 404)
   if (!['IN_KITCHEN', 'AWAITING_PAYMENT'].includes(item.order.status)) {
     return bad('Comanda não está em operação')
   }

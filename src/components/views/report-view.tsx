@@ -259,7 +259,7 @@ export function ReportView({ user }: { user: SessionUser }) {
                   {generatedAt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </p>
                 <div className="mt-1 flex items-center gap-1.5 sm:justify-end">
-                  <Badge variant="outline" className="text-[10px] text-muted-foreground">EMPÓRIO RESTAURANTE</Badge>
+                  <Badge variant="outline" className="text-[10px] text-muted-foreground">{user.establishment?.name ?? 'APEX FOOD'}</Badge>
                   <Badge variant="outline" className="text-[10px] text-muted-foreground">por {user.name}</Badge>
                 </div>
               </div>
@@ -540,7 +540,7 @@ export function ReportView({ user }: { user: SessionUser }) {
 
             {/* Fecho do relatório */}
             <div className="border-t pt-3 text-center text-[11px] text-muted-foreground">
-              Relatório gerado automaticamente pelo SISTEMA APEX FOOD · EMPÓRIO RESTAURANTE · distribuição interna
+              Relatório gerado automaticamente pelo SISTEMA APEX FOOD · {user.establishment?.name ?? 'APEX FOOD'} · distribuição interna
             </div>
           </>
         )}

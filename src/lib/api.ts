@@ -14,6 +14,19 @@ export async function requireUser(roles?: string[]): Promise<SessionUser | NextR
   return user
 }
 
+/**
+ * Autenticação com escopo de estabelecimento (tenant).
+ * Super admin (desenvolvedor) não opera dados de um restaurante — recebe 403.
+ */
+export async function requireTenant(roles?: string[]): Promise<(SessionUser & { establishmentId: string }) | NextResponse> {
+  const user = await requireUser(roles)
+  if (isResponse(user)) return user
+  if (!user.establishment) {
+    return NextResponse.json({ error: 'Ação exclusiva de estabelecimentos' }, { status: 403 })
+  }
+  return { ...user, establishmentId: user.establishment.id }
+}
+
 export function isResponse(v: unknown): v is NextResponse {
   return v instanceof NextResponse
 }

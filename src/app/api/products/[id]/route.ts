@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireUser, isResponse, readJson, bad } from '@/lib/api'
+import { requireTenant, isResponse, readJson, bad } from '@/lib/api'
 import { broadcast } from '@/lib/realtime'
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const auth = await requireUser(['ADMIN', 'MANAGER'])
+  const auth = await requireTenant(['ADMIN', 'MANAGER'])
   if (isResponse(auth)) return auth
   const { id } = await params
   const body = await readJson<{
@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     emoji?: string; image?: string | null; categoryId?: string; active?: boolean; kind?: string
   }>(req)
   const existing = await db.product.findUnique({ where: { id } })
-  if (!existing) return bad('Produto não encontrado', 404)
+  if (!existing || existing.establishmentId !== auth.establishmentId) return bad('Produto não encontrado', 404)
 
   const product = await db.product.update({
     where: { id },
@@ -36,9 +36,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireUser(['ADMIN', 'MANAGER'])
+  const auth = await requireTenant(['ADMIN', 'MANAGER'])
   if (isResponse(auth)) return auth
   const { id } = await params
+  const existingProd = await db.product.findUnique({ where: { id } })
+  if (!existingProd || existingProd.establishmentId !== auth.establishmentId) return bad('Produto não encontrado', 404)
   const used = await db.orderItem.count({ where: { productId: id } })
   if (used > 0) {
     await db.product.update({ where: { id }, data: { active: false } })

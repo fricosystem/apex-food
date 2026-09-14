@@ -1,6 +1,6 @@
-export type Role = 'ADMIN' | 'MANAGER' | 'WAITER' | 'KITCHEN' | 'CASHIER'
+export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'WAITER' | 'KITCHEN' | 'CASHIER'
 
-export type ViewKey = 'dashboard' | 'garcom' | 'cozinha' | 'caixa' | 'gestao' | 'mesas' | 'relatorio' | 'administracao' | 'configuracoes'
+export type ViewKey = 'plataforma' | 'dashboard' | 'garcom' | 'cozinha' | 'caixa' | 'gestao' | 'mesas' | 'relatorio' | 'administracao' | 'configuracoes'
 
 /** Tipo do item do catálogo: refeição (prato) ou produto em geral (ex. bebida) */
 export type ProductKind = 'MEAL' | 'PRODUCT'
@@ -46,12 +46,36 @@ export const TABLE_STATUS_LABELS: Record<string, string> = {
 }
 
 export const ROLE_LABELS: Record<Role, string> = {
+  SUPER_ADMIN: 'Desenvolvedor',
   ADMIN: 'Administrador',
   MANAGER: 'Gerente',
   WAITER: 'Garçom',
   KITCHEN: 'Cozinha',
   CASHIER: 'Caixa',
 }
+
+export const PLAN_LABELS: Record<string, string> = {
+  TRIAL: 'Teste grátis',
+  BASIC: 'Básico',
+  PRO: 'Pro',
+  PREMIUM: 'Premium',
+}
+
+export const BILLING_STATUS_LABELS: Record<string, string> = {
+  TRIAL: 'Em teste',
+  PAID: 'Pago',
+  OVERDUE: 'Vencido',
+  CANCELED: 'Cancelado',
+}
+
+export const ESTABLISHMENT_TYPES: Array<{ value: string; label: string; emoji: string }> = [
+  { value: 'RESTAURANTE', label: 'Restaurante', emoji: '🍴' },
+  { value: 'PIZZARIA', label: 'Pizzaria', emoji: '🍕' },
+  { value: 'HAMBURGUERIA', label: 'Hamburgueria', emoji: '🍔' },
+  { value: 'CHURRASCARIA', label: 'Churrascaria', emoji: '🥩' },
+  { value: 'BAR', label: 'Bar', emoji: '🍹' },
+  { value: 'CAFETERIA', label: 'Cafeteria', emoji: '☕' },
+]
 
 export type OrderItemDTO = {
   id: string

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireUser, isResponse, readJson, bad, serializeOrder } from '@/lib/api'
+import { requireTenant, isResponse, readJson, bad, serializeOrder } from '@/lib/api'
 import { broadcast } from '@/lib/realtime'
 import { pickWaiter, getSetting } from '@/lib/distribution'
 
 /** Lista comandas com filtros por papel do usuário */
 export async function GET(req: NextRequest) {
-  const auth = await requireUser()
-  if (isResponse(auth)) return auth
+  const auth = await requireTenant()
   if (isResponse(auth)) return auth
   const sp = new URL(req.url).searchParams
   const statusParam = sp.get('status') // csv
@@ -17,7 +16,7 @@ export async function GET(req: NextRequest) {
   const to = sp.get('to')
   const limit = Number(sp.get('limit') || 200)
 
-  const where: Record<string, unknown> = {}
+  const where: Record<string, unknown> = { establishmentId: auth.establishmentId }
   if (statusParam) where.status = { in: statusParam.split(',') }
   if (waiterId) where.waiterId = waiterId
   if (tableId) where.tableId = tableId
@@ -63,6 +62,7 @@ export async function POST(req: NextRequest) {
 
   const table = await db.restaurantTable.findUnique({ where: { qrToken: token } })
   if (!table || !table.active) return bad('Mesa indisponível. Chame um funcionário.', 404)
+  const estId = table.establishmentId
 
   const openOrder = await db.order.findFirst({
     where: { tableId: table.id, status: { in: ['PENDING_CONFIRM', 'IN_KITCHEN', 'AWAITING_PAYMENT'] } },
@@ -70,13 +70,13 @@ export async function POST(req: NextRequest) {
   if (openOrder) return bad('A mesa já possui uma comanda aberta. Acompanhe o pedido atual.', 409)
 
   const products = await db.product.findMany({
-    where: { id: { in: items.map((i) => i.productId!) }, active: true },
+    where: { id: { in: items.map((i) => i.productId!) }, active: true, ...(estId ? { establishmentId: estId } : {}) },
   })
   if (products.length === 0) return bad('Produtos indisponíveis')
 
-  // Distribuição inteligente → garçom com menor carga
-  const rule = await getSetting('distributionRule', 'least_active')
-  const waiterId = await pickWaiter(rule)
+  // Distribuição inteligente → garçom com menor carga (dentro do estabelecimento)
+  const rule = await getSetting('distributionRule', 'least_active', estId)
+  const waiterId = await pickWaiter(rule, estId)
 
   let total = 0
   const itemRows = items.map((i) => {
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     row.station = cat?.sector ?? 'KITCHEN'
   }
 
-  const seq = (await db.order.count()) + 1
+  const seq = (await db.order.count({ where: estId ? { establishmentId: estId } : {} })) + 1
   const order = await db.order.create({
     data: {
       code: `C${String(seq).padStart(4, '0')}`,
@@ -109,6 +109,7 @@ export async function POST(req: NextRequest) {
       waiterId,
       status: 'PENDING_CONFIRM',
       total: Math.round(total * 100) / 100,
+      ...(estId ? { establishmentId: estId } : {}),
       items: { create: itemRows },
     },
     include: {

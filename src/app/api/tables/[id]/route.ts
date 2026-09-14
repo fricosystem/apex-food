@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireUser, isResponse, readJson, bad } from '@/lib/api'
+import { requireTenant, isResponse, readJson, bad } from '@/lib/api'
 import { broadcast } from '@/lib/realtime'
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const auth = await requireUser(['ADMIN', 'MANAGER'])
+  const auth = await requireTenant(['ADMIN', 'MANAGER'])
   if (isResponse(auth)) return auth
   const { id } = await params
   const body = await readJson<{ capacity?: number; active?: boolean }>(req)
   const existing = await db.restaurantTable.findUnique({ where: { id } })
-  if (!existing) return bad('Mesa não encontrada', 404)
+  if (!existing || existing.establishmentId !== auth.establishmentId) return bad('Mesa não encontrada', 404)
 
   const activeOrders = await db.order.count({
     where: { tableId: id, status: { in: ['PENDING_CONFIRM', 'IN_KITCHEN', 'AWAITING_PAYMENT'] } },
@@ -33,9 +33,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireUser(['ADMIN', 'MANAGER'])
+  const auth = await requireTenant(['ADMIN', 'MANAGER'])
   if (isResponse(auth)) return auth
   const { id } = await params
+  const existingTable = await db.restaurantTable.findUnique({ where: { id } })
+  if (!existingTable || existingTable.establishmentId !== auth.establishmentId) return bad('Mesa não encontrada', 404)
   const activeOrders = await db.order.count({
     where: { tableId: id, status: { in: ['PENDING_CONFIRM', 'IN_KITCHEN', 'AWAITING_PAYMENT'] } },
   })

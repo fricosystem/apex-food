@@ -9,11 +9,13 @@ import {
   CalendarRange, Radar, Inbox, Users, BellRing, History, Columns3,
   Timer, Zap, Flame, ReceiptText, Gauge, Search, Package, UserCog,
   Target, SlidersHorizontal, Smartphone, ListChecks, Route,
+  Sparkles, Store, UserRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { apiPost } from '@/lib/fetcher'
 import { playSound } from '@/lib/sound'
 import { pushSystemNotification } from '@/lib/notification-service'
@@ -26,6 +28,7 @@ const DEMO_ACCOUNTS = [
   { email: 'rafael@apexfood.com', label: 'Garçom', desc: 'Comandas e atendimento' },
   { email: 'cozinha@apexfood.com', label: 'Cozinha', desc: 'Fila de preparo' },
   { email: 'caixa@apexfood.com', label: 'Caixa', desc: 'Pagamentos' },
+  { email: 'dev@apexfood.com', label: 'Desenvolvedor', desc: 'Painel da plataforma' },
 ]
 
 type ModuleFeature = { icon: React.ElementType; title: string; desc: string }
@@ -239,6 +242,10 @@ function WelcomeNotification({ name, role }: { name: string; role: string }) {
 export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [regRestaurant, setRegRestaurant] = useState('')
+  const [regName, setRegName] = useState('')
+  const [regEmail, setRegEmail] = useState('')
+  const [regPassword, setRegPassword] = useState('')
   const fade = useFadeController()
   const queryClient = useQueryClient()
 
@@ -280,6 +287,44 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
       return
     }
     login.mutate({ email: email.trim(), password })
+  }
+
+  const register = useMutation({
+    mutationFn: (payload: { restaurantName: string; ownerName: string; email: string; password: string }) =>
+      apiPost<{ user: SessionUser }>('/api/auth/register', payload),
+    onSuccess: (data) => {
+      playSound('success')
+      toast.success(`Restaurante cadastrado! 14 dias de teste grátis — bem-vindo(a), ${data.user.name.split(' ')[0]}!`)
+      queryClient.setQueryData(['me'], { user: data.user })
+      onLogin(data.user)
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  const submitRegister = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!regRestaurant.trim() || regRestaurant.trim().length < 2) {
+      toast.error('Informe o nome do restaurante')
+      return
+    }
+    if (!regName.trim()) {
+      toast.error('Informe o seu nome')
+      return
+    }
+    if (!regEmail.trim() || !regPassword) {
+      toast.error('Preencha e-mail e senha')
+      return
+    }
+    if (regPassword.length < 6) {
+      toast.error('A senha deve ter pelo menos 6 caracteres')
+      return
+    }
+    register.mutate({
+      restaurantName: regRestaurant.trim(),
+      ownerName: regName.trim(),
+      email: regEmail.trim(),
+      password: regPassword,
+    })
   }
 
   return (
@@ -430,75 +475,171 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
             <span className="font-extrabold text-2xl tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></span>
           </div>
 
-          <h2 className="text-2xl font-bold tracking-tight">Acessar painel</h2>
-          <p className="text-sm text-white/60 mt-1.5">Entre com suas credenciais da equipe.</p>
+          <h2 className="text-2xl font-bold tracking-tight">Bem-vindo à plataforma</h2>
+          <p className="text-sm text-white/60 mt-1.5">Acesse a operação do seu restaurante ou crie uma conta.</p>
 
-          <form onSubmit={submit} className="mt-8 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-zinc-200">E-mail</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="voce@apexfood.com"
-                  className="pl-9 h-11 bg-background text-foreground"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-zinc-200">Senha</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  className="pl-9 h-11 bg-background text-foreground"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-            <Button type="submit" className="w-full h-11 apex-gradient text-white font-semibold hover:opacity-90 transition-opacity" disabled={login.isPending}>
-              {login.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-              Entrar
-            </Button>
-          </form>
+          <Tabs defaultValue="entrar" className="mt-6">
+            <TabsList className="grid grid-cols-2 w-full bg-white/[0.06] border border-white/10">
+              <TabsTrigger value="entrar" className="data-[state=active]:bg-[#FF6B1A] data-[state=active]:text-white text-white/70">Entrar</TabsTrigger>
+              <TabsTrigger value="cadastrar" className="data-[state=active]:bg-[#FF6B1A] data-[state=active]:text-white text-white/70">Cadastrar restaurante</TabsTrigger>
+            </TabsList>
 
-          <div className="mt-8">
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-white/15" />
-              <span className="text-xs text-white/50 uppercase tracking-wider">Acesso rápido da equipe</span>
-              <div className="h-px flex-1 bg-white/15" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-              {DEMO_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={() => login.mutate({ email: acc.email, password: 'apex123' })}
-                  disabled={login.isPending}
-                  className="text-left rounded-lg border border-input bg-background dark:bg-input/30 px-3 py-2.5 hover:border-[#FF6B1A]/70 hover:bg-orange-50 dark:hover:bg-[#FF6B1A]/10 transition-colors disabled:opacity-50"
-                >
-                  <p className="text-sm font-semibold leading-tight text-foreground">{acc.label}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{acc.desc}</p>
-                </button>
-              ))}
-              <div className="rounded-lg border border-dashed border-input px-3 py-2.5 flex items-center justify-center text-xs text-muted-foreground">
-                senha: apex123
+            {/* ---- Aba Entrar ---- */}
+            <TabsContent value="entrar" className="mt-6">
+              <form onSubmit={submit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-zinc-200">E-mail</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+                    <Input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="voce@apexfood.com"
+                      className="pl-9 h-11 bg-background text-foreground"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-zinc-200">Senha</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+                    <Input
+                      id="password"
+                      type="password"
+                      autoComplete="current-password"
+                      placeholder="••••••••"
+                      className="pl-9 h-11 bg-background text-foreground"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full h-11 apex-gradient text-white font-semibold hover:opacity-90 transition-opacity" disabled={login.isPending}>
+                  {login.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                  Entrar
+                </Button>
+              </form>
+
+              <div className="mt-8">
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-white/15" />
+                  <span className="text-xs text-white/50 uppercase tracking-wider">Acesso rápido da equipe</span>
+                  <div className="h-px flex-1 bg-white/15" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+                  {DEMO_ACCOUNTS.map((acc) => (
+                    <button
+                      key={acc.email}
+                      type="button"
+                      onClick={() => login.mutate({ email: acc.email, password: 'apex123' })}
+                      disabled={login.isPending}
+                      className={cn(
+                        'text-left rounded-lg border border-input bg-background dark:bg-input/30 px-3 py-2.5 hover:border-[#FF6B1A]/70 hover:bg-orange-50 dark:hover:bg-[#FF6B1A]/10 transition-colors disabled:opacity-50',
+                        acc.email === 'dev@apexfood.com' && 'border-dashed'
+                      )}
+                    >
+                      <p className="text-sm font-semibold leading-tight text-foreground">{acc.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{acc.desc}</p>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-white/45 mt-3 text-center">senha de demonstração: apex123</p>
               </div>
-            </div>
-          </div>
+            </TabsContent>
+
+            {/* ---- Aba Cadastrar ---- */}
+            <TabsContent value="cadastrar" className="mt-6">
+              <div className="rounded-lg border border-[#FF6B1A]/30 bg-[#FF6B1A]/10 px-3.5 py-2.5 flex items-start gap-2.5">
+                <Sparkles className="h-4 w-4 text-[#FF9A57] mt-0.5 shrink-0" aria-hidden />
+                <p className="text-xs leading-relaxed text-white/80">
+                  <span className="font-semibold text-[#FF9A57]">14 dias de teste grátis</span> — todos os módulos liberados, sem cartão de crédito. Seu restaurante entra no ar em minutos.
+                </p>
+              </div>
+              <form onSubmit={submitRegister} className="mt-5 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reg-restaurant" className="text-zinc-200">Nome do restaurante</Label>
+                  <div className="relative">
+                    <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+                    <Input
+                      id="reg-restaurant"
+                      type="text"
+                      placeholder="Ex.: Trattoria Bella"
+                      className="pl-9 h-11 bg-background text-foreground"
+                      value={regRestaurant}
+                      onChange={(e) => setRegRestaurant(e.target.value)}
+                      maxLength={80}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reg-name" className="text-zinc-200">Seu nome completo</Label>
+                  <div className="relative">
+                    <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+                    <Input
+                      id="reg-name"
+                      type="text"
+                      autoComplete="name"
+                      placeholder="Responsável pelo estabelecimento"
+                      className="pl-9 h-11 bg-background text-foreground"
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      maxLength={80}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reg-email" className="text-zinc-200">E-mail</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+                    <Input
+                      id="reg-email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="voce@seurestaurante.com"
+                      className="pl-9 h-11 bg-background text-foreground"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reg-password" className="text-zinc-200">Senha</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+                    <Input
+                      id="reg-password"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="mínimo de 6 caracteres"
+                      className="pl-9 h-11 bg-background text-foreground"
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      minLength={6}
+                      required
+                    />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full h-11 apex-gradient text-white font-semibold hover:opacity-90 transition-opacity" disabled={register.isPending}>
+                  {register.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Store className="h-4 w-4" />}
+                  Criar meu restaurante
+                </Button>
+                <p className="text-[11px] text-white/45 leading-relaxed">
+                  Você entra como <span className="text-white/75 font-medium">Administrador</span> e pode convidar garçons, cozinha e caixa depois, em Administração → Funcionários.
+                </p>
+              </form>
+            </TabsContent>
+          </Tabs>
 
           <p className="text-[11px] text-white/50 mt-8 text-center">
-            Sessões seguras · Rotas protegidas por perfil · Tema dark/light
+            Sessões seguras · Dados isolados por restaurante · Tema dark/light
           </p>
         </div>
       </div>
