@@ -857,3 +857,26 @@ Work Log:
 
 Stage Summary:
 - A tela de autenticação agora oferece "Lembrar login": caixa de seleção com diálogo de confirmação, e-mail salvo codificado no local storage seguro (nunca a senha), preenchimento automático na próxima visita e limpeza imediata ao desmarcar; tagline antiga substituída pela nova
+
+---
+Task ID: 49
+Agent: Super Z (principal)
+Task: Tela de autenticação sempre em tema escuro do sistema, com fundo dos inputs que não segue o tema aplicado
+
+Work Log:
+- Diagnóstico: next-themes (attribute="class") só troca a classe do <html>; os inputs do login usavam tokens bg-background/text-foreground que herdavam as variáveis de :root (claro) quando o tema light estava aplicado — caixas brancas no design dark da tela
+- src/components/login-screen.tsx:
+  · Wrapper raiz ganhou classe `dark`: fixa as variáveis CSS do tema escuro (globals.css .dark) e ativa os utilitários dark: em todo o subtree da autenticação, independentemente do tema global — inputs (fundo/borda/texto), ícones, tabs, labels e botões sempre resolvem os valores do tema escuro do sistema
+  · Diálogo "Lembrar login" (Radix Portal → body, fora do wrapper) ganhou `dark text-foreground` no DialogContent: a classe dark fixa as variáveis e o text-foreground no root é herdado por título, descrição, botões e X de fechar (sem isso, título/botões herdam o foreground claro do body e ficam ilegíveis sobre o fundo escuro)
+  · Comentários explicando o porquê de cada classe
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+- E2E (tema light forçado via localStorage theme=light + reload):
+  · <html> com classe "light" e wrapper do login com dark ✓
+  · Inputs #email/#password/#reg-*/#reg-password: fundo oklab escuro (input/30 dark), texto rgb(244,244,245), borda rgb(46,46,56) — não seguem o tema aplicado ✓
+  · Diálogo Lembrar login: fundo rgb(14,14,16), título/botões/X rgb(244,244,245), descrição rgb(157,157,168) ✓
+  · Login vazio → app entra seguindo o tema light escolhido (body rgb(250,250,250)) — forçamento restrito à tela de autenticação ✓
+  · Tema dark global (regressão): login idêntico ao anterior, checkbox Lembrar login presente ✓
+  · Sem erros de página/console; shots 190-193
+
+Stage Summary:
+- A tela de autenticação agora usa sempre o tema escuro do sistema (classe dark no wrapper + no diálogo portado), com fundos de inputs, bordas e textos fixados nos valores dark — mesmo com o tema claro aplicado no app; após o login, o restante do sistema continua seguindo o tema escolhido normalmente

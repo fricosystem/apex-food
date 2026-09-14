@@ -364,9 +364,14 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
     })
   }
 
+  // Tela de autenticação SEMPRE em tema escuro do sistema: a classe `dark` neste wrapper
+  // fixa as variáveis CSS do tema escuro (globals.css .dark) e ativa os utilitários dark:
+  // em todo o subtree, independentemente do tema global aplicado no app (next-themes só
+  // troca a classe do <html>). Assim os fundos dos inputs (bg-background/text-foreground),
+  // bordas, ícones e botões aqui NUNCA seguem o tema claro — mesmo com ele ativo.
   return (
     <div
-      className="min-h-screen flex flex-col lg:flex-row text-white"
+      className="dark min-h-screen flex flex-col lg:flex-row text-white"
       style={{
         background: 'linear-gradient(150deg, #121215 0%, #0A0A0C 55%, #0D0B09 100%)',
         backgroundAttachment: 'fixed',
@@ -668,7 +673,10 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
 
           {/* Caixa de diálogo: confirmação do Lembrar login */}
           <Dialog open={rememberDialog} onOpenChange={(v) => { if (!v) setRememberDialog(false) }}>
-            <DialogContent className="sm:max-w-sm">
+            {/* Radix porta o diálogo para o body (fora do wrapper dark acima) →
+                classe dark local + text-foreground no root (herdado por título,
+                botões e X de fechar) garantem o tema escuro também aqui dentro */}
+            <DialogContent className="dark text-foreground sm:max-w-sm">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <ShieldCheck className="h-5 w-5 text-[#FF6B1A]" /> Lembrar login neste dispositivo?

@@ -1,0 +1,712 @@
+     1→'use client'
+     2→
+     3→import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+     4→import { useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { toast } from 'sonner'
+     6→import {
+     7→  Loader2, Lock, Mail, ArrowRight, LayoutDashboard, ClipboardList,
+     8→  ChefHat, CreditCard, Settings2, QrCode, BarChart3, RefreshCw,
+     9→  CalendarRange, Radar, Inbox, Users, BellRing, History, Columns3,
+    10→  Timer, Zap, Flame, ReceiptText, Gauge, Search, Package, UserCog,
+    11→  Target, SlidersHorizontal, Smartphone, ListChecks, Route,
+    12→  Sparkles, Store, UserRound, ShieldCheck,
+    13→} from 'lucide-react'
+    14→import { cn } from '@/lib/utils'
+    15→import { Button } from '@/components/ui/button'
+    16→import { Input } from '@/components/ui/input'
+    17→import { Label } from '@/components/ui/label'
+    18→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    19→import { Checkbox } from '@/components/ui/checkbox'
+    20→import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+    21→import { apiPost } from '@/lib/fetcher'
+    22→import { playSound } from '@/lib/sound'
+    23→import { pushSystemNotification } from '@/lib/notification-service'
+    24→import { ROLE_LABELS } from '@/lib/types'
+    25→import type { SessionUser } from '@/lib/auth'
+    26→
+    27→type ModuleFeature = { icon: React.ElementType; title: string; desc: string }
+    28→
+    29→/** ---------- Lembrar login (local storage seguro) ----------
+    30→ * Salva APENAS o e-mail, codificado (nunca a senha), sob chave própria do app.
+    31→ */
+    32→const REMEMBER_KEY = 'apex_remember_login'
+    33→
+    34→function saveRememberEmail(email: string) {
+    35→  try {
+    36→    window.localStorage.setItem(REMEMBER_KEY, btoa(encodeURIComponent(email)))
+    37→  } catch {
+    38→    // local storage indisponível (modo privado etc.) → apenas não lembra
+    39→  }
+    40→}
+    41→
+    42→function readRememberEmail(): string | null {
+    43→  try {
+    44→    const raw = window.localStorage.getItem(REMEMBER_KEY)
+    45→    if (!raw) return null
+    46→    const email = decodeURIComponent(atob(raw))
+    47→    return email.includes('@') ? email : null
+    48→  } catch {
+    49→    return null
+    50→  }
+    51→}
+    52→
+    53→function clearRememberEmail() {
+    54→  try {
+    55→    window.localStorage.removeItem(REMEMBER_KEY)
+    56→  } catch {
+    57→    // idem
+    58→  }
+    59→}
+    60→
+    61→const MODULE_SECTIONS: {
+    62→  icon: React.ElementType
+    63→  tag: string
+    64→  title: string
+    65→  desc: string
+    66→  features: ModuleFeature[]
+    67→}[] = [
+    68→  {
+    69→    icon: LayoutDashboard,
+    70→    tag: 'Módulo 01 · Dashboard',
+    71→    title: 'Decisões guiadas por dados, em tempo real',
+    72→    desc: 'Faturamento, ticket médio, tempo de atendimento e ocupação das mesas em mais de uma dezena de visualizações que se atualizam sozinhos enquanto a operação acontece.',
+    73→    features: [
+    74→      { icon: BarChart3, title: 'Visualizações ao vivo', desc: 'Comandas por hora, produtos mais vendidos, estações e mapa de calor' },
+    75→      { icon: RefreshCw, title: 'Renovação a cada 8s', desc: 'Indicadores e gráficos acompanham o salão sem recarregar a página' },
+    76→      { icon: CalendarRange, title: 'Períodos e turnos', desc: 'Hoje, semana, mês, ano, datas personalizadas e manhã, tarde ou noite' },
+    77→      { icon: Radar, title: 'Desempenho da equipe', desc: 'Ranking de garçons, metas mensais e eficiência da cozinha' },
+    78→    ],
+    79→  },
+    80→  {
+    81→    icon: ClipboardList,
+    82→    tag: 'Módulo 02 · Garçom',
+    83→    title: 'Comandas digitais do atendimento à entrega',
+    84→    desc: 'Abra comandas, acompanhe cada item até o cliente e veja a fila de entrada do QR Code. O sistema atribui automaticamente cada comanda ao garçom disponível.',
+    85→    features: [
+    86→      { icon: Inbox, title: 'Fila de entrada', desc: 'Comandas do QR com badges Nova e Distribuída prontas para assumir' },
+    87→      { icon: Users, title: 'Atribuição automática', desc: 'Menor carga ativa ou demanda do dia — regra configurável na Gestão' },
+    88→      { icon: BellRing, title: 'Prontos para servir', desc: 'Aviso pulsante assim que a cozinha finaliza cada prato' },
+    89→      { icon: History, title: 'Histórico do garçom', desc: 'Comandas finalizadas com valores e forma de pagamento' },
+    90→    ],
+    91→  },
+    92→  {
+    93→    icon: ChefHat,
+    94→    tag: 'Módulo 03 · Cozinha',
+    95→    title: 'Produção organizada por setor, sem papel',
+    96→    desc: 'Cada pedido cai direto na fila do setor certo — cozinha, churrasqueira, pizzaria ou bar — com cronômetro por item e fluxo claro: pendente, em preparo, pronto e servido.',
+    97→    features: [
+    98→      { icon: Columns3, title: 'Kanban de preparo', desc: 'Fila, em preparo e pronto com contadores por coluna' },
+    99→      { icon: Flame, title: '4 estações de preparo', desc: 'Cozinha, churrasqueira, pizzaria e bar com filtros dedicados' },
+   100→      { icon: Timer, title: 'Cronômetro e atrasos', desc: 'Barra de progresso por item e alerta vermelho ao estourar o tempo' },
+   101→      { icon: Zap, title: 'Do salão para a fila', desc: 'Pedidos chegam a cada 4s com o tempo cadastrado por produto' },
+   102→    ],
+   103→  },
+   104→  {
+   105→    icon: CreditCard,
+   106→    tag: 'Módulo 04 · Caixa',
+   107→    title: 'Fechamento rápido, com recibo na hora',
+   108→    desc: 'Receba por crédito, débito, PIX ou dinheiro com dupla confirmação, encerre comandas em dois toques e envie o recibo digital direto para a tela do cliente.',
+   109→    features: [
+   110→      { icon: CreditCard, title: '4 formas de pagamento', desc: 'Crédito, débito, PIX e dinheiro físico com confirmação dupla' },
+   111→      { icon: ReceiptText, title: 'Recibo digital', desc: 'Comprovante final aparece na hora na tela do cliente' },
+   112→      { icon: Gauge, title: 'Fila em tempo real', desc: 'Valor a receber e tempo médio de permanência a cada 4s' },
+   113→      { icon: Search, title: 'Histórico filtrável', desc: 'Por data, garçom, método, número da mesa e código da comanda' },
+   114→    ],
+   115→  },
+   116→  {
+   117→    icon: Settings2,
+   118→    tag: 'Módulo 05 · Gestão',
+   119→    title: 'Cardápio, equipe e permissões sob controle',
+   120→    desc: 'Cadastre produtos, categorias e preços, organize os setores de preparo e controle o acesso da equipe com perfis de administrador, gerente, garçom, cozinha e caixa.',
+   121→    features: [
+   122→      { icon: Package, title: 'Produtos completos', desc: 'Preço, tempo de preparo, emoji e imagem que alimentam o cardápio' },
+   123→      { icon: UserCog, title: 'Equipe e perfis', desc: 'Cinco cargos com troca inline e ativação imediata' },
+   124→      { icon: Target, title: 'Metas mensais', desc: 'Objetivo de comandas por garçom com barra de progresso' },
+   125→      { icon: SlidersHorizontal, title: 'Regras de operação', desc: 'Distribuição de comandas, tempos e métodos de pagamento aceitos' },
+   126→    ],
+   127→  },
+   128→  {
+   129→    icon: QrCode,
+   130→    tag: 'Módulo 06 · Mesas & QR',
+   131→    title: 'Autoatendimento que chega na mesa do cliente',
+   132→    desc: 'Cada mesa tem um QR Code exclusivo. O cliente escaneia, monta a comanda, personaliza os itens — como retirar ingredientes — e envia direto para o garçom e a cozinha, acompanhando o preparo em tempo real.',
+   133→    features: [
+   134→      { icon: QrCode, title: 'QR exclusivo por mesa', desc: 'Download em PNG de 512px e impressão com a marca' },
+   135→      { icon: Smartphone, title: 'Aplicativo do cliente', desc: 'PWA instalável com cardápio e comanda no celular' },
+   136→      { icon: ListChecks, title: 'Personalização de itens', desc: 'Retirar ingredientes, ponto da carne e observações livres' },
+   137→      { icon: Route, title: 'Acompanhamento em 5 fases', desc: 'Da boas-vindas ao recibo, com stepper por prato' },
+   138→    ],
+   139→  },
+   140→]
+   141→
+   142→const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+   143→
+   144→/**
+   145→ * Fade vinculado à posição de rolagem (sem transição CSS — o estilo é recalculado a cada frame):
+   146→ * - rolando para baixo: o que entra por baixo sofre fade in subindo (+44px → 0) e o que
+   147→ *   sai por cima sofre fade out (0 → -30px);
+   148→ * - rolando para cima (reverse): o mesmo cálculo posicional inverte o efeito — o conteúdo
+   149→ *   superior volta com fade in descendo e o inferior some com fade out.
+   150→ */
+   151→type FadeApi = { register: (el: HTMLDivElement | null) => void }
+   152→const FadeCtx = createContext<FadeApi | null>(null)
+   153→
+   154→function useFadeController(): FadeApi {
+   155→  const items = useRef(new Set<HTMLDivElement>())
+   156→  const rafRef = useRef(0)
+   157→
+   158→  const update = useCallback(() => {
+   159→    rafRef.current = 0
+   160→    const H = window.innerHeight || 1
+   161→    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+   162→    items.current.forEach((el) => {
+   163→      if (!el.isConnected) {
+   164→        items.current.delete(el)
+   165→        return
+   166→      }
+   167→      if (reduced) {
+   168→        el.style.opacity = '1'
+   169→        el.style.transform = ''
+   170→        return
+   171→      }
+   172→      const rect = el.getBoundingClientRect()
+   173→      // Desconta o transform aplicado no frame anterior para medir a posição de layout
+   174→      const prevY = Number(el.dataset.fadeY ?? 0)
+   175→      const top = rect.top - prevY
+   176→      const bottom = rect.bottom - prevY
+   177→      // Entrada: topo percorrendo os 22% inferiores da viewport
+   178→      const tIn = clamp01((H - top) / (H * 0.22))
+   179→      // Saída: base adentrando os 28% superiores da viewport
+   180→      const tOut = clamp01(bottom / (H * 0.28))
+   181→      // Blocos ancorados na primeira dobra nascem visíveis e sofrem apenas o fade de saída
+   182→      const anchored = el.dataset.fadeAnchored === '1'
+   183→      const opacity = anchored ? tOut : Math.min(tIn, tOut)
+   184→      const y = (anchored ? 0 : (1 - tIn) * 44) - (1 - tOut) * 30
+   185→      el.dataset.fadeY = y.toFixed(1)
+   186→      el.style.opacity = opacity.toFixed(3)
+   187→      el.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`
+   188→    })
+   189→  }, [])
+   190→
+   191→  const schedule = useCallback(() => {
+   192→    if (!rafRef.current) rafRef.current = requestAnimationFrame(update)
+   193→  }, [update])
+   194→
+   195→  const register = useCallback((el: HTMLDivElement | null) => {
+   196→    if (el) items.current.add(el)
+   197→  }, [])
+   198→
+   199→  useEffect(() => {
+   200→    schedule()
+   201→    window.addEventListener('scroll', schedule, { passive: true })
+   202→    window.addEventListener('resize', schedule)
+   203→    // Recalcula após fontes/imagens estabilizarem o layout
+   204→    const t1 = window.setTimeout(schedule, 350)
+   205→    const t2 = window.setTimeout(schedule, 900)
+   206→    document.fonts?.ready.then(schedule).catch(() => {})
+   207→    return () => {
+   208→      window.removeEventListener('scroll', schedule)
+   209→      window.removeEventListener('resize', schedule)
+   210→      window.clearTimeout(t1)
+   211→      window.clearTimeout(t2)
+   212→      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+   213→    }
+   214→  }, [schedule])
+   215→
+   216→  return { register }
+   217→}
+   218→
+   219→/** Bloco que participa do fade de rolagem; startVisible mantém o bloco visível antes da hidratação e anchored desativa o fade de entrada (só sai por cima) */
+   220→function ScrollFade({ children, className, startVisible, anchored }: {
+   221→  children: React.ReactNode
+   222→  className?: string
+   223→  startVisible?: boolean
+   224→  anchored?: boolean
+   225→}) {
+   226→  const fade = useContext(FadeCtx)
+   227→  return (
+   228→    <div
+   229→      ref={fade?.register}
+   230→      className={cn('relative', className)}
+   231→      data-fade-anchored={anchored ? '1' : undefined}
+   232→      data-fade-y={startVisible ? undefined : '44'}
+   233→      style={{
+   234→        opacity: startVisible ? undefined : 0,
+   235→        transform: startVisible ? undefined : 'translate3d(0, 44px, 0)',
+   236→        willChange: 'opacity, transform',
+   237→      }}
+   238→    >
+   239→      {children}
+   240→    </div>
+   241→  )
+   242→}
+   243→
+   244→/** Notificação de teste exibida ao entrar — boas-vindas com a logo da APEX */
+   245→function WelcomeNotification({ name, role }: { name: string; role: string }) {
+   246→  return (
+   247→    <div className="flex items-start gap-3 w-[min(92vw,360px)] rounded-xl border border-[#FF6B1A]/35 bg-[#141417] p-3.5 shadow-2xl">
+   248→      <div className="h-12 w-12 rounded-lg border border-[#FF6B1A]/25 bg-white/[0.04] flex items-center justify-center shrink-0 p-1.5">
+   249→        <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-full w-full object-contain" />
+   250→      </div>
+   251→      <div className="min-w-0 flex-1">
+   252→        <p className="text-sm font-bold text-white leading-tight">
+   253→          Bem-vindo(a) de volta, <span className="text-[#FF9A57]">{name}</span>!
+   254→        </p>
+   255→        <p className="text-[11px] text-white/60 mt-0.5">
+   256→          Você entrou como <span className="text-white/85 font-medium">{role}</span>
+   257→        </p>
+   258→        <span className="inline-flex items-center gap-1.5 mt-2 rounded-full border border-[#FF6B1A]/30 bg-[#FF6B1A]/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#FF9A57]">
+   259→          <span className="h-1.5 w-1.5 rounded-full bg-[#FF6B1A]" aria-hidden />
+   260→          Notificação de teste
+   261→        </span>
+   262→      </div>
+   263→    </div>
+   264→  )
+   265→}
+   266→
+   267→export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) {
+   268→  // Tela montada apenas no cliente (após a query ['me'] resolver) — inicializador
+   269→  // lazy pode ler o local storage sem risco de mismatch de hidratação
+   270→  const [email, setEmail] = useState(() => (typeof window === 'undefined' ? '' : readRememberEmail() ?? ''))
+   271→  const [password, setPassword] = useState('')
+   272→  const [remember, setRemember] = useState(() => (typeof window === 'undefined' ? false : readRememberEmail() !== null))
+   273→  const [rememberDialog, setRememberDialog] = useState(false)
+   274→  const [regRestaurant, setRegRestaurant] = useState('')
+   275→  const [regName, setRegName] = useState('')
+   276→  const [regEmail, setRegEmail] = useState('')
+   277→  const [regPassword, setRegPassword] = useState('')
+   278→  const fade = useFadeController()
+   279→  const queryClient = useQueryClient()
+   280→
+   281→  const login = useMutation({
+   282→    mutationFn: (creds: { email: string; password: string; remember: boolean }) =>
+   283→      apiPost<{ user: SessionUser }>('/api/auth/login', { email: creds.email, password: creds.password }),
+   284→    onSuccess: (data, vars) => {
+   285→      playSound('success')
+   286→      const firstName = data.user.name.split(' ')[0]
+   287→      const roleLabel = ROLE_LABELS[data.user.role] ?? data.user.role
+   288→      // O wrapper <li> do sonner em toasts custom fica sem border-radius (data-styled=false),
+   289→      // mas recebe o fundo+borda globais do Toaster — formando uma caixa de cantos retos ao
+   290→      // redor do balão arredondado. O style por-toast sobrescreve o global: wrapper invisível,
+   291→      // apenas as bordas arredondadas do próprio balão permanecem.
+   292→      toast.custom(
+   293→        () => <WelcomeNotification name={firstName} role={roleLabel} />,
+   294→        {
+   295→          duration: 5000,
+   296→          style: { background: 'transparent', border: 'none', boxShadow: 'none' },
+   297→        }
+   298→      )
+   299→      // Notificação de teste também na barra do sistema (quando permitido), com a logo da APEX
+   300→      void pushSystemNotification('alerta', {
+   301→        title: 'Bem-vindo(a) de volta!',
+   302→        body: `${data.user.name} — ${roleLabel} · APEX FOOD`,
+   303→        tag: 'apex-bem-vindo',
+   304→        icon: '/apex-logo.png',
+   305→      })
+   306→      // Lembrar login: salva/remove o e-mail no local storage conforme a caixa marcada
+   307→      if (vars.remember) saveRememberEmail(vars.email)
+   308→      else clearRememberEmail()
+   309→      queryClient.setQueryData(['me'], { user: data.user })
+   310→      onLogin(data.user)
+   311→    },
+   312→    onError: (e: Error) => toast.error(e.message),
+   313→  })
+   314→
+   315→  const submit = (e: React.FormEvent) => {
+   316→    e.preventDefault()
+   317→    // Sem dados nos campos → entra como Administrador (acesso padrão do sistema)
+   318→    if (!email.trim() && !password) {
+   319→      login.mutate({ email: 'admin@apexfood.com', password: 'apex123', remember })
+   320→      return
+   321→    }
+   322→    if (!email.trim() || !password) {
+   323→      toast.error('Preencha e-mail e senha')
+   324→      return
+   325→    }
+   326→    login.mutate({ email: email.trim(), password, remember })
+   327→  }
+   328→
+   329→  const register = useMutation({
+   330→    mutationFn: (payload: { restaurantName: string; ownerName: string; email: string; password: string }) =>
+   331→      apiPost<{ user: SessionUser }>('/api/auth/register', payload),
+   332→    onSuccess: (data) => {
+   333→      playSound('success')
+   334→      toast.success(`Restaurante cadastrado! 14 dias de teste grátis — bem-vindo(a), ${data.user.name.split(' ')[0]}!`)
+   335→      queryClient.setQueryData(['me'], { user: data.user })
+   336→      onLogin(data.user)
+   337→    },
+   338→    onError: (e: Error) => toast.error(e.message),
+   339→  })
+   340→
+   341→  const submitRegister = (e: React.FormEvent) => {
+   342→    e.preventDefault()
+   343→    if (!regRestaurant.trim() || regRestaurant.trim().length < 2) {
+   344→      toast.error('Informe o nome do restaurante')
+   345→      return
+   346→    }
+   347→    if (!regName.trim()) {
+   348→      toast.error('Informe o seu nome')
+   349→      return
+   350→    }
+   351→    if (!regEmail.trim() || !regPassword) {
+   352→      toast.error('Preencha e-mail e senha')
+   353→      return
+   354→    }
+   355→    if (regPassword.length < 6) {
+   356→      toast.error('A senha deve ter pelo menos 6 caracteres')
+   357→      return
+   358→    }
+   359→    register.mutate({
+   360→      restaurantName: regRestaurant.trim(),
+   361→      ownerName: regName.trim(),
+   362→      email: regEmail.trim(),
+   363→      password: regPassword,
+   364→    })
+   365→  }
+   366→
+   367→  return (
+   368→    <div
+   369→      className="min-h-screen flex flex-col lg:flex-row text-white"
+   370→      style={{
+   371→        background: 'linear-gradient(150deg, #121215 0%, #0A0A0C 55%, #0D0B09 100%)',
+   372→        backgroundAttachment: 'fixed',
+   373→      }}
+   374→    >
+   375→      {/* Decoração fixa — brilho suave + bolinha pulsante na divisão, acompanhando a viewport */}
+   376→      <div aria-hidden className="apex-login-decor pointer-events-none fixed inset-0 z-0 overflow-hidden">
+   377→        <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 82% 94%, rgba(255,107,26,0.10) 0, transparent 42%)' }} />
+   378→        {/* Bolinha pulsante — centralizada na lateral de divisão entre a apresentação (esquerda) e o formulário (direita) */}
+   379→        <div className="hidden lg:block absolute inset-y-0 right-[480px] xl:right-[520px] w-px">
+   380→          {/* fio de luz sutil acompanhando a divisão */}
+   381→          <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-transparent via-[#FF6B1A]/20 to-transparent" />
+   382→          {/* núcleo laranja pulsante no centro da divisão */}
+   383→          <div className="absolute left-1/2 top-1/2 -ml-[5px] -mt-[5px] h-2.5 w-2.5 rounded-full apex-gradient shadow-[0_0_18px_4px_rgba(255,107,26,0.55)] apex-live-dot" />
+   384→        </div>
+   385→      </div>
+   386→
+   387→      <FadeCtx.Provider value={fade}>
+   388→      {/* Coluna de apresentação — scroll com seções por módulo */}
+   389→      <div className="relative z-10 hidden lg:flex lg:flex-col flex-1 px-14 pb-10">
+   390→        {/* Primeira dobra — ocupa exatamente a viewport inicial: só a abertura e a dica "role" ficam visíveis; os módulos começam abaixo do limite da tela */}
+   391→        <div className="flex min-h-screen flex-col">
+   392→          <ScrollFade startVisible className="max-w-xl pt-10">
+   393→            <div className="flex items-center gap-2">
+   394→              <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-16 w-auto drop-shadow-lg" />
+   395→              <p className="font-extrabold text-3xl xl:text-[2.4rem] tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
+   396→            </div>
+   397→            <div className="pt-24">
+   398→              <div className="flex items-center gap-3">
+   399→                <span className="h-px w-8 bg-[#FF6B1A]" aria-hidden />
+   400→                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/55">
+   401→                  Gestão que acompanha o seu ritmo
+   402→                </p>
+   403→              </div>
+   404→              <h1 className="mt-6 text-[2.6rem] xl:text-[3.4rem] font-extrabold leading-[1.08] tracking-tight">
+   405→                Mais controle para uma operação <span className="text-[#FF7B2E]">mais inteligente.</span>
+   406→              </h1>
+   407→              <p className="mt-6 text-white/70 leading-relaxed max-w-lg">
+   408→                Centralize pedidos, salão, equipe e financeiro em uma experiência criada para deixar o
+   409→                seu restaurante mais eficiente todos os dias.
+   410→              </p>
+   411→              <div className="flex flex-wrap gap-3 mt-9">
+   412→                {['Operação em tempo real', 'Decisões mais rápidas', 'Visão do seu negócio'].map((chip) => (
+   413→                  <span
+   414→                    key={chip}
+   415→                    className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-white/85 backdrop-blur"
+   416→                  >
+   417→                    <span className="h-1.5 w-1.5 rounded-full bg-[#FF6B1A]" aria-hidden />
+   418→                    {chip}
+   419→                  </span>
+   420→                ))}
+   421→              </div>
+   422→            </div>
+   423→          </ScrollFade>
+   424→
+   425→          {/* Dica de rolagem — ancorada na base da primeira dobra, acima do limite da tela */}
+   426→          <ScrollFade startVisible anchored className="max-w-xl mt-auto pb-9">
+   427→            <p className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-white/35">
+   428→              Role para conhecer o sistema <ArrowRight className="h-3.5 w-3.5 rotate-90" aria-hidden />
+   429→            </p>
+   430→          </ScrollFade>
+   431→        </div>
+   432→
+   433→        {/* Seções por módulo — cartões premium: vidro fosco, filete de luz, glow de canto e chips pill */}
+   434→        {MODULE_SECTIONS.map((m, i) => {
+   435→          const Icon = m.icon
+   436→          return (
+   437→            <ScrollFade key={m.tag} className={cn('max-w-xl', i === 0 ? 'pt-2' : 'pt-24', 'pb-6')}>
+   438→              <article className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] via-white/[0.025] to-white/[0.01] p-6 xl:p-7 backdrop-blur-sm shadow-[0_24px_70px_-40px_rgba(0,0,0,0.9)] transition-[border-color,box-shadow] duration-300 hover:border-[#FF6B1A]/35 hover:shadow-[0_24px_70px_-36px_rgba(255,107,26,0.16)]">
+   439→                {/* Filete de luz no topo do cartão */}
+   440→                <div aria-hidden className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-[#FF6B1A]/50 to-transparent" />
+   441→                {/* Glow de canto — intensifica no hover */}
+   442→                <div
+   443→                  aria-hidden
+   444→                  className="absolute -top-28 -right-28 h-64 w-64 rounded-full opacity-60 transition-opacity duration-500 group-hover:opacity-100"
+   445→                  style={{ background: 'radial-gradient(circle, rgba(255,107,26,0.14) 0%, transparent 65%)' }}
+   446→                />
+   447→
+   448→                <div className="relative flex items-center gap-3.5">
+   449→                  <span className="relative h-12 w-12 rounded-xl border border-[#FF6B1A]/30 bg-gradient-to-br from-[#FF6B1A]/20 via-[#FF6B1A]/10 to-transparent flex items-center justify-center shrink-0 shadow-[0_0_28px_-8px_rgba(255,107,26,0.55)] transition-transform duration-300 group-hover:scale-105">
+   450→                    <span aria-hidden className="absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+   451→                    <Icon className="h-5 w-5 text-[#FFB27A]" aria-hidden />
+   452→                  </span>
+   453→                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/45">{m.tag}</p>
+   454→                </div>
+   455→
+   456→                <h2 className="relative mt-5 text-[1.8rem] xl:text-[2.1rem] font-extrabold leading-tight tracking-tight bg-gradient-to-r from-white via-white to-white/75 bg-clip-text text-transparent">
+   457→                  {m.title}
+   458→                </h2>
+   459→                <p className="relative mt-4 text-white/65 leading-relaxed max-w-lg">{m.desc}</p>
+   460→
+   461→                {/* Grade de funcionalidades reais do módulo */}
+   462→                <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+   463→                  {m.features.map((f) => {
+   464→                    const FeatureIcon = f.icon
+   465→                    return (
+   466→                      <div
+   467→                        key={f.title}
+   468→                        className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 transition-colors duration-300 group-hover:border-white/[0.13]"
+   469→                      >
+   470→                        <div className="flex items-center gap-2">
+   471→                          <FeatureIcon className="h-3.5 w-3.5 shrink-0 text-[#FF9A57]" aria-hidden />
+   472→                          <p className="text-xs font-semibold text-white/90 leading-tight">{f.title}</p>
+   473→                        </div>
+   474→                        <p className="text-[11px] text-white/55 leading-relaxed mt-1.5">{f.desc}</p>
+   475→                      </div>
+   476→                    )
+   477→                  })}
+   478→                </div>
+   479→              </article>
+   480→            </ScrollFade>
+   481→          )
+   482→        })}
+   483→
+   484→        {/* Seção final — fechamento + rodapé */}
+   485→        <ScrollFade className="max-w-xl pt-24 pb-2">
+   486→          <div className="flex items-center gap-3">
+   487→            <span className="h-px w-8 bg-[#FF6B1A]" aria-hidden />
+   488→            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/55">Tudo em um só lugar</p>
+   489→          </div>
+   490→          <h2 className="mt-5 text-[1.8rem] xl:text-[2.1rem] font-extrabold leading-tight tracking-tight">
+   491→            Do QR Code na mesa ao caixa, uma única plataforma.
+   492→          </h2>
+   493→          <p className="mt-4 text-white/65 leading-relaxed max-w-lg">
+   494→            Escaneie, peça, acompanhe o preparo e pague — com o salão, a cozinha e o caixa
+   495→            sincronizados no mesmo sistema, do primeiro pedido ao fechamento do dia.
+   496→          </p>
+   497→          {/* Rodapé na base da última seção */}
+   498→          <div className="mt-16 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-white/40">
+   499→            <span>© 2026 APEX Food</span>
+   500→            <span className="h-3 w-px bg-white/25" aria-hidden />
+   501→            <span className="uppercase tracking-[0.18em]">Desenvolvido por APEX HUB SYSTEM</span>
+   502→          </div>
+   503→        </ScrollFade>
+   504→      </div>
+   505→      </FadeCtx.Provider>
+   506→
+   507→      {/* Formulário — continuação do mesmo fundo, sem caixa separada (tema claro fixo) */}
+   508→      <div className="relative z-10 w-full lg:w-[480px] xl:w-[520px] lg:sticky lg:top-0 lg:h-screen flex items-center justify-center p-6 lg:p-10">
+   509→        <div className="w-full max-w-md apex-enter">
+   510→          <div className="lg:hidden flex items-center gap-2 mb-8">
+   511→            <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-12 w-auto drop-shadow-lg" />
+   512→            <span className="font-extrabold text-2xl tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></span>
+   513→          </div>
+   514→
+   515→          <h2 className="text-2xl font-bold tracking-tight">Bem-vindo à plataforma</h2>
+   516→          <p className="text-sm text-white/60 mt-1.5">Acesse a operação do seu restaurante ou crie uma conta.</p>
+   517→
+   518→          <Tabs defaultValue="entrar" className="mt-6">
+   519→            <TabsList className="grid grid-cols-2 w-full bg-white/[0.06] border border-white/10">
+   520→              <TabsTrigger value="entrar" className="data-[state=active]:bg-[#FF6B1A] data-[state=active]:text-white text-white/70">Entrar</TabsTrigger>
+   521→              <TabsTrigger value="cadastrar" className="data-[state=active]:bg-[#FF6B1A] data-[state=active]:text-white text-white/70">Cadastrar restaurante</TabsTrigger>
+   522→            </TabsList>
+   523→
+   524→            {/* ---- Aba Entrar ---- */}
+   525→            <TabsContent value="entrar" className="mt-6">
+   526→              <form onSubmit={submit} className="space-y-4">
+   527→                <div className="space-y-2">
+   528→                  <Label htmlFor="email" className="text-zinc-200">E-mail</Label>
+   529→                  <div className="relative">
+   530→                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+   531→                    <Input
+   532→                      id="email"
+   533→                      type="email"
+   534→                      autoComplete="email"
+   535→                      placeholder="voce@apexfood.com"
+   536→                      className="pl-9 h-11 bg-background text-foreground"
+   537→                      value={email}
+   538→                      onChange={(e) => setEmail(e.target.value)}
+   539→                    />
+   540→                  </div>
+   541→                </div>
+   542→                <div className="space-y-2">
+   543→                  <Label htmlFor="password" className="text-zinc-200">Senha</Label>
+   544→                  <div className="relative">
+   545→                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+   546→                    <Input
+   547→                      id="password"
+   548→                      type="password"
+   549→                      autoComplete="current-password"
+   550→                      placeholder="••••••••"
+   551→                      className="pl-9 h-11 bg-background text-foreground"
+   552→                      value={password}
+   553→                      onChange={(e) => setPassword(e.target.value)}
+   554→                    />
+   555→                  </div>
+   556→                </div>
+   557→                {/* Lembrar login — caixa + diálogo de confirmação + local storage seguro */}
+   558→                <div className="flex items-center gap-2.5">
+   559→                  <Checkbox
+   560→                    id="remember"
+   561→                    checked={remember}
+   562→                    onCheckedChange={(v) => {
+   563→                      if (v === true) setRememberDialog(true)
+   564→                      else {
+   565→                        setRemember(false)
+   566→                        clearRememberEmail()
+   567→                      }
+   568→                    }}
+   569→                    className="border-white/40 bg-white/5 data-[state=checked]:border-[#FF6B1A] data-[state=checked]:bg-[#FF6B1A] data-[state=checked]:text-white"
+   570→                    aria-label="Lembrar login neste dispositivo"
+   571→                  />
+   572→                  <Label htmlFor="remember" className="text-xs font-normal text-zinc-300 cursor-pointer select-none">
+   573→                    Lembrar login neste dispositivo
+   574→                  </Label>
+   575→                </div>
+   576→                <Button type="submit" className="w-full h-11 apex-gradient text-white font-semibold hover:opacity-90 transition-opacity" disabled={login.isPending}>
+   577→                  {login.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+   578→                  Entrar
+   579→                </Button>
+   580→              </form>
+   581→            </TabsContent>
+   582→
+   583→            {/* ---- Aba Cadastrar ---- */}
+   584→            <TabsContent value="cadastrar" className="mt-6">
+   585→              <div className="rounded-lg border border-[#FF6B1A]/30 bg-[#FF6B1A]/10 px-3.5 py-2.5 flex items-start gap-2.5">
+   586→                <Sparkles className="h-4 w-4 text-[#FF9A57] mt-0.5 shrink-0" aria-hidden />
+   587→                <p className="text-xs leading-relaxed text-white/80">
+   588→                  <span className="font-semibold text-[#FF9A57]">14 dias de teste grátis</span> — todos os módulos liberados, sem cartão de crédito. Seu restaurante entra no ar em minutos.
+   589→                </p>
+   590→              </div>
+   591→              <form onSubmit={submitRegister} className="mt-5 space-y-4">
+   592→                <div className="space-y-2">
+   593→                  <Label htmlFor="reg-restaurant" className="text-zinc-200">Nome do restaurante</Label>
+   594→                  <div className="relative">
+   595→                    <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+   596→                    <Input
+   597→                      id="reg-restaurant"
+   598→                      type="text"
+   599→                      placeholder="Ex.: Trattoria Bella"
+   600→                      className="pl-9 h-11 bg-background text-foreground"
+   601→                      value={regRestaurant}
+   602→                      onChange={(e) => setRegRestaurant(e.target.value)}
+   603→                      maxLength={80}
+   604→                      required
+   605→                    />
+   606→                  </div>
+   607→                </div>
+   608→                <div className="space-y-2">
+   609→                  <Label htmlFor="reg-name" className="text-zinc-200">Seu nome completo</Label>
+   610→                  <div className="relative">
+   611→                    <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+   612→                    <Input
+   613→                      id="reg-name"
+   614→                      type="text"
+   615→                      autoComplete="name"
+   616→                      placeholder="Responsável pelo estabelecimento"
+   617→                      className="pl-9 h-11 bg-background text-foreground"
+   618→                      value={regName}
+   619→                      onChange={(e) => setRegName(e.target.value)}
+   620→                      maxLength={80}
+   621→                      required
+   622→                    />
+   623→                  </div>
+   624→                </div>
+   625→                <div className="space-y-2">
+   626→                  <Label htmlFor="reg-email" className="text-zinc-200">E-mail</Label>
+   627→                  <div className="relative">
+   628→                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+   629→                    <Input
+   630→                      id="reg-email"
+   631→                      type="email"
+   632→                      autoComplete="email"
+   633→                      placeholder="voce@seurestaurante.com"
+   634→                      className="pl-9 h-11 bg-background text-foreground"
+   635→                      value={regEmail}
+   636→                      onChange={(e) => setRegEmail(e.target.value)}
+   637→                      required
+   638→                    />
+   639→                  </div>
+   640→                </div>
+   641→                <div className="space-y-2">
+   642→                  <Label htmlFor="reg-password" className="text-zinc-200">Senha</Label>
+   643→                  <div className="relative">
+   644→                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+   645→                    <Input
+   646→                      id="reg-password"
+   647→                      type="password"
+   648→                      autoComplete="new-password"
+   649→                      placeholder="mínimo de 6 caracteres"
+   650→                      className="pl-9 h-11 bg-background text-foreground"
+   651→                      value={regPassword}
+   652→                      onChange={(e) => setRegPassword(e.target.value)}
+   653→                      minLength={6}
+   654→                      required
+   655→                    />
+   656→                  </div>
+   657→                </div>
+   658→                <Button type="submit" className="w-full h-11 apex-gradient text-white font-semibold hover:opacity-90 transition-opacity" disabled={register.isPending}>
+   659→                  {register.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Store className="h-4 w-4" />}
+   660→                  Criar meu restaurante
+   661→                </Button>
+   662→                <p className="text-[11px] text-white/45 leading-relaxed">
+   663→                  Você entra como <span className="text-white/75 font-medium">Administrador</span> e pode convidar garçons, cozinha e caixa depois, em Administração → Funcionários.
+   664→                </p>
+   665→              </form>
+   666→            </TabsContent>
+   667→          </Tabs>
+   668→
+   669→          {/* Caixa de diálogo: confirmação do Lembrar login */}
+   670→          <Dialog open={rememberDialog} onOpenChange={(v) => { if (!v) setRememberDialog(false) }}>
+   671→            <DialogContent className="sm:max-w-sm">
+   672→              <DialogHeader>
+   673→                <DialogTitle className="flex items-center gap-2">
+   674→                  <ShieldCheck className="h-5 w-5 text-[#FF6B1A]" /> Lembrar login neste dispositivo?
+   675→                </DialogTitle>
+   676→                <DialogDescription>
+   677→                  Seu e-mail será salvo no local storage seguro do navegador e preenchido automaticamente na próxima visita. A senha nunca é salva.
+   678→                </DialogDescription>
+   679→              </DialogHeader>
+   680→              <DialogFooter className="gap-2">
+   681→                <Button
+   682→                  variant="outline"
+   683→                  onClick={() => {
+   684→                    setRememberDialog(false)
+   685→                    setRemember(false)
+   686→                  }}
+   687→                >
+   688→                  Cancelar
+   689→                </Button>
+   690→                <Button
+   691→                  className="apex-gradient text-white"
+   692→                  onClick={() => {
+   693→                    setRememberDialog(false)
+   694→                    setRemember(true)
+   695→                    toast.success('Login será lembrado neste dispositivo')
+   696→                  }}
+   697→                >
+   698→                  <ShieldCheck className="h-4 w-4" /> Salvar login
+   699→                </Button>
+   700→              </DialogFooter>
+   701→            </DialogContent>
+   702→          </Dialog>
+   703→
+   704→          <p className="text-[11px] text-white/50 mt-8 text-center">
+   705→            Lembrar login com caixa de diálogo · Salvamento seguro no local storage
+   706→          </p>
+   707→        </div>
+   708→      </div>
+   709→    </div>
+   710→  )
+   711→}
+   712→
