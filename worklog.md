@@ -730,3 +730,17 @@ Work Log:
 
 Stage Summary:
 - Tela Administração exclusiva de ADMIN/GERENTE consolidando gestão de funcionários (com permissões por cargo visíveis), gestão geral (estabelecimento/operação/pagamentos) e catálogo separado em Produtos vs Refeições via novo campo Product.kind; DELETE de usuário permanece restrito ao ADMIN na API e na UI
+
+---
+Task ID: 41
+Agent: Super Z (principal)
+Task: Exibir nomes completos de produtos na coluna Produto do card "Eficiência da cozinha" (Relatório Geral)
+
+Work Log:
+- Causa raiz: truncamento no nível de dados — src/app/api/metrics/route.ts linha 220 cortava o nome em 17 caracteres + "…" (k.product.length > 18 ? k.product.slice(0, 17) + '…' : k.product), afetando também o Dashboard que consome o mesmo endpoint
+- Fix: removido o truncamento — agora retorna product: k.product (nome completo do OrderItem)
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+- E2E desktop 1540x772 (login admin@apexfood.com): card Eficiência da cozinha renderiza nomes completos — "Vinho da casa (taça)", "Fettuccine ao pesto", "Bolinho de bacalhau (6un)", "Água mineral", "Salmão grelhado", "Pudim de leite"; hasEllipsis=false no card; layout 2 colunas intacto, sem overflow; sem erros de console; shot-163-relatorios-eficiencia.png
+
+Stage Summary:
+- Coluna Produto do card Eficiência da cozinha (Relatório Geral e Dashboard, mesmo endpoint /api/metrics) exibe o nome completo dos produtos; sem truncamento em dados nem em CSS

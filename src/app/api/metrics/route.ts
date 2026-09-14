@@ -217,7 +217,7 @@ export async function GET(req: NextRequest) {
   }
   const kitchenEfficiency = [...kitchenAgg.values()]
     .map((k) => ({
-      product: k.product.length > 18 ? k.product.slice(0, 17) + '…' : k.product,
+      product: k.product,
       registered: k.registered,
       actual: Math.round((k.actualSum / k.count) * 10) / 10,
       count: k.count,
