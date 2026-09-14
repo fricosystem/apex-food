@@ -967,3 +967,17 @@ Work Log:
 
 Stage Summary:
 - A mesa agora tem contador animado do total acumulado (soma inteligente de todos os itens, sobe com novos pedidos e desce quando o garçom remove), a penúltima seção do fluxo ganhou animação de convite com botão Pedir mais que soma itens na mesma comanda, itens enviados à cozinha são bloqueados para o cliente e só saem pelo garçom com modal de confirmação, toda a tela do cliente/comanda está mais premium (vidro, orbes, gradientes, micro-interações, mobile-only) e após o pagamento no caixa o cliente avalia a experiência com estrelas e recebe o agradecimento "Volte sempre!"
+
+---
+Task ID: 53 (adendo de revalidação)
+Agent: Super Z (principal)
+Task: Revalidar o estado da Task 53 retomada após reinício de sessão (shots 228-239 encontrados sem registro)
+
+Work Log:
+- Retomada da sessão: worklog já continha a Task 53 completa; investigação de shots 228-239 (timestamps ~10 min após o shot-227) revelou um segundo ciclo E2E de revalidação não registrado
+- Verificação dos shots 228-239: welcome premium Mesa 12 (228); revisão com soma em comanda aberta — projeção R$ 73,40 e botão Adicionar à comanda aberta (233); modal de confirmação do garçom Remover 1× Refrigerante lata com Sim, remover item / Manter item (235); cliente vendo TOTAL ACUMULADO regredir de R$ 73,40 para R$ 64,90 com cadeados Somente o garçom pode remover nos itens restantes (237-238); caixa com comanda a receber e Receber pagamento (239) — nenhum erro visual ou de fluxo
+- Sanity checks finais: dev server HTTP 200; bunx eslint src --max-warnings=0 → exit 0 (0 erros, 0 avisos); grep confirma AccumulatedTotalCard/OrderMoreBanner/ItemLockChip/StarRating/Volte sempre em client-view.tsx (13), AlertDialog no waiter-view (18) e Order.rating/ratedAt no schema.prisma (135)
+- git status limpo em src/ (apenas db/custom.db de teste e shots não rastreados)
+
+Stage Summary:
+- Task 53 confirmada integralmente entregue e duplamente validada (E2E original 203-227 + revalidação 228-239): contador do total acumulado, banner Pedir mais, lock de itens enviados com remoção exclusiva do garçom via modal, UI premium mobile-only e avaliação pós-pagamento com Volte sempre; lint 0/0
