@@ -680,3 +680,18 @@ Work Log:
 
 Stage Summary:
 - Sidebar sem o alternador de tema (redundância eliminada); tema continua alternável nas Configurações e no menu do perfil das telas compactas; botão de sons ocupa a linha do rodapé do sidebar com rótulo explícito
+
+---
+Task ID: 38
+Agent: Super Z (principal)
+Task: Remover botão "Sons ativados" do rodapé do sidebar, mantendo apenas o perfil com divisor
+
+Work Log:
+- src/components/app-shell.tsx (SidebarContent): bloco do botão de sons ("Sons ativados/desativados") removido do rodapé; rodapé agora contém apenas o cartão de perfil, separado da navegação pelo divisor border-t border-sidebar-border; comentário atualizado ("tema e sons vivem nas Configurações")
+- Nenhum import órfão: toggleSound/isSoundEnabled/setSoundEnabled/Volume2/VolumeX/Sun/Moon/toggleTheme permanecem em uso no menu do perfil das telas compactas (garçom/cozinha/caixa)
+- Controles preservados nas Configurações: seletor Claro/Escuro + interruptor de sons com som de teste (settings-view.tsx)
+- E2E desktop 1540x772: admin — alternadorSonsNoSidebar=false, sem menção a "Sons", perfil "Ana Costa" presente, divisor ativo, 8 itens de menu; recolhido 68px — perfil centrado, sem botão de sons, divisor ativo (shots 154-155); Configurações — temaClaro/temaEscuro/switchSons=true; garçom (login rafael@apexfood.com) — sem sidebar, avatar presente, menu do perfil com "Sons de alerta", tema e Sair (shot 156); sem erros de console
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+
+Stage Summary:
+- Rodapé do sidebar minimalista: apenas o cartão de perfil com divisor; sons e tema seguem gerenciáveis em Configurações (admin/gerente) e no menu do perfil das telas compactas (operacionais)
