@@ -794,3 +794,17 @@ Work Log:
 
 Stage Summary:
 - Autenticação limpa e profissional: sem atalhos de equipe; Entrar em branco abre o Administrador por padrão; os demais acessos (incluindo Desenvolvedor CEO) ficaram documentados nas permissões por cargo (Administração) e na matriz de acesso (Configurações), com todos os cargos e telas preservados nos arquivos
+
+---
+Task ID: 45
+Agent: Super Z (principal)
+Task: Opção "Desenvolvedor CEO" no sidebar com rota para a tela da plataforma
+
+Work Log:
+- src/components/app-shell.tsx: NAV_ITEMS — rótulo do item 'plataforma' alterado de "Plataforma" para "Desenvolvedor CEO" (ícone Building2 mantido; descrição "Painel da plataforma — estabelecimentos, planos e cobranças"); a rota, a permissão (exclusiva do SUPER_ADMIN) e a tela PlatformView seguem inalteradas
+- O rótulo alimenta automaticamente o header (título + descrição) e o sidebar recolhido/ drawer mobile via currentMeta
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+- E2E desktop 1540x772: admin (Ana Costa) NÃO vê o item (9 telas do restaurante); login dev@apexfood.com → sidebar exibe "Desenvolvedor CEO" como item ativo (aria-current=page), header "Desenvolvedor CEO · Painel da plataforma — estabelecimentos, planos e cobranças", tela da Plataforma carregada (KPIs, tabela, Novo estabelecimento); sem erros de página/console; shot-179
+
+Stage Summary:
+- Sidebar do Desenvolvedor CEO agora exibe a opção "Desenvolvedor CEO" (antes "Plataforma") roteando para o painel de gestão dos estabelecimentos; visibilidade continua exclusiva do cargo SUPER_ADMIN
