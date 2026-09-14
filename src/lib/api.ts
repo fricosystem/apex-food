@@ -59,6 +59,8 @@ export function serializeOrder(o: any) {
     waiterId: o.waiterId,
     waiterName: o.waiter?.name ?? null,
     paymentMethod: o.payments?.[0]?.method ?? null,
+    rating: o.rating ?? null,
+    ratedAt: o.ratedAt ?? null,
     items: (o.items ?? []).map((it: any) => ({
       id: it.id,
       productId: it.productId,

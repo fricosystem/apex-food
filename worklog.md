@@ -938,3 +938,32 @@ Work Log:
 
 Stage Summary:
 - Logo alinhada opticalmente ao título APEX FOOD na primeira dobra; cards dos módulos em largura total da coluna esquerda com painel de detalhes operacionais por módulo e selo "Sistema seguro" em todos, sem expor nenhum detalhe interno de segurança; coluna de autenticação à direita inalterada
+
+---
+Task ID: 53
+Agent: Super Z (principal)
+Task: Tela da mesa — contador animado do total acumulado, animação + Pedir mais na penúltima seção, itens enviados removíveis só pelo garçom (com modal), UI premium mobile e avaliação pós-pagamento com Volte sempre
+
+Work Log:
+- prisma/schema.prisma: Order ganhou rating Int? e ratedAt DateTime? — prisma db push + generate aplicados (SQLite em sincronia)
+- src/app/api/orders/route.ts (POST): envio sobre comanda aberta agora SOMA itens à comanda existente (PENDING_CONFIRM/IN_KITCHEN) — createMany de itens, total recalculado (openOrder.total + novo), broadcasts comanda:itens (waiters/dashboard), item:atualizado (kitchen/client) e mesa:atualizada; AWAITING_PAYMENT continua rejeitado ("chame o garçom"); primeira comanda segue fluxo de distribuição original
+- src/app/api/orders/[id]/items/[itemId]/route.ts: novo DELETE exclusivo da equipe (requireTenant + isolamento por estabelecimento) — bloqueado para AWAITING_PAYMENT/PAID ("comanda no caixa"), apaga item, recalcula o total pelos itens restantes e notifica waiters/kitchen/dashboard/client/mesa; o cliente NÃO possui rota de remoção
+- src/app/api/client/[token]/route.ts: nova ação rate { orderId, rating 1-5 } aceita somente com status PAID — grava rating/ratedAt e transmite comanda:avaliada ao dashboard
+- src/lib/api.ts serializeOrder: expõe rating/ratedAt; src/lib/types.ts ClientOrder/lastPaid tipados com rating/unitPrice/id
+- src/lib/sound.ts + notification-service.ts + app-shell.tsx + settings-view.tsx: novos EventSoundKinds comanda-itens (➕, som de 3 toques) e avaliacao (⭐, arpejo) com meta/vibração/destino de clique (garcom/gestao) e amostras de teste nas configurações
+- src/hooks/use-realtime.ts: handlers comanda:itens (toast p/ garçom "Itens adicionados — Mesa X") e comanda:avaliada (notificação para admin/gestão)
+- src/components/views/client-view.tsx (modernização premium mobile-first):
+  · useAnimatedMoney: contador odômetro via rAF (easeOutCubic) — conta de R$ 0 na entrada e sobe/desce suave a cada mudança; setState só dentro do rAF (lint ok)
+  · AccumulatedTotalCard: herói "TOTAL ACUMULADO" com brilho apex-shine, pop no troco (apex-count-pop), contagem de itens somados, código da comanda e explicação da soma inteligente; aria-live com valor final
+  · Penúltima seção (Acompanhamento): OrderMoreBanner animado — anéis apex-ring-pulse + ícone Sparkles em gradiente + botão "Pedir mais" que volta ao cardápio; envio posterior soma na mesma comanda
+  · Lock de itens enviados: ItemLockChip "Somente o garçom pode remover" em cada item + nota explicativa com LockKeyhole; nenhum controle de remoção no cliente
+  · ReviewPhase: props hasOpenOrder/openTotal — aviso "somados à mesma comanda", linhas Já na comanda / Total acumulado após enviar (gradiente), botão "Adicionar à comanda aberta"
+  · ClosingPhase: avaliação pós-pagamento — StarRating 1-5 estrelas (pop apex-star-pop, glow, som de clique) liberada só com PAID; após enviar, estado "Volte sempre!" com coração pulsante, 5 estrelas, agradecimento e botão Nova comanda; recibo com total animado
+  · Premium geral: orbes de luz fixos (apex-orb) no fundo, wrapper apex-client-decor (respeita prefers-reduced-motion), PhaseRail em vidro com chip laranja da mesa, cards de vidro bg-white/[0.04] com hover border laranja, chips de categoria ativos em laranja, barra inferior backdrop-blur-xl, botões com active:scale; layout permanece max-w-md (mobile-only, centrado no desktop)
+- src/components/views/waiter-view.tsx: RemoveItemAction com AlertDialog (título, consequências, "Manter item" / vermelho "Sim, remover item") na Fila de entrada e nas Comandas ativas (oculto em AWAITING_PAYMENT); delete via apiDelete + invalidações
+- Servidor dev reiniciado após prisma generate (cliente antigo em memória causava Erro 500 no rate)
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos; tsc sem erros nos arquivos alterados
+- E2E (shots 203-227): welcome premium (203); menu com 2 itens e barra R$ 71,40 (204); revisão 1º envio (205); acompanhamento com herói R$ 71,40 + selos de cadeado + Rafael Souza (206); banner Quer mais alguma coisa? + Pedir mais + nota de proteção (207); revisão de soma com projeção R$ 100,30 e botão Adicionar à comanda aberta (208); herói contou para R$ 100,30 com 3 itens (209); garçom: fila com botões de remover (210) e modal de confirmação (210); remoção do Carpaccio → toast + total R$ 57,80 (211); cliente viu a REGRESSIVA para R$ 57,80 com 2 cadeados (212-213); encerramento aguardando caixa com recibo (214); caixa pagou C0068 via PIX; 2º ciclo: C0069/C0070 (217-224) com pagamento em aba separada chegando por realtime; cartão "Como foi sua experiência?" (225), 5 estrelas (221/225), envio → "Volte sempre!" com agradecimento e estrelas (226); rating persistido no banco (C0070 rating 5 ratedAt preenchido); desktop 1440px mantém layout mobile centralizado (227); agent-browser errors = 0
+
+Stage Summary:
+- A mesa agora tem contador animado do total acumulado (soma inteligente de todos os itens, sobe com novos pedidos e desce quando o garçom remove), a penúltima seção do fluxo ganhou animação de convite com botão Pedir mais que soma itens na mesma comanda, itens enviados à cozinha são bloqueados para o cliente e só saem pelo garçom com modal de confirmação, toda a tela do cliente/comanda está mais premium (vidro, orbes, gradientes, micro-interações, mobile-only) e após o pagamento no caixa o cliente avalia a experiência com estrelas e recebe o agradecimento "Volte sempre!"

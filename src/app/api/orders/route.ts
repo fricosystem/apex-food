@@ -67,16 +67,15 @@ export async function POST(req: NextRequest) {
   const openOrder = await db.order.findFirst({
     where: { tableId: table.id, status: { in: ['PENDING_CONFIRM', 'IN_KITCHEN', 'AWAITING_PAYMENT'] } },
   })
-  if (openOrder) return bad('A mesa já possui uma comanda aberta. Acompanhe o pedido atual.', 409)
+  // Comanda encaminhada ao caixa não recebe mais itens — o cliente deve aguardar o fechamento
+  if (openOrder && openOrder.status === 'AWAITING_PAYMENT') {
+    return bad('A comanda já foi encaminhada ao caixa. Chame o garçom para pedir mais.', 409)
+  }
 
   const products = await db.product.findMany({
     where: { id: { in: items.map((i) => i.productId!) }, active: true, ...(estId ? { establishmentId: estId } : {}) },
   })
   if (products.length === 0) return bad('Produtos indisponíveis')
-
-  // Distribuição inteligente → garçom com menor carga (dentro do estabelecimento)
-  const rule = await getSetting('distributionRule', 'least_active', estId)
-  const waiterId = await pickWaiter(rule, estId)
 
   let total = 0
   const itemRows = items.map((i) => {
@@ -100,6 +99,42 @@ export async function POST(req: NextRequest) {
     const cat = cats.find((c) => c.id === prod.categoryId)
     row.station = cat?.sector ?? 'KITCHEN'
   }
+
+  // Pedido em cima de comanda aberta (Pedir mais): os itens são SOMADOS à comanda existente
+  if (openOrder) {
+    await db.orderItem.createMany({ data: itemRows.map((r) => ({ ...r, orderId: openOrder.id })) })
+
+    const updated = await db.order.update({
+      where: { id: openOrder.id },
+      data: { total: Math.round((openOrder.total + total) * 100) / 100 },
+      include: {
+        table: { select: { number: true } },
+        waiter: { select: { name: true } },
+        items: { include: { product: { select: { emoji: true } } } },
+        payments: { select: { method: true } },
+      },
+    })
+
+    // Salão/atendimento + cliente acompanham a soma ao vivo
+    broadcast('comanda:itens', {
+      orderId: updated.id,
+      code: updated.code,
+      tableNumber: table.number,
+      waiterId: updated.waiterId,
+      addedCount: items.reduce((a, i) => a + (i.quantity ?? 1), 0),
+      total: updated.total,
+    }, 'waiters')
+    broadcast('item:atualizado', { orderId: updated.id, action: 'added' }, 'kitchen')
+    broadcast('item:atualizado', { orderId: updated.id, action: 'added' }, `client:${updated.id}`)
+    broadcast('comanda:itens', { orderId: updated.id, code: updated.code, tableNumber: table.number }, 'dashboard')
+    broadcast('mesa:atualizada', { tableId: table.id })
+
+    return NextResponse.json({ order: serializeOrder(updated) })
+  }
+
+  // Distribuição inteligente → garçom com menor carga (dentro do estabelecimento)
+  const rule = await getSetting('distributionRule', 'least_active', estId)
+  const waiterId = await pickWaiter(rule, estId)
 
   const seq = (await db.order.count({ where: estId ? { establishmentId: estId } : {} })) + 1
   const order = await db.order.create({

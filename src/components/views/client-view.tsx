@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   Minus, Plus, ChevronLeft, ClipboardList, Send, CheckCircle2,
   Clock, ChefHat, BellRing, CheckCheck, CreditCard, PartyPopper, Loader2,
-  ArrowRight, ShoppingBag, PencilLine, Check, Download,
+  ArrowRight, ShoppingBag, PencilLine, Check, Download, Star, Lock,
+  LockKeyhole, PlusCircle, Sparkles, Heart,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -38,6 +39,7 @@ type MenuResponse = { categories: Array<Category & { products: Product[] }> }
 type ClientOrder = {
   id: string; code: string; status: string; total: number; createdAt: string
   waiterName: string | null
+  rating?: number | null
   items: Array<{
     id: string; productName: string; quantity: number; notes: string; unitPrice: number
     station: string; prepTime: number; status: string; startedAt: string | null
@@ -47,7 +49,7 @@ type ClientOrder = {
 type ClientData = {
   table: { id: string; number: number; capacity: number; status: string }
   order: ClientOrder | null
-  lastPaid: { code: string; total: number; paidAt: string; items: Array<{ id: string; productName: string; quantity: number; emoji: string }> } | null
+  lastPaid: { id: string; code: string; total: number; paidAt: string; rating: number | null; items: Array<{ id: string; productName: string; quantity: number; unitPrice: number; emoji: string }> } | null
 }
 type CartLine = { uid: string; productId: string; quantity: number; notes: string }
 
@@ -79,6 +81,112 @@ function notesParts(notes: string): string[] {
 
 let uidSeq = 0
 const newUid = () => `l${Date.now().toString(36)}-${(++uidSeq).toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+
+/**
+ * Contador animado do total acumulado — conta de R$ 0 até o valor atual na entrada
+ * e sobe/desce como um odômetro sempre que a soma inteligente da comanda muda
+ * (novos itens somam; itens removidos pelo garçom subtraem).
+ */
+function useAnimatedMoney(target: number, duration = 900): number {
+  const [value, setValue] = useState(0)
+  const fromRef = useRef(0)
+
+  useEffect(() => {
+    const from = fromRef.current
+    // Diferença irrelevante → conclui em um frame, sem cascata de renders
+    const dur = Math.abs(target - from) < 0.004 ? 0 : duration
+    let raf = 0
+    const start = performance.now()
+    const step = (now: number) => {
+      const t = dur === 0 ? 1 : Math.min(1, (now - start) / dur)
+      const eased = 1 - Math.pow(1 - t, 3) // easeOutCubic — desacelera no fim, estilo caixa registradora
+      const v = from + (target - from) * eased
+      fromRef.current = v
+      setValue(v)
+      if (t < 1) raf = requestAnimationFrame(step)
+      else {
+        fromRef.current = target
+        setValue(target)
+      }
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration])
+
+  return value
+}
+
+/** Cartão-herói do total acumulado — soma inteligente de todos os itens da comanda */
+function AccumulatedTotalCard({ order }: { order: ClientOrder }) {
+  const animated = useAnimatedMoney(order.total)
+  const itemCount = order.items.reduce((a, i) => a + i.quantity, 0)
+
+  return (
+    <div className="apex-shine relative overflow-hidden rounded-3xl border border-[#FF6B1A]/25 bg-gradient-to-br from-[#FF6B1A]/[0.16] via-white/[0.05] to-transparent p-5">
+      <div aria-hidden className="apex-orb pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-[#FF8A3D]/20 blur-2xl" />
+      <div className="relative">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-3.5 w-3.5 text-[#FF9A57]" />
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#FF9A57]">Total acumulado</p>
+        </div>
+        <p
+          key={order.total}
+          className="apex-count-pop mt-1.5 text-[34px] font-extrabold leading-none tracking-tight tabular-nums apex-text-gradient"
+          aria-live="polite"
+          aria-label={`Total acumulado de ${currency(order.total)}`}
+        >
+          {currency(animated)}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-400">
+          <span className="inline-flex items-center gap-1"><ShoppingBag className="h-3 w-3" /> {itemCount} {itemCount === 1 ? 'item somado' : 'itens somados'}</span>
+          <span className="text-zinc-600">·</span>
+          <span>Comanda {order.code}</span>
+        </div>
+        <p className="mt-2 text-[10.5px] leading-relaxed text-zinc-500">
+          Soma inteligente de todos os itens da comanda — atualiza sozinha a cada pedido e a cada remoção feita pelo garçom.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/** Banner animado da penúltima etapa — celebra o momento e convida a pedir mais */
+function OrderMoreBanner({ onOrderMore }: { onOrderMore: () => void }) {
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-[#FF6B1A]/30 bg-gradient-to-br from-[#FF6B1A]/[0.14] via-white/[0.04] to-transparent p-5 text-center">
+      <div aria-hidden className="apex-orb pointer-events-none absolute -left-10 bottom-0 h-28 w-28 rounded-full bg-[#FF6B1A]/15 blur-2xl" />
+      <div className="relative">
+        {/* Anéis pulsando + ícone em gradiente — animação de convite */}
+        <div className="relative mx-auto h-14 w-14">
+          <span aria-hidden className="apex-ring-pulse absolute inset-0 rounded-2xl border border-[#FF6B1A]/50" />
+          <span aria-hidden className="apex-ring-pulse absolute inset-0 rounded-2xl border border-[#FF6B1A]/35" style={{ animationDelay: '0.7s' }} />
+          <span className="apex-gradient apex-glow absolute inset-0 flex items-center justify-center rounded-2xl">
+            <Sparkles className="h-6 w-6 text-white" />
+          </span>
+        </div>
+        <p className="mt-3.5 text-base font-bold tracking-tight">Quer mais alguma coisa?</p>
+        <p className="mx-auto mt-1 max-w-[280px] text-xs leading-relaxed text-muted-foreground">
+          Peça quando quiser — os novos itens entram na mesma comanda e o total acumulado soma na hora.
+        </p>
+        <Button
+          onClick={onOrderMore}
+          className="apex-gradient apex-glow mt-4 h-11 px-7 font-semibold text-white transition-transform active:scale-[0.96]"
+        >
+          <PlusCircle className="h-4.5 w-4.5" /> Pedir mais
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** Selo de proteção do item — enviado à cozinha, só o garçom pode remover */
+function ItemLockChip() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[9.5px] font-medium text-zinc-400">
+      <Lock className="h-2.5 w-2.5" /> Somente o garçom pode remover
+    </span>
+  )
+}
 
 export function ClientView({ token, onExit }: { token: string; onExit: () => void }) {
   const [phase, setPhase] = useState<0 | 1 | 2 | 3 | 4>(0)
@@ -197,8 +305,14 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
   const cartSum = cart.reduce((a, c) => a + (productsMap.get(c.productId)?.price ?? 0) * c.quantity, 0)
 
   return (
-    <div className="min-h-screen flex flex-col text-zinc-100" style={{ background: BG_DARK }}>
-      <main className="flex-1 max-w-md w-full mx-auto p-4 pb-32">
+    <div className="apex-client-decor relative flex min-h-screen flex-col overflow-x-hidden text-zinc-100" style={{ background: BG_DARK }}>
+      {/* Luzes ambiente — assinatura premium da mesa (sem interferir nos toques) */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="apex-orb absolute -left-20 -top-24 h-72 w-72 rounded-full bg-[#FF6B1A]/[0.13] blur-3xl" />
+        <div className="apex-orb absolute -right-24 top-1/3 h-80 w-80 rounded-full bg-[#FF8A3D]/[0.09] blur-3xl" style={{ animationDelay: '1.6s' }} />
+        <div className="apex-orb absolute bottom-0 left-1/4 h-64 w-64 rounded-full bg-emerald-500/[0.05] blur-3xl" style={{ animationDelay: '3.2s' }} />
+      </div>
+      <main className="relative mx-auto w-full max-w-md flex-1 p-4 pb-32">
         <PhaseRail phase={displayPhase} tableNumber={data.table.number} />
         {phase === 0 && (
           <WelcomePhase
@@ -242,21 +356,28 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
               void refetch()
             }}
             tableToken={token}
+            hasOpenOrder={!!liveOrder}
+            openTotal={liveOrder?.total ?? 0}
           />
         )}
         {displayPhase === 3 && liveOrder && (
-          <TrackingPhase order={liveOrder} onFinish={() => finish.mutate()} finishing={finish.isPending} />
+          <TrackingPhase
+            order={liveOrder}
+            onFinish={() => finish.mutate()}
+            finishing={finish.isPending}
+            onOrderMore={() => setPhase(1)}
+          />
         )}
         {displayPhase === 4 && (
-          <ClosingPhase data={data} tick={tick} onNew={() => { void refetch(); setPhase(1) }} />
+          <ClosingPhase data={data} tick={tick} token={token} onNew={() => { void refetch(); setPhase(1) }} onRated={() => void refetch()} />
         )}
       </main>
 
       {(phase === 1 || phase === 2) && (
-        <div className="fixed bottom-0 inset-x-0 border-t bg-background/92 backdrop-blur p-3 z-20">
+        <div className="fixed bottom-0 inset-x-0 z-20 border-t border-white/10 bg-[#0B0B0F]/85 p-3 backdrop-blur-xl">
           <div className="max-w-md mx-auto flex items-center gap-2">
             {phase === 2 && (
-              <Button variant="outline" onClick={() => setPhase(1)} className="h-11">
+              <Button variant="outline" onClick={() => setPhase(1)} className="h-11 border-white/15 bg-white/[0.04] text-zinc-200 hover:bg-white/[0.08] hover:text-white">
                 <ChevronLeft className="h-4 w-4" /> Cardápio
               </Button>
             )}
@@ -264,11 +385,11 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
               <Button
                 onClick={() => setPhase(2)}
                 disabled={cart.length === 0}
-                className="flex-1 h-11 apex-gradient text-white font-semibold"
+                className="apex-gradient flex h-11 flex-1 items-center justify-center font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50"
               >
                 <ClipboardList className="h-4 w-4" />
                 Revisar comanda
-                <span className="mx-1">·</span> {currency(cartSum)}
+                <span className="mx-1">·</span> <span className="tabular-nums">{currency(cartSum)}</span>
                 {cartCount > 0 && <Badge className="ml-1 bg-white/20 text-white hover:bg-white/20">{cartCount}</Badge>}
               </Button>
             )}
@@ -276,7 +397,7 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
         </div>
       )}
 
-      <p className="pb-4 text-center text-[10px] text-muted-foreground">
+      <p className="relative pb-4 text-center text-[10px] text-muted-foreground">
         <button className="underline" onClick={onExit}>Painel da equipe</button>
       </p>
     </div>
@@ -286,24 +407,24 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
 /* ==================== Trilha de fases (sem header) ==================== */
 function PhaseRail({ phase, tableNumber }: { phase: number; tableNumber: number }) {
   return (
-    <div className="pt-2 mb-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+    <div className="mb-6 pt-3">
+      <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.05] px-3.5 py-3 shadow-lg shadow-black/20 backdrop-blur">
+        <div className="flex items-center gap-2.5">
           <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-9 w-auto drop-shadow" />
           <p className="text-[15px] font-extrabold tracking-tight leading-none">
             APEX <span className="text-[#FF7B2E]">FOOD</span>
           </p>
         </div>
-        <span className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full border border-white/10 bg-white/[0.05] text-zinc-300">
+        <span className="rounded-full border border-[#FF6B1A]/40 bg-[#FF6B1A]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#FF9A57]">
           Mesa {String(tableNumber).padStart(2, '0')}
         </span>
       </div>
-      <div className="flex gap-1.5 mt-4" aria-label={`Etapa ${phase + 1} de ${STEPS.length}: ${STEPS[phase]}`}>
+      <div className="mt-4 flex gap-1.5" aria-label={`Etapa ${phase + 1} de ${STEPS.length}: ${STEPS[phase]}`}>
         {STEPS.map((s, i) => (
-          <div key={s} className={cn('h-1 flex-1 rounded-full transition-colors duration-300', i <= phase ? 'bg-gradient-to-r from-[#FF6B1A] to-[#FF8A3D]' : 'bg-white/10')} />
+          <div key={s} className={cn('h-1 flex-1 rounded-full transition-colors duration-300', i <= phase ? 'apex-gradient' : 'bg-white/10')} />
         ))}
       </div>
-      <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mt-1.5">{STEPS[phase]}</p>
+      <p className="mt-1.5 text-[10px] uppercase tracking-[0.2em] text-zinc-500">{STEPS[phase]}</p>
     </div>
   )
 }
@@ -319,32 +440,35 @@ function WelcomePhase({
   onInstall: () => void
 }) {
   return (
-    <div className="apex-enter text-center pt-2">
-      <div className="flex flex-col items-center">
-        <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-24 w-auto drop-shadow-xl" />
-        <p className="mt-3 text-3xl font-extrabold tracking-tight leading-none">
+    <div className="apex-enter pt-2 text-center">
+      <div className="relative flex flex-col items-center">
+        <div aria-hidden className="apex-orb absolute -top-6 h-40 w-40 rounded-full bg-[#FF6B1A]/20 blur-3xl" />
+        <img src="/apex-logo.png" alt="Logo APEX FOOD" className="relative h-24 w-auto drop-shadow-xl" />
+        <p className="relative mt-3 text-3xl font-extrabold tracking-tight leading-none">
           APEX <span className="text-[#FF7B2E]">FOOD</span>
         </p>
       </div>
-      <h2 className="text-xl font-bold mt-6 tracking-tight">
+      <h2 className="mt-6 text-xl font-bold tracking-tight">
         Mesa {String(tableNumber).padStart(2, '0')} — Bem-vindo!
       </h2>
-      <p className="text-sm text-muted-foreground mt-2 leading-relaxed px-4">
+      <p className="mt-2 px-4 text-sm leading-relaxed text-muted-foreground">
         Explore o cardápio, monte sua comanda e acompanhe cada prato em tempo real, do preparo à entrega.
       </p>
-      <div className="grid grid-cols-3 gap-2 mt-8 px-2">
+      <div className="mt-8 grid grid-cols-3 gap-2 px-2">
         {[
           { icon: ShoppingBag, label: 'Peça pelo celular' },
           { icon: ChefHat, label: 'Cozinha em foco' },
           { icon: BellRing, label: 'Avisos na hora' },
         ].map((f) => (
-          <div key={f.label} className="rounded-xl border bg-card p-3">
-            <f.icon className="h-5 w-5 mx-auto text-primary" />
-            <p className="text-[11px] mt-1.5 text-muted-foreground leading-tight">{f.label}</p>
+          <div key={f.label} className="rounded-2xl border border-white/10 bg-white/[0.05] p-3 backdrop-blur transition-colors hover:border-[#FF6B1A]/30">
+            <div className="apex-gradient-soft mx-auto flex h-8 w-8 items-center justify-center rounded-lg border border-[#FF6B1A]/20">
+              <f.icon className="h-4 w-4 text-[#FF9A57]" />
+            </div>
+            <p className="mt-1.5 text-[11px] leading-tight text-zinc-300">{f.label}</p>
           </div>
         ))}
       </div>
-      <Button onClick={onStart} className="mt-8 h-12 px-8 text-base apex-gradient text-white font-semibold apex-glow">
+      <Button onClick={onStart} className="apex-gradient apex-glow mt-8 h-12 px-8 text-base font-semibold text-white transition-transform active:scale-[0.97]">
         {hasOpen ? 'Ver minha comanda' : 'Iniciar comanda'} <ArrowRight className="h-4 w-4" />
       </Button>
       {installAvailable && (
@@ -356,7 +480,7 @@ function WelcomePhase({
           >
             <Download className="h-4 w-4" /> Instalar aplicativo
           </Button>
-          <p className="text-[11px] text-zinc-500 mt-2">Acesso rápido ao cardápio da mesa pela tela inicial do celular</p>
+          <p className="mt-2 text-[11px] text-zinc-500">Acesso rápido ao cardápio da mesa pela tela inicial do celular</p>
         </div>
       )}
     </div>
@@ -384,16 +508,16 @@ function MenuPhase({
 
   return (
     <div className="apex-enter">
-      <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2">
         {menu.map((c) => (
           <button
             key={c.id}
             onClick={() => setActiveCat(c.id)}
             className={cn(
-              'shrink-0 rounded-full border px-3.5 py-2 text-xs font-medium transition-all flex items-center gap-1.5',
+              'flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-medium transition-all',
               current?.id === c.id
-                ? 'border-primary/50 bg-primary/10 text-primary'
-                : 'bg-card text-muted-foreground hover:text-foreground'
+                ? 'border-[#FF6B1A]/50 bg-[#FF6B1A]/15 text-[#FF9A57] shadow-sm shadow-[#FF6B1A]/20'
+                : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:border-white/25 hover:text-zinc-200'
             )}
           >
             <span>{c.icon}</span> {c.name}
@@ -406,11 +530,11 @@ function MenuPhase({
           <ProductCard key={p.id} product={p} inCart={countInCart(p.id)} onAdd={onAdd} />
         ))}
         {current?.products.length === 0 && (
-          <p className="text-center text-sm text-muted-foreground py-10">Sem itens disponíveis nesta categoria.</p>
+          <p className="py-10 text-center text-sm text-muted-foreground">Sem itens disponíveis nesta categoria.</p>
         )}
       </div>
 
-      <div className="text-center text-[10px] text-muted-foreground mt-6">
+      <div className="mt-6 text-center text-[10px] text-muted-foreground">
         {productsMap.size} itens no cardápio · preços em reais
       </div>
     </div>
@@ -430,31 +554,31 @@ function ProductCard({ product, inCart, onAdd }: { product: Product; inCart: num
   }
 
   return (
-    <Card className="overflow-hidden transition-shadow hover:shadow-md">
-      <CardContent className="p-0 flex">
+    <Card className="group overflow-hidden border-white/10 bg-white/[0.04] backdrop-blur transition-all duration-300 hover:border-[#FF6B1A]/40 hover:shadow-lg hover:shadow-[#FF6B1A]/10">
+      <CardContent className="flex p-0">
         {product.image ? (
-          <img src={product.image} alt={product.name} className="h-24 w-24 object-cover shrink-0" />
+          <img src={product.image} alt={product.name} className="h-24 w-24 shrink-0 object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
         ) : (
-          <div className="h-24 w-24 shrink-0 apex-gradient-soft flex items-center justify-center border-r">
-            <span className="text-4xl" aria-hidden>{product.emoji}</span>
+          <div className="apex-gradient-soft flex h-24 w-24 shrink-0 items-center justify-center border-r border-white/10">
+            <span className="text-4xl transition-transform duration-500 group-hover:scale-110" aria-hidden>{product.emoji}</span>
           </div>
         )}
-        <div className="flex-1 min-w-0 p-3">
+        <div className="min-w-0 flex-1 p-3">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-semibold text-sm leading-tight">{product.name}</p>
-            <Badge variant="outline" className="shrink-0 text-[10px] gap-1">
+            <p className="text-sm font-semibold leading-tight">{product.name}</p>
+            <Badge variant="outline" className="shrink-0 gap-1 border-white/15 text-[10px] text-zinc-400">
               <Clock className="h-3 w-3" /> {product.prepTime}min
             </Badge>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-snug">{product.description}</p>
-          <div className="flex items-center justify-between mt-2.5">
-            <p className="font-bold text-primary">{currency(product.price)}</p>
+          <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground">{product.description}</p>
+          <div className="mt-2.5 flex items-center justify-between">
+            <p className="font-bold text-[#FF9A57]">{currency(product.price)}</p>
             {inCart > 0 ? (
-              <Badge className="apex-gradient text-white border-0 gap-1">
+              <Badge className="apex-gradient gap-1 border-0 text-white hover:opacity-90">
                 <CheckCircle2 className="h-3 w-3" /> {inCart} na comanda
               </Badge>
             ) : (
-              <Button size="sm" className="h-8 apex-gradient text-white" onClick={() => { setQty(1); setNotes(''); setOpen(true) }}>
+              <Button size="sm" className="apex-gradient h-8 text-white transition-transform active:scale-95" onClick={() => { setQty(1); setNotes(''); setOpen(true) }}>
                 <Plus className="h-3.5 w-3.5" /> Adicionar
               </Button>
             )}
@@ -539,7 +663,7 @@ function NotesField({ notes, onChange }: { notes: string; onChange: (n: string) 
 
 /* ==================== FASE 3 — Revisão ==================== */
 function ReviewPhase({
-  cart, productsMap, onCartChange, onBack, onSent, tableToken,
+  cart, productsMap, onCartChange, onBack, onSent, tableToken, hasOpenOrder, openTotal,
 }: {
   cart: CartLine[]
   productsMap: Map<string, Product>
@@ -547,6 +671,8 @@ function ReviewPhase({
   onBack: () => void
   onSent: () => void
   tableToken: string
+  hasOpenOrder: boolean
+  openTotal: number
 }) {
   const [editing, setEditing] = useState<CartLine | null>(null)
   const [editQty, setEditQty] = useState(1)
@@ -564,7 +690,7 @@ function ReviewPhase({
       }),
     onSuccess: () => {
       playSound('success')
-      toast.success('Comanda enviada ao garçom!')
+      toast.success(hasOpenOrder ? 'Itens somados à comanda!' : 'Comanda enviada ao garçom!')
       onCartChange([])
       onSent()
     },
@@ -582,11 +708,11 @@ function ReviewPhase({
 
   if (cart.length === 0) {
     return (
-      <div className="text-center py-16 apex-enter">
-        <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/40" />
-        <p className="font-semibold mt-4">Comanda vazia</p>
-        <p className="text-sm text-muted-foreground mt-1">Adicione itens pelo cardápio.</p>
-        <Button onClick={onBack} className="mt-6 apex-gradient text-white">Ir ao cardápio</Button>
+      <div className="apex-enter py-16 text-center">
+        <ClipboardList className="mx-auto h-12 w-12 text-muted-foreground/40" />
+        <p className="mt-4 font-semibold">Comanda vazia</p>
+        <p className="mt-1 text-sm text-muted-foreground">Adicione itens pelo cardápio.</p>
+        <Button onClick={onBack} className="apex-gradient mt-6 text-white">Ir ao cardápio</Button>
       </div>
     )
   }
@@ -595,25 +721,33 @@ function ReviewPhase({
     <div className="apex-enter space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="font-bold tracking-tight">Revise sua comanda</h2>
-        <Badge variant="outline">{itemCount} item(ns)</Badge>
+        <Badge variant="outline" className="border-white/15 text-zinc-300">{itemCount} item(ns)</Badge>
       </div>
+      {hasOpenOrder && (
+        <div className="flex items-start gap-2 rounded-2xl border border-[#FF6B1A]/30 bg-[#FF6B1A]/[0.08] p-3">
+          <PlusCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#FF9A57]" />
+          <p className="text-[11px] leading-relaxed text-zinc-300">
+            A mesa já tem uma comanda aberta — ao enviar, estes itens são <span className="font-semibold text-[#FF9A57]">somados à mesma comanda</span> e o total acumulado sobe na hora.
+          </p>
+        </div>
+      )}
 
       {cart.map((line) => {
         const p = productsMap.get(line.productId)
         if (!p) return null
         return (
-          <Card key={line.uid}>
-            <CardContent className="p-3 flex gap-3 items-start">
-              <div className="h-14 w-14 rounded-lg apex-gradient-soft flex items-center justify-center shrink-0 text-2xl">
+          <Card key={line.uid} className="border-white/10 bg-white/[0.04] backdrop-blur">
+            <CardContent className="flex items-start gap-3 p-3">
+              <div className="apex-gradient-soft flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-[#FF6B1A]/20 text-2xl">
                 {p.emoji}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold leading-tight">{p.name}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {currency(p.price)} × {line.quantity}
                 </p>
                 {line.notes && (
-                  <div className="flex flex-wrap gap-1 mt-1.5">
+                  <div className="mt-1.5 flex flex-wrap gap-1">
                     {notesParts(line.notes).map((n) => (
                       <span key={n} className="inline-flex items-center gap-1 rounded-full border border-[#FF6B1A]/40 bg-[#FF6B1A]/10 px-2 py-0.5 text-[10px] font-medium text-[#FF9A57]">
                         <PencilLine className="h-2.5 w-2.5 shrink-0" /> {n}
@@ -623,17 +757,17 @@ function ReviewPhase({
                 )}
               </div>
               <div className="flex flex-col items-end gap-1.5">
-                <p className="text-sm font-bold">{currency(p.price * line.quantity)}</p>
+                <p className="text-sm font-bold tabular-nums">{currency(p.price * line.quantity)}</p>
                 <div className="flex items-center gap-1.5">
-                  <Button size="icon" variant="outline" className="h-6.5 w-6.5" style={{ width: 26, height: 26 }} onClick={() => changeQty(line.uid, -1)} aria-label="Diminuir">
+                  <Button size="icon" variant="outline" className="h-6.5 w-6.5 rounded-full border-white/15 bg-white/[0.04] hover:bg-white/[0.1]" style={{ width: 26, height: 26 }} onClick={() => changeQty(line.uid, -1)} aria-label="Diminuir">
                     <Minus className="h-3 w-3" />
                   </Button>
-                  <Button size="icon" variant="outline" style={{ width: 26, height: 26 }} className="h-6.5 w-6.5" onClick={() => changeQty(line.uid, 1)} aria-label="Aumentar">
+                  <Button size="icon" variant="outline" style={{ width: 26, height: 26 }} className="h-6.5 w-6.5 rounded-full border-white/15 bg-white/[0.04] hover:bg-white/[0.1]" onClick={() => changeQty(line.uid, 1)} aria-label="Aumentar">
                     <Plus className="h-3 w-3" />
                   </Button>
                 </div>
                 <button
-                  className="text-[10px] text-muted-foreground underline"
+                  className="text-[10px] text-muted-foreground underline transition-colors hover:text-[#FF9A57]"
                   onClick={() => { setEditing(line); setEditQty(line.quantity); setEditNotes(line.notes) }}
                 >
                   personalizar
@@ -644,19 +778,33 @@ function ReviewPhase({
         )
       })}
 
-      <Card className="border-primary/30">
-        <CardContent className="p-4 space-y-2.5">
+      <Card className="border-white/10 bg-white/[0.04] backdrop-blur">
+        <CardContent className="space-y-2.5 p-4">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Subtotal</span>
-            <span className="font-bold">{currency(subtotal)}</span>
+            <span className="text-muted-foreground">Subtotal destes itens</span>
+            <span className="font-bold tabular-nums">{currency(subtotal)}</span>
           </div>
+          {hasOpenOrder && (
+            <>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Já na comanda</span>
+                <span className="font-medium tabular-nums text-zinc-300">{currency(openTotal)}</span>
+              </div>
+              <div className="flex justify-between border-t border-white/10 pt-2.5 text-sm">
+                <span className="font-semibold">Total acumulado após enviar</span>
+                <span className="apex-text-gradient font-extrabold tabular-nums">{currency(openTotal + subtotal)}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Tempo estimado de preparo</span>
+            <span className="flex items-center gap-1 text-muted-foreground"><Clock className="h-3.5 w-3.5" /> Tempo estimado de preparo</span>
             <span className="font-medium">{estMinutes} min</span>
           </div>
-          <Separator />
-          <p className="text-[11px] text-muted-foreground">
-            Ao enviar, a comanda será direcionada automaticamente ao garçom disponível e confirmada para a cozinha.
+          <Separator className="bg-white/10" />
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            {hasOpenOrder
+              ? 'Os itens entram direto na comanda aberta da mesa e o garçom é avisado na hora.'
+              : 'Ao enviar, a comanda será direcionada automaticamente ao garçom disponível e confirmada para a cozinha.'}
           </p>
         </CardContent>
       </Card>
@@ -664,10 +812,10 @@ function ReviewPhase({
       <Button
         onClick={() => send.mutate()}
         disabled={send.isPending}
-        className="w-full h-12 text-base apex-gradient text-white font-semibold apex-glow"
+        className="apex-gradient apex-glow h-12 w-full text-base font-semibold text-white transition-transform active:scale-[0.98]"
       >
-        {send.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-        Enviar comanda para o garçom
+        {send.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : hasOpenOrder ? <PlusCircle className="h-5 w-5" /> : <Send className="h-5 w-5" />}
+        {hasOpenOrder ? 'Adicionar à comanda aberta' : 'Enviar comanda para o garçom'}
       </Button>
 
       {/* Editar observação */}
@@ -711,7 +859,7 @@ function ReviewPhase({
   )
 }
 
-/* ==================== FASE 4 — Acompanhamento ==================== */
+/* ==================== FASE 4 — Acompanhamento (penúltima etapa do fluxo) ==================== */
 const STATUS_STEPS = [
   { key: 'PENDING_CONFIRM', label: 'Comanda enviada', icon: ClipboardList },
   { key: 'IN_KITCHEN', label: 'Na cozinha', icon: ChefHat },
@@ -724,7 +872,7 @@ function itemProgress(status: string): number {
   return ((idx + 1) / ITEM_FLOW.length) * 100
 }
 
-function TrackingPhase({ order, onFinish, finishing }: { order: ClientOrder; onFinish: () => void; finishing: boolean }) {
+function TrackingPhase({ order, onFinish, finishing, onOrderMore }: { order: ClientOrder; onFinish: () => void; finishing: boolean; onOrderMore: () => void }) {
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
@@ -739,26 +887,29 @@ function TrackingPhase({ order, onFinish, finishing }: { order: ClientOrder; onF
 
   return (
     <div className="apex-enter space-y-4">
-      <Card className="border-primary/30 apex-gradient-soft">
+      {/* Total acumulado — contagem animada da soma inteligente de todos os itens */}
+      <AccumulatedTotalCard order={order} />
+
+      <Card className="border-white/10 bg-white/[0.04] backdrop-blur">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-muted-foreground">Comanda {order.code}</p>
+              <p className="text-xs text-muted-foreground">Acompanhamento em tempo real</p>
               <p className="font-bold text-lg">Garçom: {order.waiterName ?? 'Atribuindo…'}</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-muted-foreground">Tempo total</p>
-              <p className="font-bold text-lg text-primary">{elapsedMin} min</p>
+              <p className="font-bold text-lg tabular-nums text-[#FF9A57]">{elapsedMin} min</p>
             </div>
           </div>
           <div className="mt-3 flex gap-1">
             {order.items.map((i) => (
               <div key={i.id} className="flex-1 flex gap-1">
                 {Array.from({ length: i.quantity }).map((_, q) => (
-                  <div key={q} className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                  <div key={q} className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
                     <div
                       className={cn('h-full rounded-full transition-all duration-500', {
-                        'bg-zinc-400 dark:bg-zinc-600': i.status === 'PENDING',
+                        'bg-zinc-500': i.status === 'PENDING',
                         'bg-amber-500': i.status === 'IN_PREPARATION',
                         'bg-emerald-500': i.status === 'READY' || i.status === 'SERVED',
                       })}
@@ -769,7 +920,7 @@ function TrackingPhase({ order, onFinish, finishing }: { order: ClientOrder; onF
               </div>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-2">
+          <p className="mt-2 text-[11px] text-muted-foreground">
             {readyCount > 0 && !allServed
               ? `${readyCount} prato(s) pronto(s) — o garçom já foi avisado!`
               : allServed
@@ -788,8 +939,8 @@ function TrackingPhase({ order, onFinish, finishing }: { order: ClientOrder; onF
         const pct = itemProgress(item.status)
 
         return (
-          <Card key={item.id} className={cn(overdue && 'border-red-500/50')}>
-            <CardContent className="p-4 space-y-3">
+          <Card key={item.id} className={cn('border-white/10 bg-white/[0.04] backdrop-blur', overdue && 'border-red-500/50')}>
+            <CardContent className="space-y-3 p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{item.emoji}</span>
@@ -797,16 +948,19 @@ function TrackingPhase({ order, onFinish, finishing }: { order: ClientOrder; onF
                     <p className="text-sm font-semibold leading-tight">
                       {item.quantity}× {item.productName}
                     </p>
-                    {item.notes && <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">“{item.notes}”</p>}
+                    {item.notes && <p className="mt-0.5 text-[11px] text-amber-400">“{item.notes}”</p>}
+                    <div className="mt-1.5">
+                      <ItemLockChip />
+                    </div>
                   </div>
                 </div>
                 <Badge
                   variant="outline"
                   className={cn('text-[11px]', {
-                    'border-zinc-400/50 text-muted-foreground': item.status === 'PENDING',
-                    'border-amber-500/50 text-amber-600 dark:text-amber-400': item.status === 'IN_PREPARATION',
-                    'border-emerald-500/50 text-emerald-600 dark:text-emerald-400': item.status === 'READY',
-                    'border-primary/50 text-primary': item.status === 'SERVED',
+                    'border-zinc-500/50 text-zinc-400': item.status === 'PENDING',
+                    'border-amber-500/50 text-amber-400': item.status === 'IN_PREPARATION',
+                    'border-emerald-500/50 text-emerald-400': item.status === 'READY',
+                    'border-[#FF6B1A]/50 text-[#FF9A57]': item.status === 'SERVED',
                   })}
                 >
                   {ITEM_STATUS_LABELS[item.status]}
@@ -819,13 +973,13 @@ function TrackingPhase({ order, onFinish, finishing }: { order: ClientOrder; onF
                   const Icon = s.icon
                   const done = i <= stepIdx
                   return (
-                    <div key={s.key} className="flex flex-col items-center gap-1 flex-1">
-                      <div className="flex items-center w-full">
-                        <div className={cn('h-0.5 flex-1', i === 0 ? 'opacity-0' : done ? 'bg-primary' : 'bg-border')} />
-                        <Icon className={cn('h-4 w-4 shrink-0 transition-colors', done ? 'text-primary' : 'text-muted-foreground/40')} />
-                        <div className={cn('h-0.5 flex-1', i === STATUS_STEPS.length - 1 ? 'opacity-0' : i < stepIdx ? 'bg-primary' : 'bg-border')} />
+                    <div key={s.key} className="flex flex-1 flex-col items-center gap-1">
+                      <div className="flex w-full items-center">
+                        <div className={cn('h-0.5 flex-1', i === 0 ? 'opacity-0' : done ? 'bg-[#FF6B1A]' : 'bg-white/10')} />
+                        <Icon className={cn('h-4 w-4 shrink-0 transition-colors', done ? 'text-[#FF9A57]' : 'text-zinc-600')} />
+                        <div className={cn('h-0.5 flex-1', i === STATUS_STEPS.length - 1 ? 'opacity-0' : i < stepIdx ? 'bg-[#FF6B1A]' : 'bg-white/10')} />
                       </div>
-                      <span className={cn('text-[9px] leading-none text-center', done ? 'text-foreground font-medium' : 'text-muted-foreground/50')}>
+                      <span className={cn('text-center text-[9px] leading-none', done ? 'font-medium text-zinc-200' : 'text-zinc-600')}>
                         {s.label}
                       </span>
                     </div>
@@ -836,15 +990,15 @@ function TrackingPhase({ order, onFinish, finishing }: { order: ClientOrder; onF
               <div className="flex items-center gap-3">
                 <Progress value={pct} className="h-1.5" />
                 {item.status === 'PENDING' && (
-                  <span className="text-[11px] text-muted-foreground shrink-0">aguardando cozinha</span>
+                  <span className="shrink-0 text-[11px] text-muted-foreground">aguardando cozinha</span>
                 )}
                 {item.status === 'IN_PREPARATION' && (
-                  <span className={cn('text-[11px] shrink-0 font-mono tabular-nums', overdue ? 'text-red-500 font-bold' : 'text-amber-600 dark:text-amber-400 font-medium')}>
+                  <span className={cn('shrink-0 font-mono text-[11px] tabular-nums', overdue ? 'font-bold text-red-400' : 'font-medium text-amber-400')}>
                     {overdue ? 'no ponto!' : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`}
                   </span>
                 )}
                 {(item.status === 'READY' || item.status === 'SERVED') && (
-                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 shrink-0 font-medium">concluído</span>
+                  <span className="shrink-0 text-[11px] font-medium text-emerald-400">concluído</span>
                 )}
               </div>
             </CardContent>
@@ -852,21 +1006,25 @@ function TrackingPhase({ order, onFinish, finishing }: { order: ClientOrder; onF
         )
       })}
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Consumo até agora</span>
-            <span className="font-bold text-primary">{currency(order.total)}</span>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Proteção da comanda — itens enviados só saem pelo garçom */}
+      <div className="flex items-start gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+        <LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Itens enviados para a cozinha ficam <span className="font-medium text-zinc-200">protegidos</span> e não podem ser removidos por aqui.
+          Precisa cancelar algo? Fale com o garçom — somente ele pode remover, com confirmação no sistema.
+        </p>
+      </div>
+
+      {/* Animação de convite — penúltima etapa com atalho para pedir mais */}
+      <OrderMoreBanner onOrderMore={onOrderMore} />
 
       <Button
         onClick={onFinish}
         disabled={finishing}
-        className="w-full h-12 text-base apex-gradient text-white font-semibold"
+        variant="outline"
+        className="h-12 w-full border-white/15 bg-white/[0.04] text-base text-zinc-200 hover:bg-white/[0.08] hover:text-white"
       >
-        {finishing ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
+        {finishing ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5 text-emerald-400" />}
         Concluir consumo — enviar ao caixa
       </Button>
       <p className="text-center text-[11px] text-muted-foreground">
@@ -877,68 +1035,154 @@ function TrackingPhase({ order, onFinish, finishing }: { order: ClientOrder; onF
 }
 
 /* ==================== FASE 5 — Encerramento ==================== */
-function ClosingPhase({ data, tick, onNew }: { data: ClientData; tick: number; onNew: () => void }) {
+function ClosingPhase({ data, tick, token, onNew, onRated }: { data: ClientData; tick: number; token: string; onNew: () => void; onRated: () => void }) {
   const paid = !data.order && data.lastPaid
   const order = data.order ?? data.lastPaid
+  const rated = paid ? data.lastPaid?.rating ?? 0 : 0
+  const animatedTotal = useAnimatedMoney(order?.total ?? 0)
 
   return (
-    <div className="apex-enter text-center pt-6">
+    <div className="apex-enter pt-6 text-center">
       {paid ? (
-        <>
-          <div className="mx-auto h-20 w-20 rounded-3xl bg-emerald-500/15 flex items-center justify-center">
-            <PartyPopper className="h-10 w-10 text-emerald-500" />
-          </div>
-          <h2 className="text-2xl font-bold mt-5 tracking-tight">Pagamento confirmado!</h2>
-          <p className="text-sm text-muted-foreground mt-2">Obrigado pela visita — esperamos vê-lo novamente em breve.</p>
-        </>
+        rated > 0 ? (
+          <>
+            {/* Agradecimento final após a avaliação — Volte sempre! */}
+            <div className="relative mx-auto h-20 w-20">
+              <span aria-hidden className="apex-ring-pulse absolute inset-0 rounded-3xl border border-emerald-400/40" />
+              <span aria-hidden className="apex-ring-pulse absolute inset-0 rounded-3xl border border-[#FF6B1A]/40" style={{ animationDelay: '0.7s' }} />
+              <div className="absolute inset-0 flex items-center justify-center rounded-3xl bg-emerald-500/15">
+                <Heart className="h-10 w-10 fill-emerald-400 text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]" />
+              </div>
+            </div>
+            <h2 className="mt-5 text-3xl font-extrabold tracking-tight">
+              Volte sempre<span className="apex-text-gradient">!</span>
+            </h2>
+            <p className="mx-auto mt-2 max-w-[300px] text-sm leading-relaxed text-muted-foreground">
+              Muito obrigado pela sua visita e pela sua avaliação! Foi um prazer receber você — a equipe APEX FOOD espera vê-lo em breve.
+            </p>
+            <div className="mt-3 flex items-center justify-center gap-1">
+              {Array.from({ length: rated }).map((_, i) => (
+                <Star key={i} className="h-4 w-4 fill-[#FF6B1A] text-[#FF6B1A]" style={{ animationDelay: `${i * 90}ms` }} />
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="relative mx-auto h-20 w-20">
+              <span aria-hidden className="apex-ring-pulse absolute inset-0 rounded-3xl border border-emerald-400/40" />
+              <div className="absolute inset-0 flex items-center justify-center rounded-3xl bg-emerald-500/15">
+                <PartyPopper className="h-10 w-10 text-emerald-400" />
+              </div>
+            </div>
+            <h2 className="mt-5 text-2xl font-bold tracking-tight">Pagamento confirmado!</h2>
+            <p className="mx-auto mt-2 max-w-[300px] text-sm leading-relaxed text-muted-foreground">
+              Sua comanda foi fechada com sucesso. Que tal avaliar a experiência? É rapidinho!
+            </p>
+          </>
+        )
       ) : (
         <>
-          <div className="mx-auto h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center">
-            <CreditCard className="h-10 w-10 text-primary" />
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-[#FF6B1A]/10">
+            <CreditCard className="h-10 w-10 text-[#FF9A57]" />
           </div>
-          <h2 className="text-2xl font-bold mt-5 tracking-tight">Comanda encaminhada ao caixa</h2>
-          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+          <h2 className="mt-5 text-2xl font-bold tracking-tight">Comanda encaminhada ao caixa</h2>
+          <p className="mx-auto mt-2 max-w-[300px] text-sm leading-relaxed text-muted-foreground">
             Quando o pagamento for confirmado, esta tela mostrará o recibo final. Obrigado!
           </p>
         </>
       )}
 
       {order && (
-        <Card className="mt-6 text-left">
+        <Card className="mt-6 border-white/10 bg-white/[0.04] text-left backdrop-blur">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">Resumo final · Comanda {order.code}</p>
-              {tick > 0 && <span className="text-[10px] text-emerald-500 flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 apex-live-dot" /> atualizando</span>}
+              <p className="text-xs text-muted-foreground">Recibo · Comanda {order.code}</p>
+              {tick > 0 && <span className="flex items-center gap-1 text-[10px] text-emerald-400"><span className="apex-live-dot h-1.5 w-1.5 rounded-full bg-emerald-400" /> atualizando</span>}
             </div>
             <div className="mt-3 space-y-2">
               {order.items.map((i) => (
                 <div key={i.id} className="flex items-center gap-2 text-sm">
                   <span>{i.emoji}</span>
                   <span className="flex-1 truncate">{i.quantity}× {i.productName}</span>
-                  <span className="font-medium">{currency(i.unitPrice * i.quantity)}</span>
+                  <span className="font-medium tabular-nums">{currency(i.unitPrice * i.quantity)}</span>
                 </div>
               ))}
             </div>
-            <Separator className="my-3" />
+            <Separator className="my-3 bg-white/10" />
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold">Total</span>
-              <span className="font-bold text-primary">{currency(order.total)}</span>
+              <span className="apex-text-gradient font-extrabold tabular-nums">{currency(animatedTotal)}</span>
             </div>
           </CardContent>
         </Card>
       )}
 
+      {paid && rated === 0 && (
+        <StarRating token={token} orderId={data.lastPaid!.id} onRated={onRated} />
+      )}
+
       {!paid && (
-        <div className="flex items-center justify-center gap-2 mt-6 text-xs text-muted-foreground">
+        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           Aguardando confirmação do pagamento pelo caixa…
         </div>
       )}
-      {paid && (
-        <Button onClick={onNew} className="mt-6 apex-gradient text-white font-semibold">
+      {paid && rated > 0 && (
+        <Button onClick={onNew} className="apex-gradient mt-6 font-semibold text-white transition-transform active:scale-[0.97]">
           Nova comanda <ArrowRight className="h-4 w-4" />
         </Button>
       )}
+    </div>
+  )
+}
+
+/** Avaliação da experiência — liberada somente depois do pagamento no caixa */
+function StarRating({ token, orderId, onRated }: { token: string; orderId: string; onRated: () => void }) {
+  const [hover, setHover] = useState(0)
+  const [sel, setSel] = useState(0)
+
+  const rate = useMutation({
+    mutationFn: () => apiPost(`/api/client/${token}`, { action: 'rate', orderId, rating: sel }),
+    onSuccess: () => {
+      playSound('success')
+      toast.success('Avaliação enviada — muito obrigado!')
+      onRated()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  return (
+    <div className="mt-6 rounded-3xl border border-[#FF6B1A]/25 bg-gradient-to-br from-[#FF6B1A]/[0.12] via-white/[0.04] to-transparent p-5">
+      <p className="font-bold tracking-tight">Como foi sua experiência?</p>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Sua avaliação ajuda a equipe a servir você cada vez melhor.</p>
+      <div className="mt-4 flex justify-center gap-2" role="radiogroup" aria-label="Avalie de 1 a 5 estrelas">
+        {[1, 2, 3, 4, 5].map((n) => {
+          const active = n <= (hover || sel)
+          return (
+            <button
+              key={n}
+              type="button"
+              role="radio"
+              aria-checked={sel === n}
+              aria-label={`${n} estrela${n > 1 ? 's' : ''}`}
+              onMouseEnter={() => setHover(n)}
+              onMouseLeave={() => setHover(0)}
+              onClick={() => { setSel(n); playSound('click') }}
+              className={cn('p-0.5 transition-transform active:scale-90', n === sel && 'apex-star-pop')}
+            >
+              <Star className={cn('h-9 w-9 transition-colors', active ? 'fill-[#FF6B1A] text-[#FF6B1A] drop-shadow-[0_0_10px_rgba(255,107,26,0.45)]' : 'text-zinc-600')} />
+            </button>
+          )
+        })}
+      </div>
+      <Button
+        disabled={sel === 0 || rate.isPending}
+        onClick={() => rate.mutate()}
+        className="apex-gradient mt-4 h-11 px-8 font-semibold text-white transition-transform active:scale-[0.97] disabled:opacity-40"
+      >
+        {rate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
+        Enviar avaliação
+      </Button>
     </div>
   )
 }

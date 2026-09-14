@@ -45,6 +45,8 @@ export type EventSoundKind =
   | 'encaminhada'
   | 'pagamento'
   | 'alerta'
+  | 'comanda-itens'
+  | 'avaliacao'
 
 export const EVENT_SOUNDS: Record<EventSoundKind, { file: string; label: string }> = {
   'comanda-nova': { file: '/sounds/comanda-nova.wav', label: 'Sino duplo' },
@@ -53,6 +55,8 @@ export const EVENT_SOUNDS: Record<EventSoundKind, { file: string; label: string 
   'encaminhada': { file: '/sounds/encaminhada.wav', label: 'Dois tons suaves' },
   'pagamento': { file: '/sounds/pagamento.wav', label: 'Cha-ching de caixa' },
   'alerta': { file: '/sounds/alerta.wav', label: 'Buzina dupla' },
+  'comanda-itens': { file: '/sounds/comanda-confirmada.wav', label: 'Itens adicionados à comanda' },
+  'avaliacao': { file: '/sounds/prato-pronto.wav', label: 'Avaliação do cliente' },
 }
 
 const bufferCache = new Map<string, AudioBuffer>()

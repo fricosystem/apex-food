@@ -70,6 +70,10 @@ function sampleFor(kind: NotifKind): { title: string; body: string } {
       return { title: 'Pagamento confirmado — Mesa 07', body: 'Teste de notificação: comanda #A31 finalizada via PIX.' }
     case 'alerta':
       return { title: 'Alerta de operação', body: 'Teste de notificação: comanda da Mesa 03 acima de 45 min sem itens servidos.' }
+    case 'comanda-itens':
+      return { title: 'Itens adicionados — Mesa 12', body: 'Teste de notificação: 2 novos itens somados à comanda aberta.' }
+    case 'avaliacao':
+      return { title: 'Nova avaliação — Mesa 07', body: 'Teste de notificação: cliente avaliou a experiência com 5 estrelas.' }
   }
 }
 

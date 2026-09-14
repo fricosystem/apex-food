@@ -44,11 +44,26 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const table = await db.restaurantTable.findUnique({ where: { qrToken: token } })
   if (!table || !table.active) return NextResponse.json({ error: 'Mesa indisponível' }, { status: 403 })
 
-  let body: { action?: string; orderId?: string } = {}
+  let body: { action?: string; orderId?: string; rating?: number } = {}
   try {
-    body = (await req.json()) as { action?: string; orderId?: string }
+    body = (await req.json()) as { action?: string; orderId?: string; rating?: number }
   } catch {
     return NextResponse.json({ error: 'Requisição inválida' }, { status: 400 })
+  }
+
+  // Avaliação da experiência — só é aceita APÓS o pagamento confirmado no caixa
+  if (body.action === 'rate' && body.orderId) {
+    const rating = Math.round(Number(body.rating))
+    if (!rating || rating < 1 || rating > 5) {
+      return NextResponse.json({ error: 'Escolha de 1 a 5 estrelas' }, { status: 400 })
+    }
+    const order = await db.order.findUnique({ where: { id: body.orderId }, include: { table: { select: { number: true } } } })
+    if (!order || order.tableId !== table.id) return NextResponse.json({ error: 'Comanda inválida' }, { status: 404 })
+    if (order.status !== 'PAID') return NextResponse.json({ error: 'Avaliação disponível após o pagamento' }, { status: 409 })
+
+    await db.order.update({ where: { id: order.id }, data: { rating, ratedAt: new Date() } })
+    broadcast('comanda:avaliada', { orderId: order.id, code: order.code, tableNumber: order.table.number, rating }, 'dashboard')
+    return NextResponse.json({ ok: true })
   }
 
   if (body.action === 'finish' && body.orderId) {

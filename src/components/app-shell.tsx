@@ -58,6 +58,8 @@ const NOTIF_VIEW: Record<NotifKind, ViewKey | null> = {
   'encaminhada': 'caixa',
   'pagamento': 'caixa',
   'alerta': null,
+  'comanda-itens': 'garcom',
+  'avaliacao': 'gestao',
 }
 
 export function AppShell({ user }: { user: SessionUser }) {

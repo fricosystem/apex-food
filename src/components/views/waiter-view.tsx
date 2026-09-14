@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   ClipboardList, CheckCircle2, XCircle, Hand, ChefHat, History, Users, Timer,
-  BellRing, Loader2, Wallet, CircleAlert,
+  BellRing, Loader2, Wallet, CircleAlert, Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
@@ -15,12 +15,67 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
-import { api, apiPatch } from '@/lib/fetcher'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { api, apiDelete, apiPatch } from '@/lib/fetcher'
 import { currency, elapsedMinutes, formatDuration, ORDER_STATUS_LABELS, clockTime, PAYMENT_LABELS } from '@/lib/types'
 import type { OrderDTO } from '@/lib/types'
 import type { SessionUser } from '@/lib/auth'
 
 const ACTIVE = ['PENDING_CONFIRM', 'IN_KITCHEN', 'AWAITING_PAYMENT'].join(',')
+
+/**
+ * Remoção de item pelo garçom — sempre com modal de confirmação.
+ * O cliente não consegue remover itens enviados à cozinha; este é o único caminho.
+ */
+function RemoveItemAction({ orderId, itemId, itemName }: { orderId: string; itemId: string; itemName: string }) {
+  const qc = useQueryClient()
+
+  const del = useMutation({
+    mutationFn: () => apiDelete(`/api/orders/${orderId}/items/${itemId}`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['orders'] })
+      void qc.invalidateQueries({ queryKey: ['tables'] })
+      toast.success(`${itemName} removido da comanda`)
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          size="icon"
+          variant="outline"
+          className="h-7 w-7 shrink-0 border-red-500/30 text-red-500 hover:bg-red-500/10 hover:text-red-400 dark:text-red-400"
+          disabled={del.isPending}
+          aria-label={`Remover ${itemName} da comanda`}
+        >
+          {del.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remover {itemName} da comanda?</AlertDialogTitle>
+          <AlertDialogDescription>
+            O item sai da comanda, o total é recalculado na hora e o cliente da mesa é avisado automaticamente. Esta ação não pode ser desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Manter item</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => del.mutate()}
+            className="bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500/40"
+          >
+            Sim, remover item
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
 
 export function WaiterView({ user }: { user: SessionUser }) {
   const { data, isLoading } = useQuery<{ orders: OrderDTO[] }>({
@@ -145,11 +200,13 @@ function QueueTab({ queue, loading }: { queue: OrderDTO[]; loading: boolean }) {
             <Separator />
             <div className="space-y-1">
               {o.items.map((i) => (
-                <p key={i.id} className="text-sm flex items-center gap-2">
-                  <span>{i.emoji}</span>
-                  <span className="flex-1 truncate">{i.quantity}× {i.productName}</span>
-                  {i.notes && <span title={i.notes} className="text-[10px] text-amber-500">obs</span>}
-                </p>
+                <div key={i.id} className="flex items-center gap-2">
+                  <p className="flex-1 truncate text-sm">
+                    <span>{i.emoji}</span> {i.quantity}× {i.productName}
+                    {i.notes && <span title={i.notes} className="ml-1.5 text-[10px] text-amber-500">obs</span>}
+                  </p>
+                  <RemoveItemAction orderId={o.id} itemId={i.id} itemName={`${i.quantity}× ${i.productName}`} />
+                </div>
               ))}
             </div>
             <div className="flex gap-2">
@@ -228,6 +285,9 @@ function ActiveTab({ orders }: { orders: OrderDTO[] }) {
                     <Badge variant="outline" className="text-[10px] text-muted-foreground">
                       {i.status === 'PENDING' ? 'na fila' : i.status === 'IN_PREPARATION' ? 'em preparo' : 'servido'}
                     </Badge>
+                  )}
+                  {o.status !== 'AWAITING_PAYMENT' && (
+                    <RemoveItemAction orderId={o.id} itemId={i.id} itemName={`${i.quantity}× ${i.productName}`} />
                   )}
                 </div>
               ))}

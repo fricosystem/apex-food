@@ -131,6 +131,8 @@ model Order {
   confirmedAt   DateTime?
   finishedAt    DateTime?
   paidAt        DateTime?
+  rating        Int? // avaliação do cliente pós-pagamento (1 a 5)
+  ratedAt       DateTime?
   items         OrderItem[]
   payments      Payment[]
 

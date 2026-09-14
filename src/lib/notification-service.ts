@@ -72,6 +72,18 @@ export const NOTIF_KINDS: Record<NotifKind, NotifMeta> = {
     vibrate: [220, 90, 220, 90, 220],
     emoji: '🔔',
   },
+  'comanda-itens': {
+    label: 'Itens adicionados',
+    description: 'Cliente pediu mais — itens somados à comanda aberta',
+    vibrate: [90, 50, 90, 50, 90],
+    emoji: '➕',
+  },
+  'avaliacao': {
+    label: 'Avaliação do cliente',
+    description: 'Cliente avaliou a experiência após o pagamento',
+    vibrate: [100, 60, 100, 60, 160],
+    emoji: '⭐',
+  },
 }
 
 const MASTER_KEY = 'apex-sysnotif'

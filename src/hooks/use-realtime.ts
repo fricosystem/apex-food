@@ -139,6 +139,42 @@ export function useRealtime(role: Role, userId?: string) {
           })
         },
       },
+      'comanda:itens': {
+        rooms: [],
+        invalidates: [['orders'], ['tables'], ['metrics']],
+        handler: (d) => {
+          if (role === 'KITCHEN' || role === 'CASHIER') return
+          if (role === 'WAITER') {
+            const mine = !d.waiterId || d.waiterId === userId
+            notifyStaff('comanda-itens', {
+              title: `Itens adicionados — Mesa ${d.tableNumber ?? '?'}`,
+              body: mine ? `${String(d.addedCount ?? '')} novo(s) item(ns) na comanda ${String(d.code ?? '')}.` : 'Comanda de outro garçom recebeu itens.',
+              tag: `apex-itens-${String(d.tableNumber ?? '0')}`,
+            })
+            toast.info(`Itens adicionados — Mesa ${d.tableNumber ?? '?'}`, {
+              description: mine ? 'O cliente pediu mais — confira a comanda.' : 'Comanda de outro garçom recebeu itens.',
+            })
+          } else {
+            notifyStaff('comanda-itens', {
+              title: `Itens adicionados — Mesa ${d.tableNumber ?? '?'}`,
+              body: 'A comanda teve novos itens somados.',
+              tag: `apex-itens-${String(d.tableNumber ?? '0')}`,
+            })
+          }
+        },
+      },
+      'comanda:avaliada': {
+        rooms: [],
+        invalidates: [['orders'], ['metrics']],
+        handler: (d) => {
+          if (role === 'KITCHEN' || role === 'CASHIER' || role === 'WAITER') return
+          notifyStaff('avaliacao', {
+            title: `Nova avaliação — Mesa ${d.tableNumber ?? '?'}`,
+            body: `${'★'.repeat(Math.max(1, Math.min(5, Number(d.rating ?? 0))))} na comanda ${String(d.code ?? '')}.`,
+            tag: `apex-avaliacao-${String(d.tableNumber ?? '0')}`,
+          })
+        },
+      },
       'mesa:atualizada': {
         rooms: [],
         invalidates: [['tables']],
