@@ -778,3 +778,19 @@ Work Log:
 
 Stage Summary:
 - Painel do Desenvolvedor CEO confirmado e entregue: rota "Plataforma" no sidebar (exclusiva do SUPER_ADMIN, primeiro item), gestão completa dos estabelecimentos cadastrados (criar/editar/suspender/excluir), planos com vencimento/pagamento/período de teste, e matriz de permissões por estabelecimento — acesso pelo chip "Desenvolvedor CEO" na tela de login (dev@apexfood.com / apex123)
+
+---
+Task ID: 44
+Agent: Super Z (principal)
+Task: Remover o acesso rápido da equipe da tela de autenticação; Entrar sem dados → Administrador como padrão; demais acessos documentados nas configurações de permissão
+
+Work Log:
+- src/components/login-screen.tsx: bloco "Acesso rápido da equipe" removido (divisor + 6 chips + nota "senha de demonstração"); constante DEMO_ACCOUNTS excluída; required removido dos inputs E-mail/Senha do login (cadastro mantém required); submit agora: E-mail E Senha vazios → login automático como Administrador (admin@apexfood.com/apex123); preenchimento parcial → validação "Preencha e-mail e senha" mantida
+- src/components/views/administration-view.tsx: AREA_LABELS ganhou 'plataforma'; nova ALL_ROLE_ENTRIES (todos os cargos); card "Permissões por cargo" agora lista 6 acessos incluindo Desenvolvedor CEO (borda tracejada com destaque primário) com a área "Painel da plataforma (estabelecimentos, planos e cobranças)"; Selects de cargo dos funcionários continuam limitados aos cargos do estabelecimento (SUPER_ADMIN permanece exclusivo da plataforma)
+- src/components/views/settings-view.tsx: PERMISSION_MATRIX ganhou as linhas "Painel da plataforma (gestão dos estabelecimentos)" [SUPER_ADMIN] e "Relatório Geral" [ADMIN, MANAGER] — matriz de acesso completa em Configurações
+- Nada foi removido dos arquivos: todas as telas e cargos (Gerente, Garçom, Cozinha, Caixa, Desenvolvedor CEO) permanecem no sistema; a remoção foi apenas nas opções da tela de autenticação
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+- E2E desktop 1540x772: login sem chips (semAcessoRapido/semChipDev/semSenhaDemo = true, aba Cadastrar restaurante intacta); clique em Entrar com campos vazios → sessão de Ana Costa (Administrador) com 9 telas no nav; parcial (só e-mail) → toast de erro e permanece no login; vazio novamente → Ana Costa; card Permissões por cargo com 6 cargos e CEO → "Painel da plataforma (estabelecimentos, planos e cobranças)"; Configurações com linhas Painel da plataforma e Relatório Geral; sem erros de página/console; shots 175-178
+
+Stage Summary:
+- Autenticação limpa e profissional: sem atalhos de equipe; Entrar em branco abre o Administrador por padrão; os demais acessos (incluindo Desenvolvedor CEO) ficaram documentados nas permissões por cargo (Administração) e na matriz de acesso (Configurações), com todos os cargos e telas preservados nos arquivos

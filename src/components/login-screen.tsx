@@ -22,15 +22,6 @@ import { pushSystemNotification } from '@/lib/notification-service'
 import { ROLE_LABELS } from '@/lib/types'
 import type { SessionUser } from '@/lib/auth'
 
-const DEMO_ACCOUNTS = [
-  { email: 'admin@apexfood.com', label: 'Administrador', desc: 'Acesso total' },
-  { email: 'gerente@apexfood.com', label: 'Gerente', desc: 'Operação e métricas' },
-  { email: 'rafael@apexfood.com', label: 'Garçom', desc: 'Comandas e atendimento' },
-  { email: 'cozinha@apexfood.com', label: 'Cozinha', desc: 'Fila de preparo' },
-  { email: 'caixa@apexfood.com', label: 'Caixa', desc: 'Pagamentos' },
-  { email: 'dev@apexfood.com', label: 'Desenvolvedor CEO', desc: 'Painel da plataforma' },
-]
-
 type ModuleFeature = { icon: React.ElementType; title: string; desc: string }
 
 const MODULE_SECTIONS: {
@@ -282,6 +273,11 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
+    // Sem dados nos campos → entra como Administrador (acesso padrão do sistema)
+    if (!email.trim() && !password) {
+      login.mutate({ email: 'admin@apexfood.com', password: 'apex123' })
+      return
+    }
     if (!email.trim() || !password) {
       toast.error('Preencha e-mail e senha')
       return
@@ -499,7 +495,6 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
                       className="pl-9 h-11 bg-background text-foreground"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      required
                     />
                   </div>
                 </div>
@@ -515,7 +510,6 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
                       className="pl-9 h-11 bg-background text-foreground"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      required
                     />
                   </div>
                 </div>
@@ -524,32 +518,6 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
                   Entrar
                 </Button>
               </form>
-
-              <div className="mt-8">
-                <div className="flex items-center gap-3">
-                  <div className="h-px flex-1 bg-white/15" />
-                  <span className="text-xs text-white/50 uppercase tracking-wider">Acesso rápido da equipe</span>
-                  <div className="h-px flex-1 bg-white/15" />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-                  {DEMO_ACCOUNTS.map((acc) => (
-                    <button
-                      key={acc.email}
-                      type="button"
-                      onClick={() => login.mutate({ email: acc.email, password: 'apex123' })}
-                      disabled={login.isPending}
-                      className={cn(
-                        'text-left rounded-lg border border-input bg-background dark:bg-input/30 px-3 py-2.5 hover:border-[#FF6B1A]/70 hover:bg-orange-50 dark:hover:bg-[#FF6B1A]/10 transition-colors disabled:opacity-50',
-                        acc.email === 'dev@apexfood.com' && 'border-dashed'
-                      )}
-                    >
-                      <p className="text-sm font-semibold leading-tight text-foreground">{acc.label}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{acc.desc}</p>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-white/45 mt-3 text-center">senha de demonstração: apex123</p>
-              </div>
             </TabsContent>
 
             {/* ---- Aba Cadastrar ---- */}

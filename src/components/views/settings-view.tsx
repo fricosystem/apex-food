@@ -43,12 +43,14 @@ const EST_TYPES = [
 ]
 
 const PERMISSION_MATRIX = [
+  { area: 'Painel da plataforma (gestão dos estabelecimentos)', roles: ['SUPER_ADMIN'] },
   { area: 'Dashboard analítico', roles: ['ADMIN', 'MANAGER'] },
   { area: 'Tela do garçom', roles: ['ADMIN', 'MANAGER', 'WAITER'] },
   { area: 'Cozinha', roles: ['ADMIN', 'MANAGER', 'KITCHEN'] },
   { area: 'Caixa e pagamentos', roles: ['ADMIN', 'MANAGER', 'CASHIER'] },
   { area: 'Gestão (produtos, equipe, metas)', roles: ['ADMIN', 'MANAGER'] },
   { area: 'Mesas e QR Codes', roles: ['ADMIN', 'MANAGER'] },
+  { area: 'Relatório Geral', roles: ['ADMIN', 'MANAGER'] },
   { area: 'Administração (funcionários, gestão geral, catálogo)', roles: ['ADMIN', 'MANAGER'] },
   { area: 'Configurações e notificações', roles: ['ADMIN', 'MANAGER', 'WAITER', 'KITCHEN', 'CASHIER'] },
 ]

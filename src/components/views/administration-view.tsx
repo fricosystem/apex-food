@@ -46,10 +46,14 @@ const AREA_LABELS: Record<string, string> = {
   relatorio: 'Relatório Geral',
   administracao: 'Administração (funcionários, gestão geral, catálogo)',
   configuracoes: 'Configurações e notificações',
+  plataforma: 'Painel da plataforma (estabelecimentos, planos e cobranças)',
 }
 
 /** Cargos atribuíveis dentro de um estabelecimento (SUPER_ADMIN é exclusivo da plataforma) */
 const TENANT_ROLE_ENTRIES = Object.entries(ROLE_LABELS).filter(([k]) => k !== 'SUPER_ADMIN')
+
+/** Todos os acessos do sistema — inclui o Desenvolvedor CEO (dono da plataforma) */
+const ALL_ROLE_ENTRIES = Object.entries(ROLE_LABELS)
 
 export function AdministrationView({ user }: { user: SessionUser }) {
   return (
@@ -187,14 +191,14 @@ function StaffTab({ user }: { user: SessionUser }) {
                 <ShieldCheck className="h-4 w-4 text-primary" />
                 <p className="font-semibold text-sm">Permissões por cargo</p>
               </div>
-              <p className="text-[11px] text-muted-foreground">Áreas que cada cargo acessa no sistema</p>
+              <p className="text-[11px] text-muted-foreground">Áreas que cada cargo acessa no sistema, incluindo o acesso do Desenvolvedor CEO à plataforma</p>
               <div className="space-y-2.5">
-                {TENANT_ROLE_ENTRIES.map(([role, roleLabel]) => {
+                {ALL_ROLE_ENTRIES.map(([role, roleLabel]) => {
                   const areas = Object.entries(user.permissions).filter(([, roles]) => roles.includes(role)).map(([key]) => AREA_LABELS[key] ?? key)
                   return (
-                    <div key={role} className="rounded-lg border p-2.5">
-                      <Badge variant="outline" className="text-[10px] mb-1.5">{roleLabel}</Badge>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">{areas.join(' · ')}</p>
+                    <div key={role} className={cn('rounded-lg border p-2.5', role === 'SUPER_ADMIN' && 'border-dashed border-primary/40 bg-primary/5')}>
+                      <Badge variant="outline" className={cn('text-[10px] mb-1.5', role === 'SUPER_ADMIN' && 'border-primary/40 text-primary')}>{roleLabel}</Badge>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">{areas.length > 0 ? areas.join(' · ') : 'Sem acessos configurados'}</p>
                     </div>
                   )
                 })}

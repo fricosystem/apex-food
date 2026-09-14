@@ -1,0 +1,694 @@
+     1→'use client'
+     2→
+     3→import { useState } from 'react'
+     4→import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+     5→import { toast } from 'sonner'
+     6→import {
+     7→  Plus, Pencil, Trash2, Package, Users, UtensilsCrossed, SlidersHorizontal,
+     8→  Loader2, Image as ImageIcon, Clock, ShieldCheck, Search, KeyRound, Building2,
+     9→} from 'lucide-react'
+    10→import { cn } from '@/lib/utils'
+    11→import { Card, CardContent } from '@/components/ui/card'
+    12→import { Badge } from '@/components/ui/badge'
+    13→import { Button } from '@/components/ui/button'
+    14→import { Input } from '@/components/ui/input'
+    15→import { Label } from '@/components/ui/label'
+    16→import { Textarea } from '@/components/ui/textarea'
+    17→import { Switch } from '@/components/ui/switch'
+    18→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    19→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+    20→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    21→import { Skeleton } from '@/components/ui/skeleton'
+    22→import { Separator } from '@/components/ui/separator'
+    23→import { api, apiPost, apiPatch, apiDelete } from '@/lib/fetcher'
+    24→import { currency, SECTOR_LABELS, ROLE_LABELS, PRODUCT_KIND_LABELS } from '@/lib/types'
+    25→import type { ProductKind } from '@/lib/types'
+    26→import type { SessionUser } from '@/lib/auth'
+    27→
+    28→type Category = { id: string; name: string; sector: string; icon: string; sortOrder: number; active: boolean }
+    29→type Product = {
+    30→  id: string; name: string; description: string; emoji: string; image: string | null
+    31→  price: number; prepTime: number; kind: ProductKind; active: boolean; categoryId: string
+    32→  category: Category
+    33→}
+    34→type UserRow = { id: string; name: string; email: string; role: string; status: string; active: boolean; activeLoad: number | null }
+    35→
+    36→const STATUS_LABELS: Record<string, string> = { ONLINE: 'Online', BUSY: 'Ocupado', OFFLINE: 'Offline' }
+    37→
+    38→/** Rótulos das áreas para a matriz de permissões (espelha NAV_ITEMS sem importar o app-shell) */
+    39→const AREA_LABELS: Record<string, string> = {
+    40→  dashboard: 'Dashboard analítico',
+    41→  garcom: 'Tela do garçom',
+    42→  cozinha: 'Cozinha (fila de preparo)',
+    43→  caixa: 'Caixa e pagamentos',
+    44→  gestao: 'Gestão (produtos, equipe, metas)',
+    45→  mesas: 'Mesas e QR Codes',
+    46→  relatorio: 'Relatório Geral',
+    47→  administracao: 'Administração (funcionários, gestão geral, catálogo)',
+    48→  configuracoes: 'Configurações e notificações',
+    49→}
+    50→
+    51→/** Cargos atribuíveis dentro de um estabelecimento (SUPER_ADMIN é exclusivo da plataforma) */
+    52→const TENANT_ROLE_ENTRIES = Object.entries(ROLE_LABELS).filter(([k]) => k !== 'SUPER_ADMIN')
+    53→
+    54→export function AdministrationView({ user }: { user: SessionUser }) {
+    55→  return (
+    56→    <Tabs defaultValue="funcionarios" className="space-y-4">
+    57→      <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/60">
+    58→        <TabsTrigger value="funcionarios" className="gap-1.5"><Users className="h-4 w-4" /> Funcionários</TabsTrigger>
+    59→        <TabsTrigger value="geral" className="gap-1.5"><Building2 className="h-4 w-4" /> Gestão geral</TabsTrigger>
+    60→        <TabsTrigger value="produtos" className="gap-1.5"><Package className="h-4 w-4" /> Produtos</TabsTrigger>
+    61→        <TabsTrigger value="refeicoes" className="gap-1.5"><UtensilsCrossed className="h-4 w-4" /> Refeições</TabsTrigger>
+    62→      </TabsList>
+    63→
+    64→      <TabsContent value="funcionarios"><StaffTab user={user} /></TabsContent>
+    65→      <TabsContent value="geral"><GeneralTab /></TabsContent>
+    66→      <TabsContent value="produtos"><CatalogTab key="produtos" kind="PRODUCT" /></TabsContent>
+    67→      <TabsContent value="refeicoes"><CatalogTab key="refeicoes" kind="MEAL" /></TabsContent>
+    68→    </Tabs>
+    69→  )
+    70→}
+    71→
+    72→/* ==================== FUNCIONÁRIOS ==================== */
+    73→function StaffTab({ user }: { user: SessionUser }) {
+    74→  const qc = useQueryClient()
+    75→  const [creating, setCreating] = useState(false)
+    76→  const [editing, setEditing] = useState<UserRow | null>(null)
+    77→  const [removing, setRemoving] = useState<UserRow | null>(null)
+    78→
+    79→  const { data, isLoading } = useQuery<{ users: UserRow[] }>({ queryKey: ['users'], queryFn: () => api('/api/users') })
+    80→  const users = data?.users ?? []
+    81→  const activeCount = users.filter((u) => u.active).length
+    82→
+    83→  const toggle = useMutation({
+    84→    mutationFn: (u: UserRow) => apiPatch(`/api/users/${u.id}`, { active: !u.active }),
+    85→    onSuccess: () => {
+    86→      void qc.invalidateQueries({ queryKey: ['users'] })
+    87→      toast.success('Status do funcionário atualizado')
+    88→    },
+    89→    onError: (e: Error) => toast.error(e.message),
+    90→  })
+    91→  const remove = useMutation({
+    92→    mutationFn: (id: string) => apiDelete(`/api/users/${id}`),
+    93→    onSuccess: () => {
+    94→      void qc.invalidateQueries({ queryKey: ['users'] })
+    95→      toast.success('Funcionário removido (ou desativado, se possui histórico de comandas)')
+    96→      setRemoving(null)
+    97→    },
+    98→    onError: (e: Error) => toast.error(e.message),
+    99→  })
+   100→  const changeRole = useMutation({
+   101→    mutationFn: ({ id, role }: { id: string; role: string }) => apiPatch(`/api/users/${id}`, { role }),
+   102→    onSuccess: () => {
+   103→      void qc.invalidateQueries({ queryKey: ['users'] })
+   104→      toast.success('Cargo e permissões atualizados')
+   105→    },
+   106→    onError: (e: Error) => toast.error(e.message),
+   107→  })
+   108→
+   109→  return (
+   110→    <div className="space-y-4">
+   111→      <div className="flex items-center justify-between gap-3">
+   112→        <p className="text-sm text-muted-foreground">
+   113→          {users.length} funcionário(s) · {activeCount} ativo(s) · o cargo define as permissões de acesso
+   114→        </p>
+   115→        <Button onClick={() => setCreating(true)} className="apex-gradient text-white shrink-0">
+   116→          <Plus className="h-4 w-4" /> Novo funcionário
+   117→        </Button>
+   118→      </div>
+   119→
+   120→      {isLoading ? (
+   121→        <Skeleton className="h-72 rounded-xl" />
+   122→      ) : (
+   123→        <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start">
+   124→          {/* Lista de funcionários */}
+   125→          <Card>
+   126→            <CardContent className="p-0">
+   127→              <div className="divide-y">
+   128→                {users.map((u) => (
+   129→                  <div key={u.id} className="flex items-center gap-3 p-3.5">
+   130→                    <div className={cn('h-9 w-9 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0', u.active ? 'apex-gradient' : 'bg-muted text-muted-foreground')}>
+   131→                      {u.name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}
+   132→                    </div>
+   133→                    <div className="flex-1 min-w-0">
+   134→                      <p className="text-sm font-semibold leading-tight flex items-center gap-1.5">
+   135→                        <span className="truncate">{u.name}</span>
+   136→                        {!u.active && <Badge variant="outline" className="text-[9px] shrink-0">inativo</Badge>}
+   137→                      </p>
+   138→                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{u.email}</p>
+   139→                      {u.activeLoad !== null && (
+   140→                        <Badge variant="outline" className="md:hidden text-[9px] mt-1">{u.activeLoad} comanda(s) ativa(s)</Badge>
+   141→                      )}
+   142→                    </div>
+   143→                    {u.activeLoad !== null && (
+   144→                      <Badge variant="outline" className="hidden md:inline-flex text-[10px] shrink-0">{u.activeLoad} comanda(s)</Badge>
+   145→                    )}
+   146→                    <Badge
+   147→                      variant="outline"
+   148→                      className={cn(
+   149→                        'hidden sm:inline-flex text-[10px] shrink-0',
+   150→                        u.status === 'ONLINE' && 'text-emerald-600 dark:text-emerald-400',
+   151→                        u.status === 'BUSY' && 'text-amber-600 dark:text-amber-400'
+   152→                      )}
+   153→                    >
+   154→                      {STATUS_LABELS[u.status] ?? u.status}
+   155→                    </Badge>
+   156→                    <Select
+   157→                      value={u.role}
+   158→                      onValueChange={(v) => changeRole.mutate({ id: u.id, role: v })}
+   159→                      disabled={changeRole.isPending}
+   160→                    >
+   161→                      <SelectTrigger className="w-[128px] h-8 text-xs shrink-0"><SelectValue /></SelectTrigger>
+   162→                      <SelectContent>
+   163→                        {TENANT_ROLE_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+   164→                      </SelectContent>
+   165→                    </Select>
+   166→                    <Switch checked={u.active} onCheckedChange={() => toggle.mutate(u)} aria-label="Ativar funcionário" />
+   167→                    <div className="flex items-center gap-0.5 shrink-0">
+   168→                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => setEditing(u)} aria-label={`Editar ${u.name}`}>
+   169→                        <Pencil className="h-3.5 w-3.5" />
+   170→                      </Button>
+   171→                      {user.role === 'ADMIN' && u.id !== user.id && (
+   172→                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setRemoving(u)} aria-label={`Excluir ${u.name}`}>
+   173→                          <Trash2 className="h-3.5 w-3.5" />
+   174→                        </Button>
+   175→                      )}
+   176→                    </div>
+   177→                  </div>
+   178→                ))}
+   179→              </div>
+   180→            </CardContent>
+   181→          </Card>
+   182→
+   183→          {/* Matriz de permissões por cargo */}
+   184→          <Card>
+   185→            <CardContent className="p-4 space-y-3">
+   186→              <div className="flex items-center gap-2">
+   187→                <ShieldCheck className="h-4 w-4 text-primary" />
+   188→                <p className="font-semibold text-sm">Permissões por cargo</p>
+   189→              </div>
+   190→              <p className="text-[11px] text-muted-foreground">Áreas que cada cargo acessa no sistema</p>
+   191→              <div className="space-y-2.5">
+   192→                {TENANT_ROLE_ENTRIES.map(([role, roleLabel]) => {
+   193→                  const areas = Object.entries(user.permissions).filter(([, roles]) => roles.includes(role)).map(([key]) => AREA_LABELS[key] ?? key)
+   194→                  return (
+   195→                    <div key={role} className="rounded-lg border p-2.5">
+   196→                      <Badge variant="outline" className="text-[10px] mb-1.5">{roleLabel}</Badge>
+   197→                      <p className="text-[11px] text-muted-foreground leading-relaxed">{areas.join(' · ')}</p>
+   198→                    </div>
+   199→                  )
+   200→                })}
+   201→              </div>
+   202→            </CardContent>
+   203→          </Card>
+   204→        </div>
+   205→      )}
+   206→
+   207→      <UserDialog open={creating} onClose={() => setCreating(false)} />
+   208→      {editing && (
+   209→        <EditUserDialog user={editing} onClose={() => setEditing(null)} />
+   210→      )}
+   211→
+   212→      {/* Confirmação de exclusão */}
+   213→      <Dialog open={!!removing} onOpenChange={(v) => !v && setRemoving(null)}>
+   214→        <DialogContent className="max-w-sm">
+   215→          <DialogHeader>
+   216→            <DialogTitle>Excluir funcionário</DialogTitle>
+   217→            <DialogDescription>
+   218→              Remover {removing?.name}? Se houver histórico de comandas, o acesso será apenas desativado.
+   219→            </DialogDescription>
+   220→          </DialogHeader>
+   221→          <DialogFooter>
+   222→            <Button variant="outline" onClick={() => setRemoving(null)}>Cancelar</Button>
+   223→            <Button variant="destructive" onClick={() => removing && remove.mutate(removing.id)} disabled={remove.isPending}>
+   224→              {remove.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Excluir
+   225→            </Button>
+   226→          </DialogFooter>
+   227→        </DialogContent>
+   228→      </Dialog>
+   229→    </div>
+   230→  )
+   231→}
+   232→
+   233→/* ==================== DIÁLOGOS DE FUNCIONÁRIO ==================== */
+   234→function UserDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+   235→  const qc = useQueryClient()
+   236→  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'WAITER' })
+   237→
+   238→  const save = useMutation({
+   239→    mutationFn: () => apiPost('/api/users', form),
+   240→    onSuccess: () => {
+   241→      void qc.invalidateQueries({ queryKey: ['users'] })
+   242→      toast.success('Funcionário cadastrado')
+   243→      onClose()
+   244→      setForm({ name: '', email: '', password: '', role: 'WAITER' })
+   245→    },
+   246→    onError: (e: Error) => toast.error(e.message),
+   247→  })
+   248→
+   249→  return (
+   250→    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+   251→      <DialogContent className="max-w-sm">
+   252→        <DialogHeader><DialogTitle>Novo funcionário</DialogTitle></DialogHeader>
+   253→        <div className="space-y-3">
+   254→          <div className="space-y-1.5"><Label>Nome</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+   255→          <div className="space-y-1.5"><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nome@apexfood.com" /></div>
+   256→          <div className="grid grid-cols-2 gap-3">
+   257→            <div className="space-y-1.5"><Label>Senha inicial</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
+   258→            <div className="space-y-1.5">
+   259→              <Label>Cargo</Label>
+   260→              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+   261→                <SelectTrigger><SelectValue /></SelectTrigger>
+   262→                <SelectContent>
+   263→                  {TENANT_ROLE_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+   264→                </SelectContent>
+   265→              </Select>
+   266→            </div>
+   267→          </div>
+   268→        </div>
+   269→        <DialogFooter>
+   270→          <Button className="w-full apex-gradient text-white" onClick={() => save.mutate()} disabled={save.isPending || !form.name || !form.email || form.password.length < 4}>Cadastrar</Button>
+   271→        </DialogFooter>
+   272→      </DialogContent>
+   273→    </Dialog>
+   274→  )
+   275→}
+   276→
+   277→function EditUserDialog({ user, onClose }: { user: UserRow; onClose: () => void }) {
+   278→  const qc = useQueryClient()
+   279→  // Montado condicionalmente (só existe enquanto editing != null): estado inicial já é o do usuário
+   280→  const [form, setForm] = useState({ name: user.name, role: user.role, status: user.status, password: '' })
+   281→
+   282→  const save = useMutation({
+   283→    mutationFn: () => {
+   284→      const payload: Record<string, string> = { name: form.name, role: form.role, status: form.status }
+   285→      if (form.password) payload.password = form.password
+   286→      return apiPatch(`/api/users/${user.id}`, payload)
+   287→    },
+   288→    onSuccess: () => {
+   289→      void qc.invalidateQueries({ queryKey: ['users'] })
+   290→      toast.success('Funcionário atualizado')
+   291→      onClose()
+   292→    },
+   293→    onError: (e: Error) => toast.error(e.message),
+   294→  })
+   295→
+   296→  return (
+   297→    <Dialog open onOpenChange={(v) => !v && onClose()}>
+   298→      <DialogContent className="max-w-sm">
+   299→        <DialogHeader>
+   300→          <DialogTitle>Editar funcionário</DialogTitle>
+   301→          <DialogDescription>{user.email} · o e-mail de acesso não pode ser alterado</DialogDescription>
+   302→        </DialogHeader>
+   303→        <div className="space-y-3">
+   304→          <div className="space-y-1.5"><Label>Nome</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+   305→          <div className="grid grid-cols-2 gap-3">
+   306→            <div className="space-y-1.5">
+   307→              <Label>Cargo</Label>
+   308→              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+   309→                <SelectTrigger><SelectValue /></SelectTrigger>
+   310→                <SelectContent>
+   311→                  {TENANT_ROLE_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+   312→                </SelectContent>
+   313→              </Select>
+   314→            </div>
+   315→            <div className="space-y-1.5">
+   316→              <Label>Status</Label>
+   317→              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+   318→                <SelectTrigger><SelectValue /></SelectTrigger>
+   319→                <SelectContent>
+   320→                  {Object.entries(STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+   321→                </SelectContent>
+   322→              </Select>
+   323→            </div>
+   324→          </div>
+   325→          <div className="space-y-1.5">
+   326→            <Label className="flex items-center gap-1.5"><KeyRound className="h-3.5 w-3.5" /> Nova senha (opcional)</Label>
+   327→            <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mínimo 4 caracteres" />
+   328→          </div>
+   329→        </div>
+   330→        <DialogFooter>
+   331→          <Button className="w-full apex-gradient text-white" onClick={() => save.mutate()} disabled={save.isPending || !form.name || (form.password.length > 0 && form.password.length < 4)}>
+   332→            {save.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Salvar alterações
+   333→          </Button>
+   334→        </DialogFooter>
+   335→      </DialogContent>
+   336→    </Dialog>
+   337→  )
+   338→}
+   339→
+   340→/* ==================== GESTÃO GERAL ==================== */
+   341→const EST_TYPES = [
+   342→  { key: 'RESTAURANTE', label: 'Restaurante', icon: '🍽️' },
+   343→  { key: 'PIZZARIA', label: 'Pizzaria', icon: '🍕' },
+   344→  { key: 'HAMBURGUERIA', label: 'Hamburgueria', icon: '🍔' },
+   345→  { key: 'CHURRASCARIA', label: 'Churrascaria', icon: '🥩' },
+   346→]
+   347→
+   348→function GeneralTab() {
+   349→  const qc = useQueryClient()
+   350→  const { data, isLoading } = useQuery<{ settings: Record<string, string> }>({ queryKey: ['settings'], queryFn: () => api('/api/settings') })
+   351→  const s = data?.settings ?? {}
+   352→
+   353→  const [form, setForm] = useState({ name: '', type: 'RESTAURANTE', logo: '🍴' })
+   354→  const [loaded, setLoaded] = useState(false)
+   355→  // Recarga no render (padrão das outras views): trava o form com os dados carregados uma única vez
+   356→  if (!loaded && s.establishmentName !== undefined) {
+   357→    setLoaded(true)
+   358→    setForm({ name: s.establishmentName ?? '', type: s.establishmentType ?? 'RESTAURANTE', logo: s.establishmentLogo ?? '🍴' })
+   359→  }
+   360→
+   361→  const saveSettings = useMutation({
+   362→    mutationFn: (payload: Record<string, string>) => apiPatch('/api/settings', payload),
+   363→    onSuccess: () => {
+   364→      void qc.invalidateQueries({ queryKey: ['settings'] })
+   365→      toast.success('Configuração salva')
+   366→    },
+   367→    onError: (e: Error) => toast.error(e.message),
+   368→  })
+   369→
+   370→  if (isLoading) return <Skeleton className="h-64 rounded-xl" />
+   371→
+   372→  return (
+   373→    <div className="grid gap-4 md:grid-cols-2 items-start">
+   374→      {/* Estabelecimento */}
+   375→      <Card>
+   376→        <CardContent className="p-4 space-y-4">
+   377→          <div>
+   378→            <p className="font-semibold text-sm">Estabelecimento</p>
+   379→            <p className="text-[11px] text-muted-foreground mt-0.5">Identidade exibida no sistema, no cardápio QR e nas comandas</p>
+   380→          </div>
+   381→          <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-3">
+   382→            <div className="space-y-1.5">
+   383→              <Label>Logo</Label>
+   384→              <Input value={form.logo} onChange={(e) => setForm({ ...form, logo: e.target.value.slice(0, 2) })} className="text-center text-lg" />
+   385→            </div>
+   386→            <div className="space-y-1.5">
+   387→              <Label>Nome</Label>
+   388→              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: APEX FOOD" />
+   389→            </div>
+   390→          </div>
+   391→          <div className="space-y-1.5">
+   392→            <Label>Tipo de operação</Label>
+   393→            <div className="grid grid-cols-2 gap-2">
+   394→              {EST_TYPES.map((t) => {
+   395→                const active = form.type === t.key
+   396→                return (
+   397→                  <button
+   398→                    key={t.key}
+   399→                    onClick={() => setForm({ ...form, type: t.key })}
+   400→                    className={cn(
+   401→                      'rounded-lg border p-3 flex items-center gap-2 text-sm font-medium transition-all min-w-0',
+   402→                      active ? 'border-primary bg-primary/10 text-primary' : 'hover:border-primary/40'
+   403→                    )}
+   404→                  >
+   405→                    <span className="text-base shrink-0">{t.icon}</span>
+   406→                    <span className="truncate">{t.label}</span>
+   407→                  </button>
+   408→                )
+   409→              })}
+   410→            </div>
+   411→          </div>
+   412→          <Button
+   413→            className="w-full apex-gradient text-white font-semibold"
+   414→            onClick={() => saveSettings.mutate({ establishmentName: form.name, establishmentType: form.type, establishmentLogo: form.logo })}
+   415→            disabled={saveSettings.isPending || !form.name}
+   416→          >
+   417→            {saveSettings.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Salvar estabelecimento
+   418→          </Button>
+   419→        </CardContent>
+   420→      </Card>
+   421→
+   422→      {/* Operação */}
+   423→      <div className="space-y-4">
+   424→        <Card>
+   425→          <CardContent className="p-4 space-y-4">
+   426→            <div>
+   427→              <p className="font-semibold text-sm">Operação</p>
+   428→              <p className="text-[11px] text-muted-foreground mt-0.5">Distribuição de comandas e tempos de alerta</p>
+   429→            </div>
+   430→            <div className="space-y-1.5">
+   431→              <Label>Distribuição de comandas</Label>
+   432→              <Select value={s.distributionRule ?? 'least_active'} onValueChange={(v) => saveSettings.mutate({ distributionRule: v })}>
+   433→                <SelectTrigger><SelectValue /></SelectTrigger>
+   434→                <SelectContent>
+   435→                  <SelectItem value="least_active">Menor carga ativa (comandas abertas)</SelectItem>
+   436→                  <SelectItem value="least_load">Menor demanda acumulada do dia</SelectItem>
+   437→                </SelectContent>
+   438→              </Select>
+   439→            </div>
+   440→            <Separator />
+   441→            <div className="grid grid-cols-3 gap-3">
+   442→              <div className="space-y-1.5">
+   443→                <Label>Confirmação (min)</Label>
+   444→                <Input defaultValue={s.confirmTimeout ?? '5'} onBlur={(e) => saveSettings.mutate({ confirmTimeout: e.target.value.replace(/\D/g, '') || '5' })} inputMode="numeric" />
+   445→              </div>
+   446→              <div className="space-y-1.5">
+   447→                <Label>Alerta (min)</Label>
+   448→                <Input defaultValue={s.alertThreshold ?? '20'} onBlur={(e) => saveSettings.mutate({ alertThreshold: e.target.value.replace(/\D/g, '') || '20' })} inputMode="numeric" />
+   449→              </div>
+   450→              <div className="space-y-1.5">
+   451→                <Label>Meta padrão</Label>
+   452→                <Input defaultValue={s.defaultGoal ?? '50'} onBlur={(e) => saveSettings.mutate({ defaultGoal: e.target.value.replace(/\D/g, '') || '50' })} inputMode="numeric" />
+   453→              </div>
+   454→            </div>
+   455→          </CardContent>
+   456→        </Card>
+   457→
+   458→        <Card>
+   459→          <CardContent className="p-4 space-y-3">
+   460→            <div>
+   461→              <p className="font-semibold text-sm">Métodos de pagamento aceitos</p>
+   462→              <p className="text-[11px] text-muted-foreground mt-0.5">Exibidos no caixa durante o fechamento</p>
+   463→            </div>
+   464→            {[
+   465→              { key: 'acceptCredit', label: 'Cartão de Crédito' },
+   466→              { key: 'acceptDebit', label: 'Cartão de Débito' },
+   467→              { key: 'acceptPix', label: 'PIX' },
+   468→              { key: 'acceptCash', label: 'Dinheiro Físico' },
+   469→            ].map((m) => (
+   470→              <div key={m.key} className="flex items-center justify-between rounded-lg border p-2.5">
+   471→                <span className="text-sm">{m.label}</span>
+   472→                <Switch checked={(s[m.key] ?? 'true') === 'true'} onCheckedChange={(v) => saveSettings.mutate({ [m.key]: String(v) })} />
+   473→              </div>
+   474→            ))}
+   475→          </CardContent>
+   476→        </Card>
+   477→      </div>
+   478→    </div>
+   479→  )
+   480→}
+   481→
+   482→/* ==================== CATÁLOGO: PRODUTOS & REFEIÇÕES ==================== */
+   483→function CatalogTab({ kind }: { kind: ProductKind }) {
+   484→  const qc = useQueryClient()
+   485→  const isMeal = kind === 'MEAL'
+   486→  const noun = isMeal ? 'refeição' : 'produto'
+   487→  const nounPlural = isMeal ? 'refeições' : 'produtos'
+   488→
+   489→  const [editing, setEditing] = useState<Product | null>(null)
+   490→  const [creating, setCreating] = useState(false)
+   491→  const [search, setSearch] = useState('')
+   492→
+   493→  const { data, isLoading } = useQuery<{ products: Product[] }>({
+   494→    queryKey: ['products', 'admin', kind],
+   495→    queryFn: () => api(`/api/products?all=1&kind=${kind}`),
+   496→  })
+   497→  const items = (data?.products ?? []).filter((p) => p.name.toLowerCase().includes(search.trim().toLowerCase()))
+   498→  const activeCount = (data?.products ?? []).filter((p) => p.active).length
+   499→
+   500→  const toggle = useMutation({
+   501→    mutationFn: (p: Product) => apiPatch(`/api/products/${p.id}`, { active: !p.active }),
+   502→    onSuccess: () => {
+   503→      void qc.invalidateQueries({ queryKey: ['products'] })
+   504→      void qc.invalidateQueries({ queryKey: ['categories'] })
+   505→      toast.success('Item atualizado')
+   506→    },
+   507→    onError: (e: Error) => toast.error(e.message),
+   508→  })
+   509→  const remove = useMutation({
+   510→    mutationFn: (id: string) => apiDelete(`/api/products/${id}`),
+   511→    onSuccess: () => {
+   512→      void qc.invalidateQueries({ queryKey: ['products'] })
+   513→      void qc.invalidateQueries({ queryKey: ['categories'] })
+   514→      toast.success('Item removido (ou desativado, se já possui histórico de comandas)')
+   515→    },
+   516→    onError: (e: Error) => toast.error(e.message),
+   517→  })
+   518→
+   519→  return (
+   520→    <div className="space-y-3">
+   521→      <div className="flex items-center justify-between gap-3 flex-wrap">
+   522→        <p className="text-sm text-muted-foreground">
+   523→          {items.length} {nounPlural} · {activeCount} ativo(s) · o tempo de preparo alimenta a cozinha e o cliente
+   524→        </p>
+   525→        <div className="flex items-center gap-2">
+   526→          <div className="relative">
+   527→            <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+   528→            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Buscar ${noun}…`} className="h-9 w-44 pl-8 text-sm" />
+   529→          </div>
+   530→          <Button onClick={() => setCreating(true)} className="apex-gradient text-white shrink-0">
+   531→            <Plus className="h-4 w-4" /> {isMeal ? 'Nova refeição' : 'Novo produto'}
+   532→          </Button>
+   533→        </div>
+   534→      </div>
+   535→
+   536→      {isLoading ? (
+   537→        <Skeleton className="h-72 rounded-xl" />
+   538→      ) : items.length === 0 ? (
+   539→        <Card><CardContent className="p-10 text-center text-sm text-muted-foreground">
+   540→          {search ? `Nenhum ${noun} encontrado para "${search}".` : `Nenhuma ${noun} cadastrada ainda.`}
+   541→        </CardContent></Card>
+   542→      ) : (
+   543→        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+   544→          {items.map((p) => (
+   545→            <Card key={p.id} className={cn(!p.active && 'opacity-55')}>
+   546→              <CardContent className="p-4 flex gap-3">
+   547→                {p.image ? (
+   548→                  <img src={p.image} alt={p.name} className="h-16 w-16 rounded-lg object-cover shrink-0" />
+   549→                ) : (
+   550→                  <div className="h-16 w-16 rounded-lg apex-gradient-soft flex items-center justify-center text-3xl shrink-0">{p.emoji}</div>
+   551→                )}
+   552→                <div className="flex-1 min-w-0">
+   553→                  <div className="flex items-start justify-between gap-2">
+   554→                    <p className="font-semibold text-sm leading-tight truncate">{p.name}</p>
+   555→                    <Switch checked={p.active} onCheckedChange={() => toggle.mutate(p)} aria-label="Ativar item" />
+   556→                  </div>
+   557→                  <p className="text-[11px] text-muted-foreground mt-0.5">{p.category.icon} {p.category.name} · {SECTOR_LABELS[p.category.sector] ?? p.category.sector}</p>
+   558→                  <p className="text-sm font-bold text-primary mt-1">{currency(p.price)}</p>
+   559→                  <div className="flex items-center gap-2 mt-1.5">
+   560→                    <Badge variant="outline" className="text-[10px] gap-1"><Clock className="h-3 w-3" /> {p.prepTime} min</Badge>
+   561→                    <button className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1" onClick={() => setEditing(p)}>
+   562→                      <Pencil className="h-3 w-3" /> editar
+   563→                    </button>
+   564→                    <button className="text-[11px] text-red-500 hover:text-red-400 flex items-center gap-1" onClick={() => remove.mutate(p.id)}>
+   565→                      <Trash2 className="h-3 w-3" /> excluir
+   566→                    </button>
+   567→                  </div>
+   568→                </div>
+   569→              </CardContent>
+   570→            </Card>
+   571→          ))}
+   572→        </div>
+   573→      )}
+   574→
+   575→      <CatalogDialog open={creating || !!editing} item={editing} onClose={() => { setCreating(false); setEditing(null) }} />
+   576→    </div>
+   577→  )
+   578→}
+   579→
+   580→function CatalogDialog({ open, item, onClose }: { open: boolean; item: Product | null; onClose: () => void }) {
+   581→  const qc = useQueryClient()
+   582→  const { data } = useQuery<{ categories: Category[] }>({
+   583→    queryKey: ['categories', 'all'],
+   584→    queryFn: () => api('/api/categories?all=1'),
+   585→    enabled: open,
+   586→  })
+   587→
+   588→  const [form, setForm] = useState({ name: '', description: '', price: '', prepTime: '15', emoji: '🍽️', image: '', categoryId: '', kind: 'MEAL' as ProductKind })
+   589→
+   590→  // Recarga no render (padrão das outras views): monta o form quando abre para um item
+   591→  const [loadedFor, setLoadedFor] = useState<Product | null>(null)
+   592→  if (open && item && loadedFor !== item) {
+   593→    setLoadedFor(item)
+   594→    setForm({
+   595→      name: item.name, description: item.description, price: String(item.price),
+   596→      prepTime: String(item.prepTime), emoji: item.emoji, image: item.image ?? '',
+   597→      categoryId: item.categoryId, kind: item.kind,
+   598→    })
+   599→  }
+   600→  if (open && !item && loadedFor !== null) {
+   601→    setLoadedFor(null)
+   602→    setForm({ name: '', description: '', price: '', prepTime: '15', emoji: '🍽️', image: '', categoryId: '', kind: 'MEAL' })
+   603→  }
+   604→
+   605→  const save = useMutation({
+   606→    mutationFn: () => {
+   607→      const payload = {
+   608→        name: form.name,
+   609→        description: form.description,
+   610→        price: Number(form.price.replace(',', '.')),
+   611→        prepTime: Number(form.prepTime),
+   612→        emoji: form.emoji || '🍽️',
+   613→        image: form.image || null,
+   614→        categoryId: form.categoryId,
+   615→        kind: form.kind,
+   616→      }
+   617→      return item ? apiPatch(`/api/products/${item.id}`, payload) : apiPost('/api/products', payload)
+   618→    },
+   619→    onSuccess: () => {
+   620→      void qc.invalidateQueries({ queryKey: ['products'] })
+   621→      void qc.invalidateQueries({ queryKey: ['categories'] })
+   622→      toast.success(item ? 'Item atualizado' : 'Item criado')
+   623→      onClose()
+   624→    },
+   625→    onError: (e: Error) => toast.error(e.message),
+   626→  })
+   627→
+   628→  return (
+   629→    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+   630→      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+   631→        <DialogHeader>
+   632→          <DialogTitle>{item ? 'Editar item' : form.kind === 'MEAL' ? 'Nova refeição' : 'Novo produto'}</DialogTitle>
+   633→        </DialogHeader>
+   634→        <div className="space-y-3.5">
+   635→          <div className="grid grid-cols-2 gap-3">
+   636→            <div className="space-y-1.5">
+   637→              <Label>Tipo</Label>
+   638→              <Select value={form.kind} onValueChange={(v) => setForm({ ...form, kind: v as ProductKind })}>
+   639→                <SelectTrigger><SelectValue /></SelectTrigger>
+   640→                <SelectContent>
+   641→                  {Object.entries(PRODUCT_KIND_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+   642→                </SelectContent>
+   643→              </Select>
+   644→            </div>
+   645→            <div className="space-y-1.5">
+   646→              <Label>Categoria</Label>
+   647→              <Select value={form.categoryId} onValueChange={(v) => setForm({ ...form, categoryId: v })}>
+   648→                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+   649→                <SelectContent>
+   650→                  {(data?.categories ?? []).map((c) => (
+   651→                    <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+   652→                  ))}
+   653→                </SelectContent>
+   654→              </Select>
+   655→            </div>
+   656→          </div>
+   657→          <div className="space-y-1.5">
+   658→            <Label>Nome</Label>
+   659→            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Pizza Margherita" />
+   660→          </div>
+   661→          <div className="space-y-1.5">
+   662→            <Label>Descrição</Label>
+   663→            <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="min-h-[60px] text-sm" placeholder="Ingredientes e diferenciais" />
+   664→          </div>
+   665→          <div className="grid grid-cols-3 gap-3">
+   666→            <div className="space-y-1.5">
+   667→              <Label>Preço (R$)</Label>
+   668→              <Input value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="49.90" inputMode="decimal" />
+   669→            </div>
+   670→            <div className="space-y-1.5">
+   671→              <Label>Preparo (min)</Label>
+   672→              <Input value={form.prepTime} onChange={(e) => setForm({ ...form, prepTime: e.target.value.replace(/\D/g, '') })} inputMode="numeric" />
+   673→            </div>
+   674→            <div className="space-y-1.5">
+   675→              <Label>Emoji</Label>
+   676→              <Input value={form.emoji} onChange={(e) => setForm({ ...form, emoji: e.target.value.slice(0, 2) })} />
+   677→            </div>
+   678→          </div>
+   679→          <div className="space-y-1.5">
+   680→            <Label className="flex items-center gap-1.5"><ImageIcon className="h-3.5 w-3.5" /> URL da imagem (opcional)</Label>
+   681→            <Input value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} placeholder="https://…" />
+   682→          </div>
+   683→        </div>
+   684→        <DialogFooter>
+   685→          <Button className="w-full apex-gradient text-white font-semibold" onClick={() => save.mutate()} disabled={save.isPending || !form.name || !form.categoryId}>
+   686→            {save.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Salvar
+   687→          </Button>
+   688→        </DialogFooter>
+   689→      </DialogContent>
+   690→    </Dialog>
+   691→  )
+   692→}
+   693→
+   694→
