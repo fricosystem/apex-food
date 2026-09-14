@@ -762,3 +762,19 @@ Work Log:
 
 Stage Summary:
 - APEX FOOD virou SaaS multi-tenant: cadastro self-service com trial de 14 dias, dados totalmente isolados por estabelecimento em todas as APIs, painel do desenvolvedor (SUPER_ADMIN) para gerenciar estabelecimentos, planos, cobrança (vencimento/pago/teste) e permissões por tela×cargo — tudo no layout padrão do sistema
+
+---
+Task ID: 43
+Agent: Super Z (principal)
+Task: Garantir entrega do painel do Desenvolvedor CEO (rota no sidebar + gestão completa dos estabelecimentos) e alinhar rótulos à nomenclatura "Desenvolvedor CEO"
+
+Work Log:
+- Contexto: Task 42 já havia construído todo o painel SaaS, mas a sessão anterior esgotou o contexto antes do relatório ao usuário — a tela existia e funcionava, porém o usuário não a tinha visto. Sessão atual revalidou tudo E2E e poliu nomenclatura
+- Verificação E2E prévia: login via chip dev → painel Plataforma carrega (KPIs 5 ativos / 3 trial / 1 vencido / MRR R$ 289,80), tabela com 5 estabelecimentos, badges de plano/cobrança e prazos ("Teste até 28/09/26 · 14d", "Venceu…"), switch Ativo, menu Ações
+- Polish de rótulos "Desenvolvedor" → "Desenvolvedor CEO": src/lib/types.ts e src/lib/auth.ts (ROLE_LABELS.SUPER_ADMIN), login-screen (chip de acesso rápido com borda tracejada), app-shell (descrição da nav + marca do sidebar sem estabelecimento), platform-view (subtítulo do painel)
+- E2E completo desktop 1540x772: sidebar do CEO mostra "Plataforma" como item de navegação (rota no sidebar confirmada); diálogo Plano e cobrança com Plano/Status/Teste até/Vencimento/Notas + "Registrar pagamento agora" e "Estender 30 dias"; diálogo Permissões com matriz 9 telas × 5 cargos (45 checkboxes); aba Planos com 4 cards (Teste grátis 2, Básico 2, Pro 1, Premium 0 assinantes); CRUD "Novo estabelecimento": criou "Taqueria El Sol Teste" (apareceu na tabela) e excluiu com confirmação (removido da tabela); logout → chip "Desenvolvedor CEO" na tela de login; novo login via chip → cai direto no painel com toast "Você entrou como Desenvolvedor CEO"; sem erros de página/console
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+- Screenshots: download/shot-168 a shot-174 (plataforma atual, painel CEO, diálogos de cobrança e permissões, aba planos, login com chip CEO, estado final)
+
+Stage Summary:
+- Painel do Desenvolvedor CEO confirmado e entregue: rota "Plataforma" no sidebar (exclusiva do SUPER_ADMIN, primeiro item), gestão completa dos estabelecimentos cadastrados (criar/editar/suspender/excluir), planos com vencimento/pagamento/período de teste, e matriz de permissões por estabelecimento — acesso pelo chip "Desenvolvedor CEO" na tela de login (dev@apexfood.com / apex123)

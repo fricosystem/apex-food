@@ -46,7 +46,7 @@ export const TABLE_STATUS_LABELS: Record<string, string> = {
 }
 
 export const ROLE_LABELS: Record<Role, string> = {
-  SUPER_ADMIN: 'Desenvolvedor',
+  SUPER_ADMIN: 'Desenvolvedor CEO',
   ADMIN: 'Administrador',
   MANAGER: 'Gerente',
   WAITER: 'Garçom',

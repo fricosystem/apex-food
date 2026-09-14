@@ -1,0 +1,649 @@
+     1→'use client'
+     2→
+     3→import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+     4→import { useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { toast } from 'sonner'
+     6→import {
+     7→  Loader2, Lock, Mail, ArrowRight, LayoutDashboard, ClipboardList,
+     8→  ChefHat, CreditCard, Settings2, QrCode, BarChart3, RefreshCw,
+     9→  CalendarRange, Radar, Inbox, Users, BellRing, History, Columns3,
+    10→  Timer, Zap, Flame, ReceiptText, Gauge, Search, Package, UserCog,
+    11→  Target, SlidersHorizontal, Smartphone, ListChecks, Route,
+    12→  Sparkles, Store, UserRound,
+    13→} from 'lucide-react'
+    14→import { cn } from '@/lib/utils'
+    15→import { Button } from '@/components/ui/button'
+    16→import { Input } from '@/components/ui/input'
+    17→import { Label } from '@/components/ui/label'
+    18→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    19→import { apiPost } from '@/lib/fetcher'
+    20→import { playSound } from '@/lib/sound'
+    21→import { pushSystemNotification } from '@/lib/notification-service'
+    22→import { ROLE_LABELS } from '@/lib/types'
+    23→import type { SessionUser } from '@/lib/auth'
+    24→
+    25→const DEMO_ACCOUNTS = [
+    26→  { email: 'admin@apexfood.com', label: 'Administrador', desc: 'Acesso total' },
+    27→  { email: 'gerente@apexfood.com', label: 'Gerente', desc: 'Operação e métricas' },
+    28→  { email: 'rafael@apexfood.com', label: 'Garçom', desc: 'Comandas e atendimento' },
+    29→  { email: 'cozinha@apexfood.com', label: 'Cozinha', desc: 'Fila de preparo' },
+    30→  { email: 'caixa@apexfood.com', label: 'Caixa', desc: 'Pagamentos' },
+    31→  { email: 'dev@apexfood.com', label: 'Desenvolvedor', desc: 'Painel da plataforma' },
+    32→]
+    33→
+    34→type ModuleFeature = { icon: React.ElementType; title: string; desc: string }
+    35→
+    36→const MODULE_SECTIONS: {
+    37→  icon: React.ElementType
+    38→  tag: string
+    39→  title: string
+    40→  desc: string
+    41→  features: ModuleFeature[]
+    42→}[] = [
+    43→  {
+    44→    icon: LayoutDashboard,
+    45→    tag: 'Módulo 01 · Dashboard',
+    46→    title: 'Decisões guiadas por dados, em tempo real',
+    47→    desc: 'Faturamento, ticket médio, tempo de atendimento e ocupação das mesas em mais de uma dezena de visualizações que se atualizam sozinhos enquanto a operação acontece.',
+    48→    features: [
+    49→      { icon: BarChart3, title: 'Visualizações ao vivo', desc: 'Comandas por hora, produtos mais vendidos, estações e mapa de calor' },
+    50→      { icon: RefreshCw, title: 'Renovação a cada 8s', desc: 'Indicadores e gráficos acompanham o salão sem recarregar a página' },
+    51→      { icon: CalendarRange, title: 'Períodos e turnos', desc: 'Hoje, semana, mês, ano, datas personalizadas e manhã, tarde ou noite' },
+    52→      { icon: Radar, title: 'Desempenho da equipe', desc: 'Ranking de garçons, metas mensais e eficiência da cozinha' },
+    53→    ],
+    54→  },
+    55→  {
+    56→    icon: ClipboardList,
+    57→    tag: 'Módulo 02 · Garçom',
+    58→    title: 'Comandas digitais do atendimento à entrega',
+    59→    desc: 'Abra comandas, acompanhe cada item até o cliente e veja a fila de entrada do QR Code. O sistema atribui automaticamente cada comanda ao garçom disponível.',
+    60→    features: [
+    61→      { icon: Inbox, title: 'Fila de entrada', desc: 'Comandas do QR com badges Nova e Distribuída prontas para assumir' },
+    62→      { icon: Users, title: 'Atribuição automática', desc: 'Menor carga ativa ou demanda do dia — regra configurável na Gestão' },
+    63→      { icon: BellRing, title: 'Prontos para servir', desc: 'Aviso pulsante assim que a cozinha finaliza cada prato' },
+    64→      { icon: History, title: 'Histórico do garçom', desc: 'Comandas finalizadas com valores e forma de pagamento' },
+    65→    ],
+    66→  },
+    67→  {
+    68→    icon: ChefHat,
+    69→    tag: 'Módulo 03 · Cozinha',
+    70→    title: 'Produção organizada por setor, sem papel',
+    71→    desc: 'Cada pedido cai direto na fila do setor certo — cozinha, churrasqueira, pizzaria ou bar — com cronômetro por item e fluxo claro: pendente, em preparo, pronto e servido.',
+    72→    features: [
+    73→      { icon: Columns3, title: 'Kanban de preparo', desc: 'Fila, em preparo e pronto com contadores por coluna' },
+    74→      { icon: Flame, title: '4 estações de preparo', desc: 'Cozinha, churrasqueira, pizzaria e bar com filtros dedicados' },
+    75→      { icon: Timer, title: 'Cronômetro e atrasos', desc: 'Barra de progresso por item e alerta vermelho ao estourar o tempo' },
+    76→      { icon: Zap, title: 'Do salão para a fila', desc: 'Pedidos chegam a cada 4s com o tempo cadastrado por produto' },
+    77→    ],
+    78→  },
+    79→  {
+    80→    icon: CreditCard,
+    81→    tag: 'Módulo 04 · Caixa',
+    82→    title: 'Fechamento rápido, com recibo na hora',
+    83→    desc: 'Receba por crédito, débito, PIX ou dinheiro com dupla confirmação, encerre comandas em dois toques e envie o recibo digital direto para a tela do cliente.',
+    84→    features: [
+    85→      { icon: CreditCard, title: '4 formas de pagamento', desc: 'Crédito, débito, PIX e dinheiro físico com confirmação dupla' },
+    86→      { icon: ReceiptText, title: 'Recibo digital', desc: 'Comprovante final aparece na hora na tela do cliente' },
+    87→      { icon: Gauge, title: 'Fila em tempo real', desc: 'Valor a receber e tempo médio de permanência a cada 4s' },
+    88→      { icon: Search, title: 'Histórico filtrável', desc: 'Por data, garçom, método, número da mesa e código da comanda' },
+    89→    ],
+    90→  },
+    91→  {
+    92→    icon: Settings2,
+    93→    tag: 'Módulo 05 · Gestão',
+    94→    title: 'Cardápio, equipe e permissões sob controle',
+    95→    desc: 'Cadastre produtos, categorias e preços, organize os setores de preparo e controle o acesso da equipe com perfis de administrador, gerente, garçom, cozinha e caixa.',
+    96→    features: [
+    97→      { icon: Package, title: 'Produtos completos', desc: 'Preço, tempo de preparo, emoji e imagem que alimentam o cardápio' },
+    98→      { icon: UserCog, title: 'Equipe e perfis', desc: 'Cinco cargos com troca inline e ativação imediata' },
+    99→      { icon: Target, title: 'Metas mensais', desc: 'Objetivo de comandas por garçom com barra de progresso' },
+   100→      { icon: SlidersHorizontal, title: 'Regras de operação', desc: 'Distribuição de comandas, tempos e métodos de pagamento aceitos' },
+   101→    ],
+   102→  },
+   103→  {
+   104→    icon: QrCode,
+   105→    tag: 'Módulo 06 · Mesas & QR',
+   106→    title: 'Autoatendimento que chega na mesa do cliente',
+   107→    desc: 'Cada mesa tem um QR Code exclusivo. O cliente escaneia, monta a comanda, personaliza os itens — como retirar ingredientes — e envia direto para o garçom e a cozinha, acompanhando o preparo em tempo real.',
+   108→    features: [
+   109→      { icon: QrCode, title: 'QR exclusivo por mesa', desc: 'Download em PNG de 512px e impressão com a marca' },
+   110→      { icon: Smartphone, title: 'Aplicativo do cliente', desc: 'PWA instalável com cardápio e comanda no celular' },
+   111→      { icon: ListChecks, title: 'Personalização de itens', desc: 'Retirar ingredientes, ponto da carne e observações livres' },
+   112→      { icon: Route, title: 'Acompanhamento em 5 fases', desc: 'Da boas-vindas ao recibo, com stepper por prato' },
+   113→    ],
+   114→  },
+   115→]
+   116→
+   117→const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+   118→
+   119→/**
+   120→ * Fade vinculado à posição de rolagem (sem transição CSS — o estilo é recalculado a cada frame):
+   121→ * - rolando para baixo: o que entra por baixo sofre fade in subindo (+44px → 0) e o que
+   122→ *   sai por cima sofre fade out (0 → -30px);
+   123→ * - rolando para cima (reverse): o mesmo cálculo posicional inverte o efeito — o conteúdo
+   124→ *   superior volta com fade in descendo e o inferior some com fade out.
+   125→ */
+   126→type FadeApi = { register: (el: HTMLDivElement | null) => void }
+   127→const FadeCtx = createContext<FadeApi | null>(null)
+   128→
+   129→function useFadeController(): FadeApi {
+   130→  const items = useRef(new Set<HTMLDivElement>())
+   131→  const rafRef = useRef(0)
+   132→
+   133→  const update = useCallback(() => {
+   134→    rafRef.current = 0
+   135→    const H = window.innerHeight || 1
+   136→    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+   137→    items.current.forEach((el) => {
+   138→      if (!el.isConnected) {
+   139→        items.current.delete(el)
+   140→        return
+   141→      }
+   142→      if (reduced) {
+   143→        el.style.opacity = '1'
+   144→        el.style.transform = ''
+   145→        return
+   146→      }
+   147→      const rect = el.getBoundingClientRect()
+   148→      // Desconta o transform aplicado no frame anterior para medir a posição de layout
+   149→      const prevY = Number(el.dataset.fadeY ?? 0)
+   150→      const top = rect.top - prevY
+   151→      const bottom = rect.bottom - prevY
+   152→      // Entrada: topo percorrendo os 22% inferiores da viewport
+   153→      const tIn = clamp01((H - top) / (H * 0.22))
+   154→      // Saída: base adentrando os 28% superiores da viewport
+   155→      const tOut = clamp01(bottom / (H * 0.28))
+   156→      // Blocos ancorados na primeira dobra nascem visíveis e sofrem apenas o fade de saída
+   157→      const anchored = el.dataset.fadeAnchored === '1'
+   158→      const opacity = anchored ? tOut : Math.min(tIn, tOut)
+   159→      const y = (anchored ? 0 : (1 - tIn) * 44) - (1 - tOut) * 30
+   160→      el.dataset.fadeY = y.toFixed(1)
+   161→      el.style.opacity = opacity.toFixed(3)
+   162→      el.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`
+   163→    })
+   164→  }, [])
+   165→
+   166→  const schedule = useCallback(() => {
+   167→    if (!rafRef.current) rafRef.current = requestAnimationFrame(update)
+   168→  }, [update])
+   169→
+   170→  const register = useCallback((el: HTMLDivElement | null) => {
+   171→    if (el) items.current.add(el)
+   172→  }, [])
+   173→
+   174→  useEffect(() => {
+   175→    schedule()
+   176→    window.addEventListener('scroll', schedule, { passive: true })
+   177→    window.addEventListener('resize', schedule)
+   178→    // Recalcula após fontes/imagens estabilizarem o layout
+   179→    const t1 = window.setTimeout(schedule, 350)
+   180→    const t2 = window.setTimeout(schedule, 900)
+   181→    document.fonts?.ready.then(schedule).catch(() => {})
+   182→    return () => {
+   183→      window.removeEventListener('scroll', schedule)
+   184→      window.removeEventListener('resize', schedule)
+   185→      window.clearTimeout(t1)
+   186→      window.clearTimeout(t2)
+   187→      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+   188→    }
+   189→  }, [schedule])
+   190→
+   191→  return { register }
+   192→}
+   193→
+   194→/** Bloco que participa do fade de rolagem; startVisible mantém o bloco visível antes da hidratação e anchored desativa o fade de entrada (só sai por cima) */
+   195→function ScrollFade({ children, className, startVisible, anchored }: {
+   196→  children: React.ReactNode
+   197→  className?: string
+   198→  startVisible?: boolean
+   199→  anchored?: boolean
+   200→}) {
+   201→  const fade = useContext(FadeCtx)
+   202→  return (
+   203→    <div
+   204→      ref={fade?.register}
+   205→      className={cn('relative', className)}
+   206→      data-fade-anchored={anchored ? '1' : undefined}
+   207→      data-fade-y={startVisible ? undefined : '44'}
+   208→      style={{
+   209→        opacity: startVisible ? undefined : 0,
+   210→        transform: startVisible ? undefined : 'translate3d(0, 44px, 0)',
+   211→        willChange: 'opacity, transform',
+   212→      }}
+   213→    >
+   214→      {children}
+   215→    </div>
+   216→  )
+   217→}
+   218→
+   219→/** Notificação de teste exibida ao entrar — boas-vindas com a logo da APEX */
+   220→function WelcomeNotification({ name, role }: { name: string; role: string }) {
+   221→  return (
+   222→    <div className="flex items-start gap-3 w-[min(92vw,360px)] rounded-xl border border-[#FF6B1A]/35 bg-[#141417] p-3.5 shadow-2xl">
+   223→      <div className="h-12 w-12 rounded-lg border border-[#FF6B1A]/25 bg-white/[0.04] flex items-center justify-center shrink-0 p-1.5">
+   224→        <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-full w-full object-contain" />
+   225→      </div>
+   226→      <div className="min-w-0 flex-1">
+   227→        <p className="text-sm font-bold text-white leading-tight">
+   228→          Bem-vindo(a) de volta, <span className="text-[#FF9A57]">{name}</span>!
+   229→        </p>
+   230→        <p className="text-[11px] text-white/60 mt-0.5">
+   231→          Você entrou como <span className="text-white/85 font-medium">{role}</span>
+   232→        </p>
+   233→        <span className="inline-flex items-center gap-1.5 mt-2 rounded-full border border-[#FF6B1A]/30 bg-[#FF6B1A]/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#FF9A57]">
+   234→          <span className="h-1.5 w-1.5 rounded-full bg-[#FF6B1A]" aria-hidden />
+   235→          Notificação de teste
+   236→        </span>
+   237→      </div>
+   238→    </div>
+   239→  )
+   240→}
+   241→
+   242→export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) {
+   243→  const [email, setEmail] = useState('')
+   244→  const [password, setPassword] = useState('')
+   245→  const [regRestaurant, setRegRestaurant] = useState('')
+   246→  const [regName, setRegName] = useState('')
+   247→  const [regEmail, setRegEmail] = useState('')
+   248→  const [regPassword, setRegPassword] = useState('')
+   249→  const fade = useFadeController()
+   250→  const queryClient = useQueryClient()
+   251→
+   252→  const login = useMutation({
+   253→    mutationFn: (creds: { email: string; password: string }) =>
+   254→      apiPost<{ user: SessionUser }>('/api/auth/login', creds),
+   255→    onSuccess: (data) => {
+   256→      playSound('success')
+   257→      const firstName = data.user.name.split(' ')[0]
+   258→      const roleLabel = ROLE_LABELS[data.user.role] ?? data.user.role
+   259→      // O wrapper <li> do sonner em toasts custom fica sem border-radius (data-styled=false),
+   260→      // mas recebe o fundo+borda globais do Toaster — formando uma caixa de cantos retos ao
+   261→      // redor do balão arredondado. O style por-toast sobrescreve o global: wrapper invisível,
+   262→      // apenas as bordas arredondadas do próprio balão permanecem.
+   263→      toast.custom(
+   264→        () => <WelcomeNotification name={firstName} role={roleLabel} />,
+   265→        {
+   266→          duration: 5000,
+   267→          style: { background: 'transparent', border: 'none', boxShadow: 'none' },
+   268→        }
+   269→      )
+   270→      // Notificação de teste também na barra do sistema (quando permitido), com a logo da APEX
+   271→      void pushSystemNotification('alerta', {
+   272→        title: 'Bem-vindo(a) de volta!',
+   273→        body: `${data.user.name} — ${roleLabel} · APEX FOOD`,
+   274→        tag: 'apex-bem-vindo',
+   275→        icon: '/apex-logo.png',
+   276→      })
+   277→      queryClient.setQueryData(['me'], { user: data.user })
+   278→      onLogin(data.user)
+   279→    },
+   280→    onError: (e: Error) => toast.error(e.message),
+   281→  })
+   282→
+   283→  const submit = (e: React.FormEvent) => {
+   284→    e.preventDefault()
+   285→    if (!email.trim() || !password) {
+   286→      toast.error('Preencha e-mail e senha')
+   287→      return
+   288→    }
+   289→    login.mutate({ email: email.trim(), password })
+   290→  }
+   291→
+   292→  const register = useMutation({
+   293→    mutationFn: (payload: { restaurantName: string; ownerName: string; email: string; password: string }) =>
+   294→      apiPost<{ user: SessionUser }>('/api/auth/register', payload),
+   295→    onSuccess: (data) => {
+   296→      playSound('success')
+   297→      toast.success(`Restaurante cadastrado! 14 dias de teste grátis — bem-vindo(a), ${data.user.name.split(' ')[0]}!`)
+   298→      queryClient.setQueryData(['me'], { user: data.user })
+   299→      onLogin(data.user)
+   300→    },
+   301→    onError: (e: Error) => toast.error(e.message),
+   302→  })
+   303→
+   304→  const submitRegister = (e: React.FormEvent) => {
+   305→    e.preventDefault()
+   306→    if (!regRestaurant.trim() || regRestaurant.trim().length < 2) {
+   307→      toast.error('Informe o nome do restaurante')
+   308→      return
+   309→    }
+   310→    if (!regName.trim()) {
+   311→      toast.error('Informe o seu nome')
+   312→      return
+   313→    }
+   314→    if (!regEmail.trim() || !regPassword) {
+   315→      toast.error('Preencha e-mail e senha')
+   316→      return
+   317→    }
+   318→    if (regPassword.length < 6) {
+   319→      toast.error('A senha deve ter pelo menos 6 caracteres')
+   320→      return
+   321→    }
+   322→    register.mutate({
+   323→      restaurantName: regRestaurant.trim(),
+   324→      ownerName: regName.trim(),
+   325→      email: regEmail.trim(),
+   326→      password: regPassword,
+   327→    })
+   328→  }
+   329→
+   330→  return (
+   331→    <div
+   332→      className="min-h-screen flex flex-col lg:flex-row text-white"
+   333→      style={{
+   334→        background: 'linear-gradient(150deg, #121215 0%, #0A0A0C 55%, #0D0B09 100%)',
+   335→        backgroundAttachment: 'fixed',
+   336→      }}
+   337→    >
+   338→      {/* Decoração fixa — brilho suave + bolinha pulsante na divisão, acompanhando a viewport */}
+   339→      <div aria-hidden className="apex-login-decor pointer-events-none fixed inset-0 z-0 overflow-hidden">
+   340→        <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 82% 94%, rgba(255,107,26,0.10) 0, transparent 42%)' }} />
+   341→        {/* Bolinha pulsante — centralizada na lateral de divisão entre a apresentação (esquerda) e o formulário (direita) */}
+   342→        <div className="hidden lg:block absolute inset-y-0 right-[480px] xl:right-[520px] w-px">
+   343→          {/* fio de luz sutil acompanhando a divisão */}
+   344→          <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-transparent via-[#FF6B1A]/20 to-transparent" />
+   345→          {/* núcleo laranja pulsante no centro da divisão */}
+   346→          <div className="absolute left-1/2 top-1/2 -ml-[5px] -mt-[5px] h-2.5 w-2.5 rounded-full apex-gradient shadow-[0_0_18px_4px_rgba(255,107,26,0.55)] apex-live-dot" />
+   347→        </div>
+   348→      </div>
+   349→
+   350→      <FadeCtx.Provider value={fade}>
+   351→      {/* Coluna de apresentação — scroll com seções por módulo */}
+   352→      <div className="relative z-10 hidden lg:flex lg:flex-col flex-1 px-14 pb-10">
+   353→        {/* Primeira dobra — ocupa exatamente a viewport inicial: só a abertura e a dica "role" ficam visíveis; os módulos começam abaixo do limite da tela */}
+   354→        <div className="flex min-h-screen flex-col">
+   355→          <ScrollFade startVisible className="max-w-xl pt-10">
+   356→            <div className="flex items-center gap-2">
+   357→              <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-16 w-auto drop-shadow-lg" />
+   358→              <p className="font-extrabold text-3xl xl:text-[2.4rem] tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
+   359→            </div>
+   360→            <div className="pt-24">
+   361→              <div className="flex items-center gap-3">
+   362→                <span className="h-px w-8 bg-[#FF6B1A]" aria-hidden />
+   363→                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/55">
+   364→                  Gestão que acompanha o seu ritmo
+   365→                </p>
+   366→              </div>
+   367→              <h1 className="mt-6 text-[2.6rem] xl:text-[3.4rem] font-extrabold leading-[1.08] tracking-tight">
+   368→                Mais controle para uma operação <span className="text-[#FF7B2E]">mais inteligente.</span>
+   369→              </h1>
+   370→              <p className="mt-6 text-white/70 leading-relaxed max-w-lg">
+   371→                Centralize pedidos, salão, equipe e financeiro em uma experiência criada para deixar o
+   372→                seu restaurante mais eficiente todos os dias.
+   373→              </p>
+   374→              <div className="flex flex-wrap gap-3 mt-9">
+   375→                {['Operação em tempo real', 'Decisões mais rápidas', 'Visão do seu negócio'].map((chip) => (
+   376→                  <span
+   377→                    key={chip}
+   378→                    className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-white/85 backdrop-blur"
+   379→                  >
+   380→                    <span className="h-1.5 w-1.5 rounded-full bg-[#FF6B1A]" aria-hidden />
+   381→                    {chip}
+   382→                  </span>
+   383→                ))}
+   384→              </div>
+   385→            </div>
+   386→          </ScrollFade>
+   387→
+   388→          {/* Dica de rolagem — ancorada na base da primeira dobra, acima do limite da tela */}
+   389→          <ScrollFade startVisible anchored className="max-w-xl mt-auto pb-9">
+   390→            <p className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-white/35">
+   391→              Role para conhecer o sistema <ArrowRight className="h-3.5 w-3.5 rotate-90" aria-hidden />
+   392→            </p>
+   393→          </ScrollFade>
+   394→        </div>
+   395→
+   396→        {/* Seções por módulo — cartões premium: vidro fosco, filete de luz, glow de canto e chips pill */}
+   397→        {MODULE_SECTIONS.map((m, i) => {
+   398→          const Icon = m.icon
+   399→          return (
+   400→            <ScrollFade key={m.tag} className={cn('max-w-xl', i === 0 ? 'pt-2' : 'pt-24', 'pb-6')}>
+   401→              <article className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] via-white/[0.025] to-white/[0.01] p-6 xl:p-7 backdrop-blur-sm shadow-[0_24px_70px_-40px_rgba(0,0,0,0.9)] transition-[border-color,box-shadow] duration-300 hover:border-[#FF6B1A]/35 hover:shadow-[0_24px_70px_-36px_rgba(255,107,26,0.16)]">
+   402→                {/* Filete de luz no topo do cartão */}
+   403→                <div aria-hidden className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-[#FF6B1A]/50 to-transparent" />
+   404→                {/* Glow de canto — intensifica no hover */}
+   405→                <div
+   406→                  aria-hidden
+   407→                  className="absolute -top-28 -right-28 h-64 w-64 rounded-full opacity-60 transition-opacity duration-500 group-hover:opacity-100"
+   408→                  style={{ background: 'radial-gradient(circle, rgba(255,107,26,0.14) 0%, transparent 65%)' }}
+   409→                />
+   410→
+   411→                <div className="relative flex items-center gap-3.5">
+   412→                  <span className="relative h-12 w-12 rounded-xl border border-[#FF6B1A]/30 bg-gradient-to-br from-[#FF6B1A]/20 via-[#FF6B1A]/10 to-transparent flex items-center justify-center shrink-0 shadow-[0_0_28px_-8px_rgba(255,107,26,0.55)] transition-transform duration-300 group-hover:scale-105">
+   413→                    <span aria-hidden className="absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+   414→                    <Icon className="h-5 w-5 text-[#FFB27A]" aria-hidden />
+   415→                  </span>
+   416→                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/45">{m.tag}</p>
+   417→                </div>
+   418→
+   419→                <h2 className="relative mt-5 text-[1.8rem] xl:text-[2.1rem] font-extrabold leading-tight tracking-tight bg-gradient-to-r from-white via-white to-white/75 bg-clip-text text-transparent">
+   420→                  {m.title}
+   421→                </h2>
+   422→                <p className="relative mt-4 text-white/65 leading-relaxed max-w-lg">{m.desc}</p>
+   423→
+   424→                {/* Grade de funcionalidades reais do módulo */}
+   425→                <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+   426→                  {m.features.map((f) => {
+   427→                    const FeatureIcon = f.icon
+   428→                    return (
+   429→                      <div
+   430→                        key={f.title}
+   431→                        className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 transition-colors duration-300 group-hover:border-white/[0.13]"
+   432→                      >
+   433→                        <div className="flex items-center gap-2">
+   434→                          <FeatureIcon className="h-3.5 w-3.5 shrink-0 text-[#FF9A57]" aria-hidden />
+   435→                          <p className="text-xs font-semibold text-white/90 leading-tight">{f.title}</p>
+   436→                        </div>
+   437→                        <p className="text-[11px] text-white/55 leading-relaxed mt-1.5">{f.desc}</p>
+   438→                      </div>
+   439→                    )
+   440→                  })}
+   441→                </div>
+   442→              </article>
+   443→            </ScrollFade>
+   444→          )
+   445→        })}
+   446→
+   447→        {/* Seção final — fechamento + rodapé */}
+   448→        <ScrollFade className="max-w-xl pt-24 pb-2">
+   449→          <div className="flex items-center gap-3">
+   450→            <span className="h-px w-8 bg-[#FF6B1A]" aria-hidden />
+   451→            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/55">Tudo em um só lugar</p>
+   452→          </div>
+   453→          <h2 className="mt-5 text-[1.8rem] xl:text-[2.1rem] font-extrabold leading-tight tracking-tight">
+   454→            Do QR Code na mesa ao caixa, uma única plataforma.
+   455→          </h2>
+   456→          <p className="mt-4 text-white/65 leading-relaxed max-w-lg">
+   457→            Escaneie, peça, acompanhe o preparo e pague — com o salão, a cozinha e o caixa
+   458→            sincronizados no mesmo sistema, do primeiro pedido ao fechamento do dia.
+   459→          </p>
+   460→          {/* Rodapé na base da última seção */}
+   461→          <div className="mt-16 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-white/40">
+   462→            <span>© 2026 APEX Food</span>
+   463→            <span className="h-3 w-px bg-white/25" aria-hidden />
+   464→            <span className="uppercase tracking-[0.18em]">Desenvolvido por APEX HUB SYSTEM</span>
+   465→          </div>
+   466→        </ScrollFade>
+   467→      </div>
+   468→      </FadeCtx.Provider>
+   469→
+   470→      {/* Formulário — continuação do mesmo fundo, sem caixa separada (tema claro fixo) */}
+   471→      <div className="relative z-10 w-full lg:w-[480px] xl:w-[520px] lg:sticky lg:top-0 lg:h-screen flex items-center justify-center p-6 lg:p-10">
+   472→        <div className="w-full max-w-md apex-enter">
+   473→          <div className="lg:hidden flex items-center gap-2 mb-8">
+   474→            <img src="/apex-logo.png" alt="Logo APEX FOOD" className="h-12 w-auto drop-shadow-lg" />
+   475→            <span className="font-extrabold text-2xl tracking-tight leading-none">APEX <span className="text-[#FF7B2E]">FOOD</span></span>
+   476→          </div>
+   477→
+   478→          <h2 className="text-2xl font-bold tracking-tight">Bem-vindo à plataforma</h2>
+   479→          <p className="text-sm text-white/60 mt-1.5">Acesse a operação do seu restaurante ou crie uma conta.</p>
+   480→
+   481→          <Tabs defaultValue="entrar" className="mt-6">
+   482→            <TabsList className="grid grid-cols-2 w-full bg-white/[0.06] border border-white/10">
+   483→              <TabsTrigger value="entrar" className="data-[state=active]:bg-[#FF6B1A] data-[state=active]:text-white text-white/70">Entrar</TabsTrigger>
+   484→              <TabsTrigger value="cadastrar" className="data-[state=active]:bg-[#FF6B1A] data-[state=active]:text-white text-white/70">Cadastrar restaurante</TabsTrigger>
+   485→            </TabsList>
+   486→
+   487→            {/* ---- Aba Entrar ---- */}
+   488→            <TabsContent value="entrar" className="mt-6">
+   489→              <form onSubmit={submit} className="space-y-4">
+   490→                <div className="space-y-2">
+   491→                  <Label htmlFor="email" className="text-zinc-200">E-mail</Label>
+   492→                  <div className="relative">
+   493→                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+   494→                    <Input
+   495→                      id="email"
+   496→                      type="email"
+   497→                      autoComplete="email"
+   498→                      placeholder="voce@apexfood.com"
+   499→                      className="pl-9 h-11 bg-background text-foreground"
+   500→                      value={email}
+   501→                      onChange={(e) => setEmail(e.target.value)}
+   502→                      required
+   503→                    />
+   504→                  </div>
+   505→                </div>
+   506→                <div className="space-y-2">
+   507→                  <Label htmlFor="password" className="text-zinc-200">Senha</Label>
+   508→                  <div className="relative">
+   509→                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+   510→                    <Input
+   511→                      id="password"
+   512→                      type="password"
+   513→                      autoComplete="current-password"
+   514→                      placeholder="••••••••"
+   515→                      className="pl-9 h-11 bg-background text-foreground"
+   516→                      value={password}
+   517→                      onChange={(e) => setPassword(e.target.value)}
+   518→                      required
+   519→                    />
+   520→                  </div>
+   521→                </div>
+   522→                <Button type="submit" className="w-full h-11 apex-gradient text-white font-semibold hover:opacity-90 transition-opacity" disabled={login.isPending}>
+   523→                  {login.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+   524→                  Entrar
+   525→                </Button>
+   526→              </form>
+   527→
+   528→              <div className="mt-8">
+   529→                <div className="flex items-center gap-3">
+   530→                  <div className="h-px flex-1 bg-white/15" />
+   531→                  <span className="text-xs text-white/50 uppercase tracking-wider">Acesso rápido da equipe</span>
+   532→                  <div className="h-px flex-1 bg-white/15" />
+   533→                </div>
+   534→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+   535→                  {DEMO_ACCOUNTS.map((acc) => (
+   536→                    <button
+   537→                      key={acc.email}
+   538→                      type="button"
+   539→                      onClick={() => login.mutate({ email: acc.email, password: 'apex123' })}
+   540→                      disabled={login.isPending}
+   541→                      className={cn(
+   542→                        'text-left rounded-lg border border-input bg-background dark:bg-input/30 px-3 py-2.5 hover:border-[#FF6B1A]/70 hover:bg-orange-50 dark:hover:bg-[#FF6B1A]/10 transition-colors disabled:opacity-50',
+   543→                        acc.email === 'dev@apexfood.com' && 'border-dashed'
+   544→                      )}
+   545→                    >
+   546→                      <p className="text-sm font-semibold leading-tight text-foreground">{acc.label}</p>
+   547→                      <p className="text-xs text-muted-foreground mt-0.5">{acc.desc}</p>
+   548→                    </button>
+   549→                  ))}
+   550→                </div>
+   551→                <p className="text-[11px] text-white/45 mt-3 text-center">senha de demonstração: apex123</p>
+   552→              </div>
+   553→            </TabsContent>
+   554→
+   555→            {/* ---- Aba Cadastrar ---- */}
+   556→            <TabsContent value="cadastrar" className="mt-6">
+   557→              <div className="rounded-lg border border-[#FF6B1A]/30 bg-[#FF6B1A]/10 px-3.5 py-2.5 flex items-start gap-2.5">
+   558→                <Sparkles className="h-4 w-4 text-[#FF9A57] mt-0.5 shrink-0" aria-hidden />
+   559→                <p className="text-xs leading-relaxed text-white/80">
+   560→                  <span className="font-semibold text-[#FF9A57]">14 dias de teste grátis</span> — todos os módulos liberados, sem cartão de crédito. Seu restaurante entra no ar em minutos.
+   561→                </p>
+   562→              </div>
+   563→              <form onSubmit={submitRegister} className="mt-5 space-y-4">
+   564→                <div className="space-y-2">
+   565→                  <Label htmlFor="reg-restaurant" className="text-zinc-200">Nome do restaurante</Label>
+   566→                  <div className="relative">
+   567→                    <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+   568→                    <Input
+   569→                      id="reg-restaurant"
+   570→                      type="text"
+   571→                      placeholder="Ex.: Trattoria Bella"
+   572→                      className="pl-9 h-11 bg-background text-foreground"
+   573→                      value={regRestaurant}
+   574→                      onChange={(e) => setRegRestaurant(e.target.value)}
+   575→                      maxLength={80}
+   576→                      required
+   577→                    />
+   578→                  </div>
+   579→                </div>
+   580→                <div className="space-y-2">
+   581→                  <Label htmlFor="reg-name" className="text-zinc-200">Seu nome completo</Label>
+   582→                  <div className="relative">
+   583→                    <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+   584→                    <Input
+   585→                      id="reg-name"
+   586→                      type="text"
+   587→                      autoComplete="name"
+   588→                      placeholder="Responsável pelo estabelecimento"
+   589→                      className="pl-9 h-11 bg-background text-foreground"
+   590→                      value={regName}
+   591→                      onChange={(e) => setRegName(e.target.value)}
+   592→                      maxLength={80}
+   593→                      required
+   594→                    />
+   595→                  </div>
+   596→                </div>
+   597→                <div className="space-y-2">
+   598→                  <Label htmlFor="reg-email" className="text-zinc-200">E-mail</Label>
+   599→                  <div className="relative">
+   600→                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+   601→                    <Input
+   602→                      id="reg-email"
+   603→                      type="email"
+   604→                      autoComplete="email"
+   605→                      placeholder="voce@seurestaurante.com"
+   606→                      className="pl-9 h-11 bg-background text-foreground"
+   607→                      value={regEmail}
+   608→                      onChange={(e) => setRegEmail(e.target.value)}
+   609→                      required
+   610→                    />
+   611→                  </div>
+   612→                </div>
+   613→                <div className="space-y-2">
+   614→                  <Label htmlFor="reg-password" className="text-zinc-200">Senha</Label>
+   615→                  <div className="relative">
+   616→                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+   617→                    <Input
+   618→                      id="reg-password"
+   619→                      type="password"
+   620→                      autoComplete="new-password"
+   621→                      placeholder="mínimo de 6 caracteres"
+   622→                      className="pl-9 h-11 bg-background text-foreground"
+   623→                      value={regPassword}
+   624→                      onChange={(e) => setRegPassword(e.target.value)}
+   625→                      minLength={6}
+   626→                      required
+   627→                    />
+   628→                  </div>
+   629→                </div>
+   630→                <Button type="submit" className="w-full h-11 apex-gradient text-white font-semibold hover:opacity-90 transition-opacity" disabled={register.isPending}>
+   631→                  {register.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Store className="h-4 w-4" />}
+   632→                  Criar meu restaurante
+   633→                </Button>
+   634→                <p className="text-[11px] text-white/45 leading-relaxed">
+   635→                  Você entra como <span className="text-white/75 font-medium">Administrador</span> e pode convidar garçons, cozinha e caixa depois, em Administração → Funcionários.
+   636→                </p>
+   637→              </form>
+   638→            </TabsContent>
+   639→          </Tabs>
+   640→
+   641→          <p className="text-[11px] text-white/50 mt-8 text-center">
+   642→            Sessões seguras · Dados isolados por restaurante · Tema dark/light
+   643→          </p>
+   644→        </div>
+   645→      </div>
+   646→    </div>
+   647→  )
+   648→}
+   649→

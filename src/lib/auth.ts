@@ -156,7 +156,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 }
 
 export const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: 'Desenvolvedor',
+  SUPER_ADMIN: 'Desenvolvedor CEO',
   ADMIN: 'Administrador',
   MANAGER: 'Gerente',
   WAITER: 'Garçom',

@@ -28,7 +28,7 @@ const DEMO_ACCOUNTS = [
   { email: 'rafael@apexfood.com', label: 'Garçom', desc: 'Comandas e atendimento' },
   { email: 'cozinha@apexfood.com', label: 'Cozinha', desc: 'Fila de preparo' },
   { email: 'caixa@apexfood.com', label: 'Caixa', desc: 'Pagamentos' },
-  { email: 'dev@apexfood.com', label: 'Desenvolvedor', desc: 'Painel da plataforma' },
+  { email: 'dev@apexfood.com', label: 'Desenvolvedor CEO', desc: 'Painel da plataforma' },
 ]
 
 type ModuleFeature = { icon: React.ElementType; title: string; desc: string }

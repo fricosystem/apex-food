@@ -38,7 +38,7 @@ import { PlatformView } from '@/components/views/platform-view'
 import { SettingsView } from '@/components/views/settings-view'
 
 const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: typeof LayoutDashboard; description: string }> = [
-  { key: 'plataforma', label: 'Plataforma', icon: Building2, description: 'Estabelecimentos, planos e cobranças — painel do desenvolvedor' },
+  { key: 'plataforma', label: 'Plataforma', icon: Building2, description: 'Estabelecimentos, planos e cobranças — painel do desenvolvedor CEO' },
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Visão geral da operação em tempo real' },
   { key: 'garcom', label: 'Garçom', icon: ClipboardList, description: 'Fila de comandas e atendimentos ativos' },
   { key: 'cozinha', label: 'Cozinha', icon: ChefHat, description: 'Fila de preparo, cronômetro e estações' },
@@ -144,7 +144,7 @@ export function AppShell({ user }: { user: SessionUser }) {
                 <p className="text-[9px] font-semibold text-primary mt-0.5 truncate tracking-wide">CNPJ {est.cnpj || '—'}</p>
               </>
             ) : (
-              <p className="text-[10px] font-semibold text-primary mt-0.5 truncate tracking-wide">Painel do desenvolvedor</p>
+              <p className="text-[10px] font-semibold text-primary mt-0.5 truncate tracking-wide">Painel do desenvolvedor CEO</p>
             )}
           </div>
         )}

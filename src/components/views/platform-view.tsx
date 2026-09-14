@@ -588,7 +588,7 @@ export function PlatformView() {
             <Building2 className="h-6 w-6 text-primary" /> Plataforma
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Gestão dos estabelecimentos, planos e cobranças do APEX FOOD · painel do desenvolvedor
+            Gestão dos estabelecimentos, planos e cobranças do APEX FOOD · painel do desenvolvedor CEO
           </p>
         </div>
         <Button className="apex-gradient text-white hover:opacity-90" onClick={() => setCreateOpen(true)}>
