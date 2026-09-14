@@ -58,6 +58,47 @@ function clearRememberEmail() {
   }
 }
 
+/** ---------- E-mail com sufixo fixo @apexfood.com ----------
+ * O usuário digita apenas o nome (ex.: bruno.bm3051) e o domínio fixo do sistema
+ * aparece como sufixo assim que algo é digitado. Qualquer "@dominio" digitado ou
+ * colado é descartado — o único sufixo aceito é o próprio @apexfood.com.
+ */
+function toEmailLocal(raw: string): string {
+  return (raw.trim().split('@')[0] ?? '').replace(/\s+/g, '')
+}
+
+/** Campo de e-mail APEX: digita-se só o nome; sufixo @apexfood.com fixo (não editável) */
+function SuffixedEmailField({ id, value, onChange, autoComplete, required }: {
+  id: string
+  value: string
+  onChange: (local: string) => void
+  autoComplete?: string
+  required?: boolean
+}) {
+  return (
+    <div className="flex h-11 w-full items-center rounded-md border border-input bg-background pl-9 pr-3 shadow-xs transition-[color,box-shadow] outline-none focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
+      <Mail className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+      <input
+        id={id}
+        type="text"
+        inputMode="email"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        autoComplete={autoComplete}
+        placeholder="seu.usuario"
+        required={required}
+        className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+        value={value}
+        onChange={(e) => onChange(toEmailLocal(e.target.value))}
+      />
+      {value.trim() !== '' && (
+        <span className="shrink-0 select-none text-sm text-muted-foreground">@apexfood.com</span>
+      )}
+    </div>
+  )
+}
+
 const MODULE_SECTIONS: {
   icon: React.ElementType
   tag: string
@@ -267,7 +308,11 @@ function WelcomeNotification({ name, role }: { name: string; role: string }) {
 export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) {
   // Tela montada apenas no cliente (após a query ['me'] resolver) — inicializador
   // lazy pode ler o local storage sem risco de mismatch de hidratação
-  const [email, setEmail] = useState(() => (typeof window === 'undefined' ? '' : readRememberEmail() ?? ''))
+  const [email, setEmail] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    // Lembrado como e-mail completo → exibe apenas o nome (sufixo é fixo na UI)
+    return readRememberEmail()?.split('@')[0] ?? ''
+  })
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(() => (typeof window === 'undefined' ? false : readRememberEmail() !== null))
   const [rememberDialog, setRememberDialog] = useState(false)
@@ -275,6 +320,8 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
   const [regName, setRegName] = useState('')
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
+  const [regConfirm, setRegConfirm] = useState('')
+  const [regTerms, setRegTerms] = useState(false)
   const fade = useFadeController()
   const queryClient = useQueryClient()
 
@@ -314,16 +361,18 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
+    // O estado guarda apenas o nome digitado — o domínio fixo completa o e-mail
+    const fullEmail = email.trim() ? `${email.trim()}@apexfood.com` : ''
     // Sem dados nos campos → entra como Administrador (acesso padrão do sistema)
-    if (!email.trim() && !password) {
+    if (!fullEmail && !password) {
       login.mutate({ email: 'admin@apexfood.com', password: 'apex123', remember })
       return
     }
-    if (!email.trim() || !password) {
+    if (!fullEmail || !password) {
       toast.error('Preencha e-mail e senha')
       return
     }
-    login.mutate({ email: email.trim(), password, remember })
+    login.mutate({ email: fullEmail, password, remember })
   }
 
   const register = useMutation({
@@ -348,18 +397,34 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
       toast.error('Informe o seu nome')
       return
     }
-    if (!regEmail.trim() || !regPassword) {
-      toast.error('Preencha e-mail e senha')
+    if (!regEmail.trim()) {
+      toast.error('Informe o seu e-mail')
+      return
+    }
+    if (!regPassword) {
+      toast.error('Informe a senha')
       return
     }
     if (regPassword.length < 6) {
       toast.error('A senha deve ter pelo menos 6 caracteres')
       return
     }
+    if (!/[A-Z]/.test(regPassword)) {
+      toast.error('A senha deve conter pelo menos uma letra maiúscula')
+      return
+    }
+    if (regConfirm !== regPassword) {
+      toast.error('As senhas não coincidem')
+      return
+    }
+    if (!regTerms) {
+      toast.error('Aceite os termos de uso e serviço para se cadastrar')
+      return
+    }
     register.mutate({
       restaurantName: regRestaurant.trim(),
       ownerName: regName.trim(),
-      email: regEmail.trim(),
+      email: `${regEmail.trim()}@apexfood.com`,
       password: regPassword,
     })
   }
@@ -531,18 +596,8 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
               <form onSubmit={submit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-zinc-200">E-mail</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
-                    <Input
-                      id="email"
-                      type="email"
-                      autoComplete="email"
-                      placeholder="voce@apexfood.com"
-                      className="pl-9 h-11 bg-background text-foreground"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
+                  {/* Digite apenas o nome — o sufixo @apexfood.com é fixo (outro domínio não é aceito) */}
+                  <SuffixedEmailField id="email" value={email} onChange={setEmail} autoComplete="email" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password" className="text-zinc-200">Senha</Label>
@@ -629,19 +684,8 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reg-email" className="text-zinc-200">E-mail</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
-                    <Input
-                      id="reg-email"
-                      type="email"
-                      autoComplete="email"
-                      placeholder="voce@seurestaurante.com"
-                      className="pl-9 h-11 bg-background text-foreground"
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      required
-                    />
-                  </div>
+                  {/* Digite apenas o nome — o sufixo @apexfood.com é fixo (outro domínio não é aceito) */}
+                  <SuffixedEmailField id="reg-email" value={regEmail} onChange={setRegEmail} autoComplete="email" required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reg-password" className="text-zinc-200">Senha</Label>
@@ -651,7 +695,7 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
                       id="reg-password"
                       type="password"
                       autoComplete="new-password"
-                      placeholder="mínimo de 6 caracteres"
+                      placeholder="mínimo de 6 caracteres, com 1 letra maiúscula"
                       className="pl-9 h-11 bg-background text-foreground"
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
@@ -659,6 +703,35 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
                       required
                     />
                   </div>
+                </div>
+                {/* Confirmação de senha — deve ser idêntica à senha informada */}
+                <div className="space-y-2">
+                  <Label htmlFor="reg-confirm" className="text-zinc-200">Confirmar senha</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+                    <Input
+                      id="reg-confirm"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="repita a senha"
+                      className="pl-9 h-11 bg-background text-foreground"
+                      value={regConfirm}
+                      onChange={(e) => setRegConfirm(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                {/* Termos de uso e serviço — aceitação obrigatória antes do cadastro */}
+                <div className="flex items-start gap-2.5">
+                  <Checkbox
+                    id="reg-terms"
+                    checked={regTerms}
+                    onCheckedChange={(v) => setRegTerms(v === true)}
+                    className="mt-0.5 border-white/40 bg-white/5 data-[state=checked]:border-[#FF6B1A] data-[state=checked]:bg-[#FF6B1A] data-[state=checked]:text-white"
+                  />
+                  <Label htmlFor="reg-terms" className="text-xs font-normal leading-relaxed text-zinc-300 cursor-pointer select-none">
+                    Aceito os <span className="font-medium text-[#FF9A57]">termos de uso e serviço</span> da plataforma APEX FOOD
+                  </Label>
                 </div>
                 <Button type="submit" className="w-full h-11 apex-gradient text-white font-semibold hover:opacity-90 transition-opacity" disabled={register.isPending}>
                   {register.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Store className="h-4 w-4" />}

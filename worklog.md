@@ -880,3 +880,23 @@ Work Log:
 
 Stage Summary:
 - A tela de autenticação agora usa sempre o tema escuro do sistema (classe dark no wrapper + no diálogo portado), com fundos de inputs, bordas e textos fixados nos valores dark — mesmo com o tema claro aplicado no app; após o login, o restante do sistema continua seguindo o tema escolhido normalmente
+
+---
+Task ID: 50
+Agent: Super Z (principal)
+Task: Sufixo fixo @apexfood.com nos e-mails de login e cadastro, senha com maiúscula obrigatória, confirmação de senha e aceite obrigatório dos termos
+
+Work Log:
+- src/components/login-screen.tsx:
+  · Novo SuffixedEmailField: componente de e-mail com domínio fixo — o usuário digita apenas o nome (ex.: bruno.bm3051) e o sufixo @apexfood.com aparece ao lado do texto assim que algo é digitado (escondido vazio, com placeholder seu.usuario); contêiner replica o estilo do Input (h-11, borda, ring no focus-within, ícone Mail)
+  · toEmailLocal sanitiza a entrada: descarta qualquer @dominio digitado ou colado (teste@gmail.com → teste; bruno@outro → bruno) e remove espaços — impossível inserir outro sufixo
+  · Aba Entrar e aba Cadastrar usam o campo com sufixo; submit compõe o e-mail completo (local + @apexfood.com) para as APIs; prefill do Lembrar login agora exibe só o nome (split no @), mantendo o storage com o e-mail completo (compatível)
+  · Política de senha no cadastro: exige pelo menos uma letra maiúscula (toast "A senha deve conter pelo menos uma letra maiúscula"); placeholder do campo atualizado
+  · Novo campo Confirmar senha no cadastro (reg-confirm) com validação de igualdade ("As senhas não coincidem")
+  · Novo checkbox obrigatório de aceite dos Termos de Uso e Serviço (reg-terms) antes do cadastro ("Aceite os termos de uso e serviço para se cadastrar"), estilizado como o Lembrar login
+  · Decisão: a exigência de maiúscula aplica-se SOMENTE à criação de senha (cadastro) — senhas existentes (ex.: apex123 dos usuários seed e do login padrão) continuam válidas no login
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+- E2E: bruno.bm3051 → sufixo visível (shot-194); sanitize de sufixo colado e digitado ✓; login dev + Lembrar → logout → prefill "dev" com sufixo e caixa marcada (shot-195); cadastro: senha123 → erro maiúscula (shot-196), Senha123/Senha999 → senhas não coincidem, sem termos → erro de aceite, com termos + dados completos → cadastro criado e entrada no Dashboard (shot-197); e-mail preenchido pelo Lembrar + senha vazia → "Preencha e-mail e senha" (comportamento correto); campos limpos → login vazio entra como Ana Costa; sem erros de página/console
+
+Stage Summary:
+- E-mails da autenticação agora são sempre @apexfood.com com sufixo fixo não editável (qualquer outro domínio é descartado ao digitar/colar); senha de cadastro exige maiúscula, tem confirmação obrigatória e o aceite dos termos de uso e serviço é exigido antes de criar a conta — fluxos de erro e sucesso validados via E2E
