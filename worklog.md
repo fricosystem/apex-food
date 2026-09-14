@@ -900,3 +900,20 @@ Work Log:
 
 Stage Summary:
 - E-mails da autenticação agora são sempre @apexfood.com com sufixo fixo não editável (qualquer outro domínio é descartado ao digitar/colar); senha de cadastro exige maiúscula, tem confirmação obrigatória e o aceite dos termos de uso e serviço é exigido antes de criar a conta — fluxos de erro e sucesso validados via E2E
+
+---
+Task ID: 51
+Agent: Super Z (principal)
+Task: Estrutura visual dos inputs de e-mail igual à dos inputs de senha (padrão do sistema), mantendo o sufixo fixo @apexfood.com e sem alterar os campos de senha
+
+Work Log:
+- src/components/login-screen.tsx — SuffixedEmailField reestruturado:
+  · O contêiner agora usa exatamente as mesmas classes do <Input> padrão (ui/input.tsx) com os mesmos overrides dos campos de senha: dark:bg-input/30 (fundo translúcido que antes ficava sólido bg-background — principal diferença visual), border-input, rounded-md, shadow-xs, h-11, pl-9/pr-3, text-base md:text-sm, transição de cor/box-shadow
+  · Foco real no input interno espelhado no contêiner via focus-within (equivalente ao focus-visible do Input); selection e placeholder idênticos ao padrão
+  · Sufixo @apexfood.com continua fixo, não editável, herdando a cor do texto (select-none) — aparece assim que algo é digitado
+  · Inputs de senha intocados
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+- E2E: estilos computados do contêiner do e-mail vs input de senha IDÊNTICOS nas duas abas (bg oklab 0.305/0.3, borda rgb(46,46,56), raio 8.4px, altura 44px, sombra, fonte 14px, paddings 36/12px); sufixo visível ao digitar bruno.bm3051; sem erros de página/console; shots 198-199
+
+Stage Summary:
+- O campo de e-mail (login e cadastro) agora tem exatamente o mesmo visual/estrutura dos inputs de senha do sistema — mesmo fundo, borda, sombra, raio, altura, tipografia e paddings — mantendo o comportamento de digitar só o nome com sufixo fixo @apexfood.com; nenhum cambio nos campos de senha

@@ -67,7 +67,12 @@ function toEmailLocal(raw: string): string {
   return (raw.trim().split('@')[0] ?? '').replace(/\s+/g, '')
 }
 
-/** Campo de e-mail APEX: digita-se só o nome; sufixo @apexfood.com fixo (não editável) */
+/** Campo de e-mail APEX: digita-se só o nome; sufixo @apexfood.com fixo (não editável).
+ *  Mesmo visual do <Input> padrão do sistema (idêntico aos campos de senha): mesmas
+ *  classes base (dark:bg-input/30, border-input, rounded-md, shadow-xs, text-base
+ *  md:text-sm) e os mesmos overrides pl-9/h-11/bg-background/text-foreground — o foco
+ *  real fica no input interno e é espelhado no contêiner via focus-within.
+ */
 function SuffixedEmailField({ id, value, onChange, autoComplete, required }: {
   id: string
   value: string
@@ -76,7 +81,13 @@ function SuffixedEmailField({ id, value, onChange, autoComplete, required }: {
   required?: boolean
 }) {
   return (
-    <div className="flex h-11 w-full items-center rounded-md border border-input bg-background pl-9 pr-3 shadow-xs transition-[color,box-shadow] outline-none focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
+    <div
+      className={cn(
+        'dark:bg-input/30 border-input flex h-11 w-full min-w-0 items-center rounded-md border bg-transparent pl-9 pr-3 text-base shadow-xs transition-[color,box-shadow] outline-none md:text-sm',
+        'bg-background text-foreground',
+        'focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]',
+      )}
+    >
       <Mail className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
       <input
         id={id}
@@ -88,12 +99,12 @@ function SuffixedEmailField({ id, value, onChange, autoComplete, required }: {
         autoComplete={autoComplete}
         placeholder="seu.usuario"
         required={required}
-        className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+        className="h-full min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground"
         value={value}
         onChange={(e) => onChange(toEmailLocal(e.target.value))}
       />
       {value.trim() !== '' && (
-        <span className="shrink-0 select-none text-sm text-muted-foreground">@apexfood.com</span>
+        <span className="shrink-0 select-none">@apexfood.com</span>
       )}
     </div>
   )
