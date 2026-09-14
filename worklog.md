@@ -695,3 +695,17 @@ Work Log:
 
 Stage Summary:
 - Rodapé do sidebar minimalista: apenas o cartão de perfil com divisor; sons e tema seguem gerenciáveis em Configurações (admin/gerente) e no menu do perfil das telas compactas (operacionais)
+
+---
+Task ID: 39
+Agent: Super Z (principal)
+Task: Remover o card ao redor do perfil no rodapé do sidebar
+
+Work Log:
+- src/components/app-shell.tsx (SidebarContent): wrapper do perfil deixou de ser card — classes rounded-lg border bg-card p-2.5 removidas; permanece flex items-center gap-2.5 (justify-center no recolhido), herdando o fundo do sidebar
+- Conteúdo do perfil inalterado: avatar com iniciais + status (online/ocupado), nome, cargo e botão Sair (ocultos no recolhido, exceto avatar)
+- E2E desktop 1540x772 (login admin): cardRemovido=true (sem .rounded-lg.border.bg-card no rodapé), perfil presente "Ana Costa", divisor ativo, 8 itens de menu; recolhido 68px — cardRemovido=true, avatar centrado, divisor ativo (shots 157-158); sem erros de página
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+
+Stage Summary:
+- Rodapé do sidebar agora é apenas: divisor + perfil em linha limpa (sem card/borda/fundo próprio); visual mais integrado ao sidebar
