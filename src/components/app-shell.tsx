@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import {
   LayoutDashboard, ClipboardList, ChefHat, Wallet, Settings2,
   Grid3x3, PanelLeftClose, PanelLeft, Sun, Moon, LogOut, Volume2, VolumeX,
-  Menu, Wifi, WifiOff, X, Bell, UserCircle2, ChevronRight,
+  Menu, Wifi, WifiOff, X, Bell, UserCircle2, ChevronRight, FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,7 @@ import { KdsView } from '@/components/views/kds-view'
 import { CashierView } from '@/components/views/cashier-view'
 import { ManagementView } from '@/components/views/management-view'
 import { TablesView } from '@/components/views/tables-view'
+import { ReportView } from '@/components/views/report-view'
 import { SettingsView } from '@/components/views/settings-view'
 
 const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: typeof LayoutDashboard; description: string }> = [
@@ -40,6 +41,7 @@ const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: typeof LayoutDashboa
   { key: 'caixa', label: 'Caixa', icon: Wallet, description: 'Pagamentos e fechamento de comandas' },
   { key: 'gestao', label: 'Gestão', icon: Settings2, description: 'Produtos, equipe, metas e operação' },
   { key: 'mesas', label: 'Mesas & QR', icon: Grid3x3, description: 'Mesas, QR Codes e status em tempo real' },
+  { key: 'relatorio', label: 'Relatório Geral', icon: FileText, description: 'Relatório consolidado da operação por período e turno' },
   { key: 'configuracoes', label: 'Configurações', icon: Settings2, description: 'Preferências, notificações e estabelecimento' },
 ]
 
@@ -438,6 +440,7 @@ export function AppShell({ user }: { user: SessionUser }) {
             {current === 'caixa' && <CashierView user={user} />}
             {current === 'gestao' && <ManagementView user={user} />}
             {current === 'mesas' && <TablesView user={user} />}
+            {current === 'relatorio' && <ReportView user={user} />}
             {current === 'configuracoes' && <SettingsView user={user} />}
           </div>
         </main>

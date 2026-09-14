@@ -639,3 +639,29 @@ Work Log:
 Stage Summary:
 - O divisor da tela inicial agora exibe apenas o fio de luz sutil e a bolinha laranja pulsante centralizada nele — todos os círculos (anéis/halo/radar) foram removidos do DOM e do CSS
 - Nenhum texto, layout ou funcionalidade alterada; shot-148
+
+---
+Task ID: 36
+Agent: Super Z (principal)
+Task: Nova tela "Relatório Geral" com filtro periódico igual ao da tela Dashboard
+
+Work Log:
+- Mapeamento: filtro do Dashboard = 2 Tabs (período: today/week/month/year/custom + turno: all/morning/afternoon/night) + inputs date quando custom, com query ['metrics', period, customFrom, customTo, turn] → /api/metrics (granularidade automática hora/dia/mês, comparativo prev, produtos, garçons, estações, pagamentos, eficiência da cozinha)
+- src/components/views/report-view.tsx (NOVO, ~440 linhas): MESMO filtro periódico (mesmos Tabs, mesmas datas custom, MESMA queryKey → cache compartilhado com o Dashboard, refetch 8s); conteúdo em formato de relatório:
+  - Cabeçalho de identidade: título, recorte (período · turno · granularidade), "Gerado em" (useMemo regenerado na troca de filtro), EMPÓRIO RESTAURANTE e "por {user.name}"
+  - Resumo executivo: 4 KPIs (faturamento, comandas concluídas, ticket médio, tempo médio de atendimento) com DeltaBadge vs período anterior (mesma linguagem visual do Dashboard)
+  - Detalhamento por hora/dia/mês: tabela com comandas, faturamento, ticket médio, participação em barra + linha TOTAL (footer), header sticky com scroll (max-h 340px) e destaque do melhor dia/hora/mês
+  - Comandas por dia da semana (barras CSS) · Formas de pagamento (PAYMENT_LABELS, % e barras)
+  - Produtos mais vendidos (rank, qtd, receita, % do total) · Faturamento por estação (SECTOR_LABELS)
+  - Desempenho da equipe (garçom, comandas, receita, ticket médio, resposta média) · Eficiência da cozinha (registrado vs real médio, desvio colorido)
+  - Estado vazio elegante quando periodOrders = 0; fecho "gerado automaticamente · distribuição interna"
+  - Botão Imprimir (window.print()) com classe report-print-hide
+- Registro da view: src/lib/types.ts (ViewKey + 'relatorio'), src/lib/store.ts (VIEW_ROLES.relatorio = ADMIN/MANAGER, igual dashboard), src/components/app-shell.tsx (nav entre Mesas & QR e Configurações, ícone FileText, import/render)
+- src/app/globals.css: novo bloco @media print — o bloco do QR Code esconde TUDO (body * visibility:hidden); sem a regra .report-print-area visible, a impressão sairia em branco. Regra re-exibe o relatório em página limpa e esconde filtros/botão
+- Correção de lint: react-hooks/set-state-in-effect (setState direto em useEffect) → timestamp "Gerado em" migrado para useMemo com deps do filtro
+- E2E desktop 1540x772 (login admin): header "Relatório Geral"; 9 tabs corretas; KPIs R$ 4.979,30 · 45 · R$ 110,65 · 48 min; 4 tabelas com TOTAL (45 · R$ 4.979,30 · R$ 110,65 · 100%); filtro Hoje → estado vazio correto (sem comandas pagas hoje) + cabeçalho "14/09 a 14/09 · por hora"; Personalizado → datas default (08/09–14/09); validação cruzada: Dashboard exibe "R$ 4.979,30 em 45 comandas concluídas" — IDÊNTICOS (mesma query). Shots 149-151 (topo, tabelas centrais, base com equipe/cozinha); sem erros de console/hidratação
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+
+Stage Summary:
+- Nova tela Relatório Geral (admin/gerente) no menu, com o MESMO filtro periódico do Dashboard (mesma queryKey → valores sempre consistentes entre as duas telas) e apresentação em formato de relatório consolidado: resumo executivo com variações, detalhamento temporal tabulado com total, distribuição por dia da semana, pagamentos, produtos, estações, equipe e cozinha
+- Impressão funcional (página limpa com apenas o conteúdo do relatório), contornando a regra print global do QR Code

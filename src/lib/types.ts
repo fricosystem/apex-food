@@ -1,6 +1,6 @@
 export type Role = 'ADMIN' | 'MANAGER' | 'WAITER' | 'KITCHEN' | 'CASHIER'
 
-export type ViewKey = 'dashboard' | 'garcom' | 'cozinha' | 'caixa' | 'gestao' | 'mesas' | 'configuracoes'
+export type ViewKey = 'dashboard' | 'garcom' | 'cozinha' | 'caixa' | 'gestao' | 'mesas' | 'relatorio' | 'configuracoes'
 
 export const ORDER_STATUS_LABELS: Record<string, string> = {
   PENDING_CONFIRM: 'Aguardando garçom',

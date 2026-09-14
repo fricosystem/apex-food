@@ -238,6 +238,23 @@
   }
 }
 
+/* Impressão do Relatório Geral — conteúdo do relatório em página limpa */
+@media print {
+  .report-print-area,
+  .report-print-area * {
+    visibility: visible;
+  }
+  .report-print-area {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    background: white;
+  }
+  .report-print-hide {
+    display: none !important;
+  }
+}
+
 /* Foco visível para acessibilidade */
 :focus-visible {
   outline: 2px solid var(--ring);
