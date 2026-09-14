@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const { id } = await params
   const body = await readJson<{
     name?: string; description?: string; price?: number; prepTime?: number
-    emoji?: string; image?: string | null; categoryId?: string; active?: boolean
+    emoji?: string; image?: string | null; categoryId?: string; active?: boolean; kind?: string
   }>(req)
   const existing = await db.product.findUnique({ where: { id } })
   if (!existing) return bad('Produto não encontrado', 404)
@@ -26,6 +26,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       emoji: body?.emoji || existing.emoji,
       image: body?.image === undefined ? existing.image : body.image || null,
       categoryId: body?.categoryId ?? existing.categoryId,
+      kind: body?.kind === 'MEAL' || body?.kind === 'PRODUCT' ? body.kind : existing.kind,
       active: body?.active ?? existing.active,
     },
     include: { category: true },

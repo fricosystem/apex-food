@@ -36,5 +36,6 @@ export const VIEW_ROLES: Record<ViewKey, string[]> = {
   gestao: ['ADMIN', 'MANAGER'],
   mesas: ['ADMIN', 'MANAGER'],
   relatorio: ['ADMIN', 'MANAGER'],
+  administracao: ['ADMIN', 'MANAGER'],
   configuracoes: ['ADMIN', 'MANAGER', 'WAITER', 'KITCHEN', 'CASHIER'],
 }

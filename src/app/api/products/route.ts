@@ -6,9 +6,14 @@ import { broadcast } from '@/lib/realtime'
 export async function GET(req: NextRequest) {
   const auth = await requireUser()
   if (isResponse(auth)) return auth
-  const includeInactive = new URL(req.url).searchParams.get('all') === '1'
+  const params = new URL(req.url).searchParams
+  const includeInactive = params.get('all') === '1'
+  const kind = params.get('kind')
   const products = await db.product.findMany({
-    where: includeInactive ? {} : { active: true },
+    where: {
+      ...(includeInactive ? {} : { active: true }),
+      ...(kind === 'PRODUCT' || kind === 'MEAL' ? { kind } : {}),
+    },
     include: { category: true },
     orderBy: { createdAt: 'asc' },
   })
@@ -20,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (isResponse(auth)) return auth
   const body = await readJson<{
     name?: string; description?: string; price?: number; prepTime?: number
-    emoji?: string; image?: string; categoryId?: string
+    emoji?: string; image?: string; categoryId?: string; kind?: string
   }>(req)
   const name = body?.name?.trim()
   if (!name) return bad('Informe o nome do produto')
@@ -35,6 +40,7 @@ export async function POST(req: NextRequest) {
       emoji: body?.emoji || '🍽️',
       image: body?.image?.trim() || null,
       categoryId: body.categoryId,
+      kind: body?.kind === 'MEAL' ? 'MEAL' : 'PRODUCT',
     },
     include: { category: true },
   })

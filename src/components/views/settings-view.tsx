@@ -49,6 +49,7 @@ const PERMISSION_MATRIX = [
   { area: 'Caixa e pagamentos', roles: ['ADMIN', 'MANAGER', 'CASHIER'] },
   { area: 'Gestão (produtos, equipe, metas)', roles: ['ADMIN', 'MANAGER'] },
   { area: 'Mesas e QR Codes', roles: ['ADMIN', 'MANAGER'] },
+  { area: 'Administração (funcionários, gestão geral, catálogo)', roles: ['ADMIN', 'MANAGER'] },
   { area: 'Configurações e notificações', roles: ['ADMIN', 'MANAGER', 'WAITER', 'KITCHEN', 'CASHIER'] },
 ]
 

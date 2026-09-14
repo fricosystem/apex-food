@@ -54,6 +54,7 @@ model Product {
   emoji      String      @default("🍽️")
   price      Float
   prepTime   Int         @default(15) // minutos
+  kind       String      @default("PRODUCT") // PRODUCT | MEAL
   active     Boolean     @default(true)
   categoryId String
   category   Category    @relation(fields: [categoryId], references: [id])

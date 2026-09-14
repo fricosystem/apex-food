@@ -1,6 +1,14 @@
 export type Role = 'ADMIN' | 'MANAGER' | 'WAITER' | 'KITCHEN' | 'CASHIER'
 
-export type ViewKey = 'dashboard' | 'garcom' | 'cozinha' | 'caixa' | 'gestao' | 'mesas' | 'relatorio' | 'configuracoes'
+export type ViewKey = 'dashboard' | 'garcom' | 'cozinha' | 'caixa' | 'gestao' | 'mesas' | 'relatorio' | 'administracao' | 'configuracoes'
+
+/** Tipo do item do catálogo: refeição (prato) ou produto em geral (ex. bebida) */
+export type ProductKind = 'MEAL' | 'PRODUCT'
+
+export const PRODUCT_KIND_LABELS: Record<ProductKind, string> = {
+  MEAL: 'Refeição',
+  PRODUCT: 'Produto',
+}
 
 export const ORDER_STATUS_LABELS: Record<string, string> = {
   PENDING_CONFIRM: 'Aguardando garçom',

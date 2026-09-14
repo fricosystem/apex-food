@@ -709,3 +709,24 @@ Work Log:
 
 Stage Summary:
 - Rodapé do sidebar agora é apenas: divisor + perfil em linha limpa (sem card/borda/fundo próprio); visual mais integrado ao sidebar
+
+---
+Task ID: 40
+Agent: Super Z (principal)
+Task: Nova tela Administração (só ADMIN/GERENTE): funcionários com permissões, gestão geral, produtos e refeições
+
+Work Log:
+- Schema: Product.kind (String, default 'PRODUCT', valores PRODUCT|MEAL) — prisma db push + generate; script one-off scripts/classify-product-kind.ts classificou o acervo (setor BAR → PRODUCT; demais → MEAL): 23 refeições · 6 produtos
+- APIs: GET /api/products aceita ?kind=PRODUCT|MEAL (retrocompatível sem o param); POST e PATCH /api/products/[id] aceitam kind com validação
+- src/lib/types.ts: ViewKey += 'administracao'; novos ProductKind + PRODUCT_KIND_LABELS; src/lib/store.ts: VIEW_ROLES.administracao = ['ADMIN','MANAGER']
+- Nova view src/components/views/administration-view.tsx com 4 abas:
+  · Funcionários — lista (avatar, e-mail, badge de status Online/Ocupado, carga de comandas, Select de cargo inline com patch, Switch ativo, editar, excluir com diálogo de confirmação e visível apenas para ADMIN e nunca no próprio usuário) + card "Permissões por cargo" derivado de VIEW_ROLES; diálogos Novo funcionário (nome/e-mail/senha/cargo) e Editar funcionário (nome, cargo, status ONLINE/BUSY/OFFLINE, senha opcional; e-mail somente leitura)
+  · Gestão geral — Estabelecimento (logo emoji, nome, tipo com grid de botões) com botão salvar; Operação (regra de distribuição, confirmação/alerta/meta padrão com onBlur); Métodos de pagamento (4 switches) — via PATCH /api/settings
+  · Produtos / Refeições — componente CatalogTab(kind) compartilhado: busca por nome, grid de cards com switch ativo, editar, excluir; CatalogDialog com campo Tipo (Produto/Refeição) que permite mover item entre abas; criação herda o kind da aba
+- app-shell.tsx: import ShieldCheck + AdministrationView, NAV_ITEMS com 'Administração' (antes de Configurações), render no switch de views; settings-view.tsx: linha 'Administração' adicionada à PERMISSION_MATRIX
+- Fix crítico no meio do E2E: dev server segurava o Prisma client antigo (sem coluna kind) → GET /api/products?kind= 500; reinício do bun run dev resolveu
+- E2E desktop 1540x772: admin — nav 9 itens com Administração; abas Funcionários (7 usuários + matriz) / Gestão geral (form carregado 🍴) / Produtos (6, sem pratos) / Refeições (23, sem bebidas); CRUD refeição: criou "Salmão Teste E2E" (23→24), editou preço 59.90→64.90 (card R$ 64,90 + API 64.9), excluiu (24→23); CRUD funcionário: criou (7→8), editou status→Ocupado, excluiu com confirmação (8→7); gerente — vê Administração com 4 abas e matriz, SEM botões de excluir usuário; garçom — sem sidebar, "Administração" ausente em todo o DOM; sem erros de console; shots 159-162
+- Lint: bunx eslint src --max-warnings=0 → 0 erros, 0 avisos
+
+Stage Summary:
+- Tela Administração exclusiva de ADMIN/GERENTE consolidando gestão de funcionários (com permissões por cargo visíveis), gestão geral (estabelecimento/operação/pagamentos) e catálogo separado em Produtos vs Refeições via novo campo Product.kind; DELETE de usuário permanece restrito ao ADMIN na API e na UI
