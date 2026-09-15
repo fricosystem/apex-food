@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
           type: 'RESTAURANTE',
           plan: 'TRIAL',
           billingStatus: 'TRIAL',
+          periodStartAt: new Date(),
           trialEndsAt,
           notes: 'Cadastro self-service',
         },

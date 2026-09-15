@@ -25,6 +25,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       createdAt: est.createdAt.toISOString(),
       trialEndsAt: est.trialEndsAt?.toISOString() ?? null,
       currentPeriodEnd: est.currentPeriodEnd?.toISOString() ?? null,
+      periodStartAt: est.periodStartAt?.toISOString() ?? null,
       lastPaymentAt: est.lastPaymentAt?.toISOString() ?? null,
     },
   })
@@ -33,7 +34,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 type PatchBody = {
   name?: string; cnpj?: string; logo?: string; type?: string; phone?: string; address?: string
   active?: boolean; plan?: string; billingStatus?: string
-  trialEndsAt?: string | null; currentPeriodEnd?: string | null; lastPaymentAt?: string | null
+  trialEndsAt?: string | null; currentPeriodEnd?: string | null; periodStartAt?: string | null; lastPaymentAt?: string | null
   notes?: string; permissions?: Record<string, string[]>
   markPaidNow?: boolean; extendDays?: number
 }
@@ -75,13 +76,14 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     data.billingStatus = body.billingStatus
   }
 
-  // Atalho: registra pagamento agora → status PAID + período de 30 dias
+  // Atalho: registra pagamento agora → status PAID + novo período iniciando hoje
   if (body.markPaidNow) {
     const plan = typeof data.plan === 'string' ? data.plan : est.plan
     const planRow = await db.plan.findUnique({ where: { key: plan } })
     const days = planRow?.duration ?? 30
     data.billingStatus = 'PAID'
     data.lastPaymentAt = new Date()
+    data.periodStartAt = new Date()
     data.currentPeriodEnd = new Date(Date.now() + days * 86_400_000)
   }
 
@@ -97,8 +99,27 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (trial !== undefined && 'trialEndsAt' in body) data.trialEndsAt = trial
   const period = parseDate(body.currentPeriodEnd)
   if (period !== undefined && 'currentPeriodEnd' in body) data.currentPeriodEnd = period
+  const startAt = parseDate(body.periodStartAt)
+  if (startAt !== undefined && 'periodStartAt' in body) data.periodStartAt = startAt
   const lastPay = parseDate(body.lastPaymentAt)
   if (lastPay !== undefined && 'lastPaymentAt' in body) data.lastPaymentAt = lastPay
+
+  // Vencimento automático: sem data explícita de fim no pedido, o vencimento do período pago
+  // é recalculado a partir da data de início (periodStartAt) + duração do plano selecionado.
+  // TRIAL usa o campo Teste até; OVERDUE/CANCELED mantêm o vencimento vigente (já vencido).
+  const explicitPeriod = 'currentPeriodEnd' in body || body.markPaidNow || typeof body.extendDays === 'number'
+  if (!explicitPeriod) {
+    const nextStatus = typeof data.billingStatus === 'string' ? data.billingStatus : est.billingStatus
+    const nextPlanKey = typeof data.plan === 'string' ? data.plan : est.plan
+    const periodTouched = 'periodStartAt' in data || 'plan' in data || 'billingStatus' in data
+    if (nextStatus === 'PAID' && periodTouched) {
+      const startSrc = ('periodStartAt' in data ? (data.periodStartAt as Date | null) : est.periodStartAt)
+        ?? est.lastPaymentAt ?? est.createdAt
+      const planRow = await db.plan.findUnique({ where: { key: nextPlanKey } })
+      const days = planRow?.duration ?? 30
+      data.currentPeriodEnd = new Date(startSrc.getTime() + days * 86_400_000)
+    }
+  }
 
   // Permissões: valida cada tela contra as telas conhecidas e cada cargo contra os cargos de tenant
   if (body.permissions && typeof body.permissions === 'object') {
@@ -123,6 +144,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       createdAt: updated.createdAt.toISOString(),
       trialEndsAt: updated.trialEndsAt?.toISOString() ?? null,
       currentPeriodEnd: updated.currentPeriodEnd?.toISOString() ?? null,
+      periodStartAt: updated.periodStartAt?.toISOString() ?? null,
       lastPaymentAt: updated.lastPaymentAt?.toISOString() ?? null,
     },
   })

@@ -1007,3 +1007,31 @@ Work Log:
 
 Stage Summary:
 - Campo de e-mail de login e cadastro agora usa o <Input> real do sistema com a mesma estrutura e classes do campo de senha (ícone absoluto + pl-9 h-11), estilos computados e anel de foco 100% idênticos comprovados; placeholder "Digite seu email"; rodapé "Lembrar login com caixa de diálogo · Salvamento seguro no local storage" removido; sufixo @apexfood.com fixo à direita sem colisão de texto; validado em desktop e mobile 390px
+
+---
+Task ID: 55
+Agent: Super Z (principal)
+Task: Tela Desenvolvedor CEO · Plano e cobrança — vencimentos automáticos por data de início + status + Teste até; avisos de 5/4/3/2/1 dia(s) e no dia do vencimento; barra de progresso com % para o fim do período
+
+Work Log:
+- prisma/schema.prisma: Establishment ganhou periodStartAt DateTime? (início do período atual, base do vencimento automático) — db push + generate aplicados
+- src/app/api/platform/establishments/[id]/route.ts (PATCH):
+  · Aceita periodStartAt (parseDate padrão YYYY-MM-DD)
+  · Vencimento automático: sem currentPeriodEnd/markPaidNow/extendDays no pedido, status PAID com início/plano/status alterados recalcula currentPeriodEnd = periodStartAt (fallback lastPaymentAt → createdAt) + duração do plano (Plan.duration); TRIAL usa Teste até; OVERDUE/CANCELED mantêm vencimento vigente
+  · markPaidNow também define periodStartAt = agora; GET/retorno expõem periodStartAt
+- src/app/api/platform/establishments/route.ts: GET expõe periodStartAt; POST cria com periodStartAt = agora
+- src/app/api/auth/register/route.ts + src/lib/seed.ts: periodStartAt definido na criação (self-service e seed principal)
+- src/components/views/platform-view.tsx:
+  · Helpers novos: calendarDaysUntil (dias de calendário, 0 = hoje), pctBetween (% do período 0-100), billingWindow (janela por status: TRIAL início→Teste até, PAID/OVERDUE início→vencimento, CANCELED sem janela), periodTone (<85 verde, ≥85 âmbar, 100 vermelho), TONE_TEXT/TONE_BAR
+  · deadlineLabel reescrito: "Faltam N dias · dd/mm/aa" (5-2), "Falta 1 dia", "Teste/Cobrança vence hoje!", "Teste/Período venceu há N dias", e "> 5 dias" normal
+  · PeriodProgress: barra com % (sm na tabela, md no diálogo)
+  · BillingDialog redesenhado: campo Data de início do período; Teste até aparece só com status Em teste; card "Vencimento (automático)" com data calculada em tempo real (Teste até no TRIAL; início + duração do plano no PAID; vencimento vigente no OVERDUE/CANCELED), badge de aviso quando faltam ≤5 dias, barra md com % concluído e dias restantes; Salvar envia periodStartAt (e trialEndsAt só no TRIAL) — servidor recalcula o vencimento
+  · Painel "Alertas de vencimento" acima da tabela (≤5 dias, hoje e vencidos, ordenado), itens clicáveis que abrem o diálogo de cobrança
+  · Toast warning único por carregamento resumindo vencimentos (hoje / ≤5 dias / vencidos + nomes)
+  · Tabela: coluna Cobrança com badge + prazo colorido + barra de progresso com %
+- Correção de ambiente: restart do dev server após prisma generate (servidor antigo em memória respondia 500 no PATCH por não conhecer periodStartAt; EADDRINUSE diagnosticado e resolvido com setsid --fork — processo órfão sob PID 1 sobrevive aos comandos)
+- Lint: bunx eslint src --max-warnings=0 → exit 0 (0 erros, 0 avisos)
+- E2E (shots 245-252): KPIs + painel com Cantina do Vale vencida há 4 dias (245-246); barras da tabela (41,2% EMPÓRIO verde, 100% vermelho vencido, 2-3% trials); diálogo EMPÓRIO com Vencimento (automático) 02/10/26 = início 02/09 + 30 dias do Pro, 42%, faltam 17 dias (247); mudança de início para 19/08 → recálculo em tempo real 18/09/26 + badge "faltam 3 dias" + barra 88,4% âmbar (248); salvou com toast "vencimento recalculado automaticamente", banco confirmou periodStartAt 2026-08-19T12:00 e currentPeriodEnd 2026-09-18T12:00, painel passou a 2 avisos com EMPÓRIO "Faltam 3 dias · 18/09/26" (249); reload → toast "Vencimentos da plataforma — 1 em até 5 dias · 1 vencido" (250); diálogo da Cantina aberto pelo painel: TRIAL com vencimento = Teste até 11/09/26 e barra 100% (251-252); restauração do EMPÓRIO para início 02/09 → vencimento 02/10/26 · em 17 dias · 42% verde revalidada; agent-browser errors = 0
+
+Stage Summary:
+- Plano e cobrança do painel do Desenvolvedor CEO agora calcula o vencimento sozinho: o CEO informa a data de início do período, o status da cobrança e (se Em teste) o Teste até — o sistema deriva o vencimento (início + duração do plano pago, ou o próprio Teste até), reavalia em tempo real no diálogo e persiste recalculado no servidor; avisos automáticos de 5, 4, 3, 2, 1 dia(s) antes, no dia do vencimento e após vencer (painel de alertas clicável + toast no carregamento + cores por prazo); barra de progresso com porcentagem do período concluído na tabela e no diálogo, com tons verde/âmbar/vermelho

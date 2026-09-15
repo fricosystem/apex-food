@@ -1,12 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   Building2, Sparkles, AlertTriangle, Wallet, Search, Plus, Pencil,
   CreditCard, ShieldCheck, Trash2, MoreHorizontal, Loader2, Store,
-  Users, ClipboardList, UtensilsCrossed, CalendarClock, RefreshCw,
+  Users, ClipboardList, UtensilsCrossed, CalendarClock, RefreshCw, BellRing,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, apiPost, apiPatch, apiDelete } from '@/lib/fetcher'
@@ -41,6 +41,7 @@ type EstablishmentRow = {
   billingStatus: string
   trialEndsAt: string | null
   currentPeriodEnd: string | null
+  periodStartAt: string | null
   lastPaymentAt: string | null
   notes: string
   permissions: string
@@ -89,24 +90,92 @@ function fmtDate(iso: string | null | undefined): string {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 
-function daysFromNow(iso: string | null | undefined): number {
-  if (!iso) return 0
-  return Math.ceil((new Date(iso).getTime() - Date.now()) / day)
+/** Dias de calendário até a data (0 = hoje, negativo = vencido) — ignora horários */
+function calendarDaysUntil(iso: string | null | undefined): number | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  const due = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  return Math.round((due - today) / day)
 }
 
-/** Prazo amigável por status de cobrança */
+/** % do período decorrido entre início e fim (0–100, limitado) */
+function pctBetween(startIso: string, endIso: string | null | undefined): number | null {
+  if (!endIso) return null
+  const s = new Date(startIso).getTime()
+  const t = new Date(endIso).getTime()
+  if (Number.isNaN(s) || Number.isNaN(t) || t <= s) return 100
+  return Math.min(100, Math.max(0, ((Date.now() - s) / (t - s)) * 100))
+}
+
+type BillingWindow = {
+  startIso: string
+  endIso: string | null
+  daysLeft: number | null
+  pct: number | null
+  trial: boolean
+}
+
+/** Janela do período conforme o status da cobrança:
+ *  TRIAL → início da conta até "Teste até"; PAID/OVERDUE → início do período até o vencimento;
+ *  CANCELED → sem janela ativa. */
+function billingWindow(e: EstablishmentRow): BillingWindow {
+  const trial = e.billingStatus === 'TRIAL'
+  if (e.billingStatus === 'CANCELED') return { startIso: e.createdAt, endIso: null, daysLeft: null, pct: null, trial: false }
+  const startIso = trial ? (e.periodStartAt ?? e.createdAt) : (e.periodStartAt ?? e.lastPaymentAt ?? e.createdAt)
+  const endIso = trial ? e.trialEndsAt : e.currentPeriodEnd
+  return { startIso, endIso, daysLeft: calendarDaysUntil(endIso), pct: pctBetween(startIso, endIso), trial }
+}
+
+/** Prazo amigável com avisos de 5, 4, 3, 2, 1 dia(s) antes, no dia do vencimento e depois */
 function deadlineLabel(e: EstablishmentRow): { text: string; tone: 'ok' | 'warn' | 'bad' | 'muted' } {
   if (e.billingStatus === 'CANCELED') return { text: 'Cancelado', tone: 'muted' }
-  if (e.billingStatus === 'TRIAL') {
-    const d = daysFromNow(e.trialEndsAt)
-    if (!e.trialEndsAt) return { text: 'Sem prazo de teste', tone: 'muted' }
-    if (d > 0) return { text: `Teste até ${fmtDate(e.trialEndsAt)} · ${d}d`, tone: d <= 3 ? 'warn' : 'ok' }
-    return { text: `Teste expirou em ${fmtDate(e.trialEndsAt)}`, tone: 'bad' }
-  }
-  const d = daysFromNow(e.currentPeriodEnd)
-  if (!e.currentPeriodEnd) return { text: 'Sem vencimento', tone: 'muted' }
-  if (d > 0) return { text: `Vence ${fmtDate(e.currentPeriodEnd)} · ${d}d`, tone: d <= 5 ? 'warn' : 'ok' }
-  return { text: `Venceu ${fmtDate(e.currentPeriodEnd)}`, tone: 'bad' }
+  const w = billingWindow(e)
+  const d = w.daysLeft
+  if (d === null) return { text: w.trial ? 'Sem prazo de teste' : 'Sem vencimento', tone: 'muted' }
+  if (d > 5) return { text: `${w.trial ? 'Teste até' : 'Vence'} ${fmtDate(w.endIso)} · em ${d} dias`, tone: 'ok' }
+  if (d >= 2) return { text: `Faltam ${d} dias · ${fmtDate(w.endIso)}`, tone: 'warn' }
+  if (d === 1) return { text: `Falta 1 dia · ${fmtDate(w.endIso)}`, tone: 'warn' }
+  if (d === 0) return { text: `${w.trial ? 'Teste' : 'Cobrança'} vence hoje!`, tone: 'bad' }
+  const n = Math.abs(d)
+  return { text: `${w.trial ? 'Teste' : 'Período'} venceu há ${n} ${n === 1 ? 'dia' : 'dias'}`, tone: 'bad' }
+}
+
+/** Tom da barra conforme o quanto do período já passou */
+function periodTone(pct: number | null): 'ok' | 'warn' | 'bad' | 'muted' {
+  if (pct === null) return 'muted'
+  if (pct >= 100) return 'bad'
+  if (pct >= 85) return 'warn'
+  return 'ok'
+}
+
+const TONE_TEXT: Record<'ok' | 'warn' | 'bad' | 'muted', string> = {
+  ok: 'text-emerald-600 dark:text-emerald-400',
+  warn: 'text-amber-600 dark:text-amber-400',
+  bad: 'text-red-600 dark:text-red-400',
+  muted: 'text-muted-foreground',
+}
+
+const TONE_BAR: Record<'ok' | 'warn' | 'bad' | 'muted', string> = {
+  ok: 'bg-emerald-500',
+  warn: 'bg-amber-500',
+  bad: 'bg-red-500',
+  muted: 'bg-zinc-400 dark:bg-zinc-600',
+}
+
+/** Barra de progresso do período com porcentagem até o fim */
+function PeriodProgress({ pct, tone, size = 'sm' }: { pct: number | null; tone: 'ok' | 'warn' | 'bad' | 'muted'; size?: 'sm' | 'md' }) {
+  if (pct === null) return null
+  return (
+    <div className={cn('flex items-center gap-2', size === 'md' && 'mt-0.5')}>
+      <div className={cn('flex-1 rounded-full bg-muted overflow-hidden', size === 'sm' ? 'h-1.5' : 'h-2')}>
+        <div className={cn('h-full rounded-full transition-[width] duration-500', TONE_BAR[tone])} style={{ width: `${pct}%` }} />
+      </div>
+      <span className={cn('font-semibold tabular-nums', size === 'sm' ? 'text-[10px] w-8 text-right' : 'text-xs')}>{Math.round(pct)}%</span>
+    </div>
+  )
 }
 
 function BillingBadge({ status }: { status: string }) {
@@ -213,15 +282,15 @@ function EditDataDialog({ est, onClose }: { est: EstablishmentRow | null; onClos
 /** ---------- Diálogo: plano e cobrança ---------- */
 function BillingDialog({ est, plans, onClose }: { est: EstablishmentRow | null; plans: PlanRow[]; onClose: () => void }) {
   const queryClient = useQueryClient()
-  const [form, setForm] = useState({ plan: 'TRIAL', billingStatus: 'TRIAL', trialEndsAt: '', currentPeriodEnd: '', notes: '' })
+  const [form, setForm] = useState({ plan: 'TRIAL', billingStatus: 'TRIAL', periodStartAt: '', trialEndsAt: '', notes: '' })
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
   if (est && loadedFor !== est.id) {
     setLoadedFor(est.id)
     setForm({
       plan: est.plan,
       billingStatus: est.billingStatus,
+      periodStartAt: toInputDate(est.periodStartAt ?? est.lastPaymentAt ?? est.createdAt),
       trialEndsAt: toInputDate(est.trialEndsAt),
-      currentPeriodEnd: toInputDate(est.currentPeriodEnd),
       notes: est.notes,
     })
   }
@@ -231,16 +300,40 @@ function BillingDialog({ est, plans, onClose }: { est: EstablishmentRow | null; 
     onSuccess: (_d, payload) => {
       toast.success(
         payload.markPaidNow
-          ? 'Pagamento registrado — período renovado'
+          ? 'Pagamento registrado — novo período iniciado e vencimento recalculado'
           : payload.extendDays
             ? 'Vencimento estendido'
-            : 'Cobrança atualizada'
+            : 'Cobrança atualizada — vencimento recalculado automaticamente'
       )
       void queryClient.invalidateQueries({ queryKey: ['platform'] })
       onClose()
     },
     onError: (e: Error) => toast.error(e.message),
   })
+
+  // Vencimento automático (pré-visualização em tempo real):
+  // TRIAL → prazo = campo "Teste até"; PAID → data de início + duração do plano;
+  // OVERDUE/CANCELED → mantém o vencimento vigente (já vencido/encerrado).
+  const selectedPlan = plans.find((p) => p.key === form.plan)
+  const duration = selectedPlan?.duration ?? 30
+  const isTrial = form.billingStatus === 'TRIAL'
+  const isPaid = form.billingStatus === 'PAID'
+  const startMs = form.periodStartAt ? new Date(`${form.periodStartAt}T12:00:00`).getTime() : Date.now()
+  const autoEndMs = isTrial
+    ? (form.trialEndsAt ? new Date(`${form.trialEndsAt}T12:00:00`).getTime() : null)
+    : isPaid
+      ? startMs + duration * day
+      : (est?.currentPeriodEnd ? new Date(est.currentPeriodEnd).getTime() : null)
+  const previewPct = pctBetween(new Date(startMs).toISOString(), autoEndMs ? new Date(autoEndMs).toISOString() : null)
+  const previewDays = calendarDaysUntil(autoEndMs ? new Date(autoEndMs).toISOString() : null)
+  const previewTone = periodTone(previewPct)
+  const daysHint = previewDays === null
+    ? ''
+    : previewDays > 0
+      ? `faltam ${previewDays} dia${previewDays === 1 ? '' : 's'}`
+      : previewDays === 0
+        ? 'vence hoje'
+        : `venceu há ${Math.abs(previewDays)} dia${Math.abs(previewDays) === 1 ? '' : 's'}`
 
   return (
     <Dialog open={!!est} onOpenChange={(v) => !v && onClose()}>
@@ -276,16 +369,52 @@ function BillingDialog({ est, plans, onClose }: { est: EstablishmentRow | null; 
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className={cn('grid gap-3', isTrial ? 'grid-cols-2' : 'grid-cols-1')}>
             <div className="space-y-1.5">
-              <Label className="flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-amber-500" /> Teste até</Label>
-              <Input type="date" value={form.trialEndsAt} onChange={(e) => setForm({ ...form, trialEndsAt: e.target.value })} />
+              <Label className="flex items-center gap-1.5"><CalendarClock className="h-3.5 w-3.5 text-primary" /> Data de início do período</Label>
+              <Input type="date" value={form.periodStartAt} onChange={(e) => setForm({ ...form, periodStartAt: e.target.value })} />
+              <p className="text-[10px] text-muted-foreground leading-snug">Base do vencimento automático · a cada pagamento recomeça de hoje.</p>
             </div>
-            <div className="space-y-1.5">
-              <Label className="flex items-center gap-1.5"><CalendarClock className="h-3.5 w-3.5 text-primary" /> Vencimento</Label>
-              <Input type="date" value={form.currentPeriodEnd} onChange={(e) => setForm({ ...form, currentPeriodEnd: e.target.value })} />
-            </div>
+            {isTrial && (
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-amber-500" /> Teste até</Label>
+                <Input type="date" value={form.trialEndsAt} onChange={(e) => setForm({ ...form, trialEndsAt: e.target.value })} />
+                <p className="text-[10px] text-muted-foreground leading-snug">Com status Em teste, este prazo vale como vencimento.</p>
+              </div>
+            )}
           </div>
+
+          {/* Vencimento automático + progresso do período */}
+          <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <CalendarClock className="h-3.5 w-3.5 text-primary" /> Vencimento (automático)
+              </span>
+              {previewDays !== null && previewDays >= 0 && previewDays <= 5 && (
+                <Badge variant="outline" className="text-[10px] border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  {previewDays === 0 ? 'vence hoje!' : previewDays === 1 ? 'falta 1 dia' : `faltam ${previewDays} dias`}
+                </Badge>
+              )}
+            </div>
+            <p className="text-xl font-bold tracking-tight">{autoEndMs ? fmtDate(new Date(autoEndMs).toISOString()) : '—'}</p>
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              {isTrial
+                ? 'Definido pelo campo Teste até enquanto o status for Em teste.'
+                : isPaid
+                  ? `Data de início + ${duration} dias do plano ${selectedPlan?.name ?? form.plan}.`
+                  : 'Período vigente vencido — registre um pagamento para recomeçar o ciclo.'}
+            </p>
+            {previewPct !== null && (
+              <div>
+                <PeriodProgress pct={previewPct} tone={previewTone} size="md" />
+                <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>{Math.round(previewPct)}% do período concluído</span>
+                  <span>{daysHint}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-1.5">
             <Label>Notas internas</Label>
             <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Ex.: negociação de renovação, contato financeiro…" />
@@ -312,8 +441,10 @@ function BillingDialog({ est, plans, onClose }: { est: EstablishmentRow | null; 
               save.mutate({
                 plan: form.plan,
                 billingStatus: form.billingStatus,
-                trialEndsAt: form.trialEndsAt || null,
-                currentPeriodEnd: form.currentPeriodEnd || null,
+                periodStartAt: form.periodStartAt || null,
+                // TRIAL: o vencimento é o Teste até; nos demais status o servidor recalcula
+                // o fim do período a partir da data de início + duração do plano
+                ...(form.billingStatus === 'TRIAL' ? { trialEndsAt: form.trialEndsAt || null } : {}),
                 notes: form.notes,
               })
             }
@@ -554,6 +685,38 @@ export function PlatformView() {
     refetchInterval: 15_000,
   })
 
+  // Avisos de vencimento: resumo em toast uma única vez por carregamento da tela
+  const alertedRef = useRef(false)
+  useEffect(() => {
+    if (alertedRef.current || !data) return
+    alertedRef.current = true
+    const alerts = data.establishments
+      .map((e) => ({ e, w: billingWindow(e) }))
+      .filter((a) => a.w.daysLeft !== null && a.w.daysLeft <= 5)
+      .sort((a, b) => (a.w.daysLeft ?? 0) - (b.w.daysLeft ?? 0))
+    if (alerts.length === 0) return
+    const today = alerts.filter((a) => a.w.daysLeft === 0).length
+    const soon = alerts.filter((a) => (a.w.daysLeft ?? 0) > 0).length
+    const past = alerts.filter((a) => (a.w.daysLeft ?? 0) < 0).length
+    const parts = [
+      today > 0 ? `${today} vencendo hoje` : null,
+      soon > 0 ? `${soon} em até 5 dias` : null,
+      past > 0 ? `${past} vencido${past === 1 ? '' : 's'}` : null,
+    ].filter(Boolean).join(' · ')
+    toast.warning('Vencimentos da plataforma', {
+      description: `${parts} — ${alerts.slice(0, 3).map((a) => a.e.name).join(', ')}${alerts.length > 3 ? '…' : ''}`,
+      duration: 9000,
+    })
+  }, [data])
+
+  // Painel de vencimentos: 5, 4, 3, 2, 1 dia(s) antes, no dia e vencidos
+  const dueAlerts = useMemo(() => {
+    return (data?.establishments ?? [])
+      .map((e) => ({ e, w: billingWindow(e), dl: deadlineLabel(e) }))
+      .filter((a) => a.w.daysLeft !== null && a.w.daysLeft <= 5)
+      .sort((a, b) => (a.w.daysLeft ?? 0) - (b.w.daysLeft ?? 0))
+  }, [data])
+
   const toggleActive = useMutation({
     mutationFn: ({ id, active }: { id: string; active: boolean }) => apiPatch(`/api/platform/establishments/${id}`, { active }),
     onSuccess: (_d, vars) => {
@@ -629,6 +792,39 @@ export function PlatformView() {
 
         {/* ---------- Estabelecimentos ---------- */}
         <TabsContent value="establishments" className="mt-3 space-y-3">
+          {dueAlerts.length > 0 && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/[0.05] p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <BellRing className="h-4 w-4 text-amber-500" />
+                <p className="text-sm font-semibold">Alertas de vencimento</p>
+                <Badge variant="outline" className="text-[10px] border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  {dueAlerts.length} aviso{dueAlerts.length === 1 ? '' : 's'}
+                </Badge>
+                <p className="text-[11px] text-muted-foreground ml-auto hidden md:block">
+                  avisos de 5 a 1 dia antes, no dia do vencimento e após vencer
+                </p>
+              </div>
+              <div className="mt-2 grid gap-1.5 md:grid-cols-2">
+                {dueAlerts.map(({ e, w, dl }) => (
+                  <button
+                    key={e.id}
+                    type="button"
+                    onClick={() => setBillingTarget(e)}
+                    className="flex items-center justify-between gap-2 rounded-md border bg-background/60 px-2.5 py-1.5 text-left hover:border-primary/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-base shrink-0" aria-hidden>{e.logo}</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold truncate">{e.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{w.trial ? 'Teste' : 'Assinatura'} · {fmtDate(w.endIso)}</p>
+                      </div>
+                    </div>
+                    <span className={cn('text-[11px] font-bold shrink-0 text-right', TONE_TEXT[dl.tone])}>{dl.text}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-52">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
@@ -672,6 +868,7 @@ export function PlatformView() {
                   </TableHeader>
                   <TableBody>
                     {rows.map((e) => {
+                      const w = billingWindow(e)
                       const dl = deadlineLabel(e)
                       return (
                         <TableRow key={e.id}>
@@ -690,13 +887,8 @@ export function PlatformView() {
                           </TableCell>
                           <TableCell>
                             <BillingBadge status={e.billingStatus} />
-                            <p className={cn(
-                              'text-[11px] mt-1',
-                              dl.tone === 'ok' && 'text-emerald-600 dark:text-emerald-400',
-                              dl.tone === 'warn' && 'text-amber-600 dark:text-amber-400',
-                              dl.tone === 'bad' && 'text-red-600 dark:text-red-400',
-                              dl.tone === 'muted' && 'text-muted-foreground',
-                            )}>{dl.text}</p>
+                            <p className={cn('text-[11px] mt-1', TONE_TEXT[dl.tone])}>{dl.text}</p>
+                            {dl.tone !== 'muted' && <PeriodProgress pct={w.pct} tone={periodTone(w.pct)} />}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
                             <span className="inline-flex items-center gap-1 text-sm"><Users className="h-3.5 w-3.5 text-muted-foreground" /> {e.counts.users}</span>

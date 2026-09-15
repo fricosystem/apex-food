@@ -84,6 +84,7 @@ export async function ensureSeed(): Promise<boolean> {
       billingStatus: 'PAID',
       trialEndsAt: new Date(Date.now() - 60 * day),
       currentPeriodEnd: new Date(Date.now() + 18 * day),
+      periodStartAt: new Date(Date.now() - 12 * day),
       lastPaymentAt: new Date(Date.now() - 12 * day),
       notes: 'Cliente desde 2024 · renovação automática',
     },

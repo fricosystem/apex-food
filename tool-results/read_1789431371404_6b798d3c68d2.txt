@@ -1,0 +1,882 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useMemo, useState } from 'react'
+     4→     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→     5→import { toast } from 'sonner'
+     6→     6→import {
+     7→     7→  Building2, Sparkles, AlertTriangle, Wallet, Search, Plus, Pencil,
+     8→     8→  CreditCard, ShieldCheck, Trash2, MoreHorizontal, Loader2, Store,
+     9→     9→  Users, ClipboardList, UtensilsCrossed, CalendarClock, RefreshCw,
+    10→    10→} from 'lucide-react'
+    11→    11→import { cn } from '@/lib/utils'
+    12→    12→import { api, apiPost, apiPatch, apiDelete } from '@/lib/fetcher'
+    13→    13→import { Button } from '@/components/ui/button'
+    14→    14→import { Input } from '@/components/ui/input'
+    15→    15→import { Label } from '@/components/ui/label'
+    16→    16→import { Badge } from '@/components/ui/badge'
+    17→    17→import { Card, CardContent } from '@/components/ui/card'
+    18→    18→import { Switch } from '@/components/ui/switch'
+    19→    19→import { Checkbox } from '@/components/ui/checkbox'
+    20→    20→import { Textarea } from '@/components/ui/textarea'
+    21→    21→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    22→    22→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+    23→    23→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    24→    24→import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+    25→    25→import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+    26→    26→import { currency } from '@/lib/types'
+    27→    27→import { PLAN_LABELS, BILLING_STATUS_LABELS } from '@/lib/types'
+    28→    28→import { DEFAULT_VIEW_ROLES, hasPermissionOverrides } from '@/lib/permissions'
+    29→    29→import type { ViewKey } from '@/lib/types'
+    30→    30→
+    31→    31→type EstablishmentRow = {
+    32→    32→  id: string
+    33→    33→  name: string
+    34→    34→  cnpj: string
+    35→    35→  logo: string
+    36→    36→  type: string
+    37→    37→  phone: string
+    38→    38→  address: string
+    39→    39→  active: boolean
+    40→    40→  plan: string
+    41→    41→  billingStatus: string
+    42→    42→  trialEndsAt: string | null
+    43→    43→  currentPeriodEnd: string | null
+    44→    44→  lastPaymentAt: string | null
+    45→    45→  notes: string
+    46→    46→  permissions: string
+    47→    47→  createdAt: string
+    48→    48→  monthlyPrice: number
+    49→    49→  counts: { users: number; orders: number; products: number; tables: number }
+    50→    50→}
+    51→    51→
+    52→    52→type PlanRow = {
+    53→    53→  id: string
+    54→    54→  key: string
+    55→    55→  name: string
+    56→    56→  price: number
+    57→    57→  duration: number
+    58→    58→  features: string
+    59→    59→  sortOrder: number
+    60→    60→  subscribers?: number
+    61→    61→}
+    62→    62→
+    63→    63→type PlatformData = {
+    64→    64→  establishments: EstablishmentRow[]
+    65→    65→  kpis: { total: number; active: number; paid: number; trialing: number; overdue: number; suspended: number; mrr: number }
+    66→    66→  plans: PlanRow[]
+    67→    67→}
+    68→    68→
+    69→    69→const TENANT_ROLE_LIST = ['ADMIN', 'MANAGER', 'WAITER', 'KITCHEN', 'CASHIER'] as const
+    70→    70→const TENANT_ROLE_LABELS: Record<string, string> = {
+    71→    71→  ADMIN: 'Administrador', MANAGER: 'Gerente', WAITER: 'Garçom', KITCHEN: 'Cozinha', CASHIER: 'Caixa',
+    72→    72→}
+    73→    73→const MATRIX_VIEWS: Array<{ key: ViewKey; label: string }> = [
+    74→    74→  { key: 'dashboard', label: 'Dashboard' },
+    75→    75→  { key: 'garcom', label: 'Garçom' },
+    76→    76→  { key: 'cozinha', label: 'Cozinha' },
+    77→    77→  { key: 'caixa', label: 'Caixa' },
+    78→    78→  { key: 'gestao', label: 'Gestão' },
+    79→    79→  { key: 'mesas', label: 'Mesas & QR' },
+    80→    80→  { key: 'relatorio', label: 'Relatório Geral' },
+    81→    81→  { key: 'administracao', label: 'Administração' },
+    82→    82→  { key: 'configuracoes', label: 'Configurações' },
+    83→    83→]
+    84→    84→
+    85→    85→const day = 86_400_000
+    86→    86→
+    87→    87→function fmtDate(iso: string | null | undefined): string {
+    88→    88→  if (!iso) return '—'
+    89→    89→  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+    90→    90→}
+    91→    91→
+    92→    92→function daysFromNow(iso: string | null | undefined): number {
+    93→    93→  if (!iso) return 0
+    94→    94→  return Math.ceil((new Date(iso).getTime() - Date.now()) / day)
+    95→    95→}
+    96→    96→
+    97→    97→/** Prazo amigável por status de cobrança */
+    98→    98→function deadlineLabel(e: EstablishmentRow): { text: string; tone: 'ok' | 'warn' | 'bad' | 'muted' } {
+    99→    99→  if (e.billingStatus === 'CANCELED') return { text: 'Cancelado', tone: 'muted' }
+   100→   100→  if (e.billingStatus === 'TRIAL') {
+   101→   101→    const d = daysFromNow(e.trialEndsAt)
+   102→   102→    if (!e.trialEndsAt) return { text: 'Sem prazo de teste', tone: 'muted' }
+   103→   103→    if (d > 0) return { text: `Teste até ${fmtDate(e.trialEndsAt)} · ${d}d`, tone: d <= 3 ? 'warn' : 'ok' }
+   104→   104→    return { text: `Teste expirou em ${fmtDate(e.trialEndsAt)}`, tone: 'bad' }
+   105→   105→  }
+   106→   106→  const d = daysFromNow(e.currentPeriodEnd)
+   107→   107→  if (!e.currentPeriodEnd) return { text: 'Sem vencimento', tone: 'muted' }
+   108→   108→  if (d > 0) return { text: `Vence ${fmtDate(e.currentPeriodEnd)} · ${d}d`, tone: d <= 5 ? 'warn' : 'ok' }
+   109→   109→  return { text: `Venceu ${fmtDate(e.currentPeriodEnd)}`, tone: 'bad' }
+   110→   110→}
+   111→   111→
+   112→   112→function BillingBadge({ status }: { status: string }) {
+   113→   113→  const cls =
+   114→   114→    status === 'PAID'
+   115→   115→      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+   116→   116→      : status === 'TRIAL'
+   117→   117→        ? 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+   118→   118→        : status === 'OVERDUE'
+   119→   119→          ? 'border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400'
+   120→   120→          : 'border-zinc-500/40 bg-zinc-500/10 text-zinc-500 dark:text-zinc-400'
+   121→   121→  return (
+   122→   122→    <Badge variant="outline" className={cn('text-[10px] font-semibold', cls)}>
+   123→   123→      {BILLING_STATUS_LABELS[status] ?? status}
+   124→   124→    </Badge>
+   125→   125→  )
+   126→   126→}
+   127→   127→
+   128→   128→function PlanBadge({ plan }: { plan: string }) {
+   129→   129→  return (
+   130→   130→    <Badge variant="outline" className="text-[10px] font-semibold border-primary/40 bg-primary/10 text-primary">
+   131→   131→      {PLAN_LABELS[plan] ?? plan}
+   132→   132→    </Badge>
+   133→   133→  )
+   134→   134→}
+   135→   135→
+   136→   136→function toInputDate(iso: string | null | undefined): string {
+   137→   137→  if (!iso) return ''
+   138→   138→  const d = new Date(iso)
+   139→   139→  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+   140→   140→}
+   141→   141→
+   142→   142→/** ---------- Diálogo: dados cadastrais ---------- */
+   143→   143→function EditDataDialog({ est, onClose }: { est: EstablishmentRow | null; onClose: () => void }) {
+   144→   144→  const queryClient = useQueryClient()
+   145→   145→  const [form, setForm] = useState({ name: '', cnpj: '', logo: '', phone: '', address: '', type: 'RESTAURANTE' })
+   146→   146→  const [loadedFor, setLoadedFor] = useState<string | null>(null)
+   147→   147→  if (est && loadedFor !== est.id) {
+   148→   148→    setLoadedFor(est.id)
+   149→   149→    setForm({ name: est.name, cnpj: est.cnpj, logo: est.logo, phone: est.phone, address: est.address, type: est.type })
+   150→   150→  }
+   151→   151→
+   152→   152→  const save = useMutation({
+   153→   153→    mutationFn: () => apiPatch(`/api/platform/establishments/${est!.id}`, form),
+   154→   154→    onSuccess: () => {
+   155→   155→      toast.success('Dados do estabelecimento atualizados')
+   156→   156→      void queryClient.invalidateQueries({ queryKey: ['platform'] })
+   157→   157→      onClose()
+   158→   158→    },
+   159→   159→    onError: (e: Error) => toast.error(e.message),
+   160→   160→  })
+   161→   161→
+   162→   162→  return (
+   163→   163→    <Dialog open={!!est} onOpenChange={(v) => !v && onClose()}>
+   164→   164→      <DialogContent className="sm:max-w-lg">
+   165→   165→        <DialogHeader>
+   166→   166→          <DialogTitle className="flex items-center gap-2"><Pencil className="h-4 w-4 text-primary" /> Editar estabelecimento</DialogTitle>
+   167→   167→          <DialogDescription>Dados cadastrais exibidos no sistema do restaurante.</DialogDescription>
+   168→   168→        </DialogHeader>
+   169→   169→        <div className="grid gap-3 py-1">
+   170→   170→          <div className="grid grid-cols-[1fr_88px] gap-3">
+   171→   171→            <div className="space-y-1.5">
+   172→   172→              <Label>Nome</Label>
+   173→   173→              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+   174→   174→            </div>
+   175→   175→            <div className="space-y-1.5">
+   176→   176→              <Label>Logo</Label>
+   177→   177→              <Input value={form.logo} onChange={(e) => setForm({ ...form, logo: e.target.value })} className="text-center" />
+   178→   178→            </div>
+   179→   179→          </div>
+   180→   180→          <div className="grid grid-cols-2 gap-3">
+   181→   181→            <div className="space-y-1.5">
+   182→   182→              <Label>CNPJ</Label>
+   183→   183→              <Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} placeholder="00.000.000/0000-00" />
+   184→   184→            </div>
+   185→   185→            <div className="space-y-1.5">
+   186→   186→              <Label>Telefone</Label>
+   187→   187→              <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+   188→   188→            </div>
+   189→   189→          </div>
+   190→   190→          <div className="grid grid-cols-2 gap-3">
+   191→   191→            <div className="space-y-1.5">
+   192→   192→              <Label>Tipo</Label>
+   193→   193→              <Input value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} placeholder="RESTAURANTE" />
+   194→   194→            </div>
+   195→   195→            <div className="space-y-1.5">
+   196→   196→              <Label>Endereço</Label>
+   197→   197→              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+   198→   198→            </div>
+   199→   199→          </div>
+   200→   200→        </div>
+   201→   201→        <DialogFooter>
+   202→   202→          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+   203→   203→          <Button onClick={() => save.mutate()} disabled={save.isPending || !form.name.trim()}>
+   204→   204→            {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+   205→   205→            Salvar
+   206→   206→          </Button>
+   207→   207→        </DialogFooter>
+   208→   208→      </DialogContent>
+   209→   209→    </Dialog>
+   210→   210→  )
+   211→   211→}
+   212→   212→
+   213→   213→/** ---------- Diálogo: plano e cobrança ---------- */
+   214→   214→function BillingDialog({ est, plans, onClose }: { est: EstablishmentRow | null; plans: PlanRow[]; onClose: () => void }) {
+   215→   215→  const queryClient = useQueryClient()
+   216→   216→  const [form, setForm] = useState({ plan: 'TRIAL', billingStatus: 'TRIAL', trialEndsAt: '', currentPeriodEnd: '', notes: '' })
+   217→   217→  const [loadedFor, setLoadedFor] = useState<string | null>(null)
+   218→   218→  if (est && loadedFor !== est.id) {
+   219→   219→    setLoadedFor(est.id)
+   220→   220→    setForm({
+   221→   221→      plan: est.plan,
+   222→   222→      billingStatus: est.billingStatus,
+   223→   223→      trialEndsAt: toInputDate(est.trialEndsAt),
+   224→   224→      currentPeriodEnd: toInputDate(est.currentPeriodEnd),
+   225→   225→      notes: est.notes,
+   226→   226→    })
+   227→   227→  }
+   228→   228→
+   229→   229→  const save = useMutation({
+   230→   230→    mutationFn: (payload: Record<string, unknown>) => apiPatch(`/api/platform/establishments/${est!.id}`, payload),
+   231→   231→    onSuccess: (_d, payload) => {
+   232→   232→      toast.success(
+   233→   233→        payload.markPaidNow
+   234→   234→          ? 'Pagamento registrado — período renovado'
+   235→   235→          : payload.extendDays
+   236→   236→            ? 'Vencimento estendido'
+   237→   237→            : 'Cobrança atualizada'
+   238→   238→      )
+   239→   239→      void queryClient.invalidateQueries({ queryKey: ['platform'] })
+   240→   240→      onClose()
+   241→   241→    },
+   242→   242→    onError: (e: Error) => toast.error(e.message),
+   243→   243→  })
+   244→   244→
+   245→   245→  return (
+   246→   246→    <Dialog open={!!est} onOpenChange={(v) => !v && onClose()}>
+   247→   247→      <DialogContent className="sm:max-w-lg">
+   248→   248→        <DialogHeader>
+   249→   249→          <DialogTitle className="flex items-center gap-2"><CreditCard className="h-4 w-4 text-primary" /> Plano e cobrança</DialogTitle>
+   250→   250→          <DialogDescription>{est?.name} · último pagamento: {fmtDate(est?.lastPaymentAt)}</DialogDescription>
+   251→   251→        </DialogHeader>
+   252→   252→        <div className="grid gap-3 py-1">
+   253→   253→          <div className="grid grid-cols-2 gap-3">
+   254→   254→            <div className="space-y-1.5">
+   255→   255→              <Label>Plano</Label>
+   256→   256→              <Select value={form.plan} onValueChange={(v) => setForm({ ...form, plan: v })}>
+   257→   257→                <SelectTrigger><SelectValue /></SelectTrigger>
+   258→   258→                <SelectContent>
+   259→   259→                  {plans.map((p) => (
+   260→   260→                    <SelectItem key={p.key} value={p.key}>
+   261→   261→                      {p.name} {p.price > 0 ? `· ${currency(p.price)}/mês` : '· grátis'}
+   262→   262→                    </SelectItem>
+   263→   263→                  ))}
+   264→   264→                </SelectContent>
+   265→   265→              </Select>
+   266→   266→            </div>
+   267→   267→            <div className="space-y-1.5">
+   268→   268→              <Label>Status da cobrança</Label>
+   269→   269→              <Select value={form.billingStatus} onValueChange={(v) => setForm({ ...form, billingStatus: v })}>
+   270→   270→                <SelectTrigger><SelectValue /></SelectTrigger>
+   271→   271→                <SelectContent>
+   272→   272→                  {Object.entries(BILLING_STATUS_LABELS).map(([k, label]) => (
+   273→   273→                    <SelectItem key={k} value={k}>{label}</SelectItem>
+   274→   274→                  ))}
+   275→   275→                </SelectContent>
+   276→   276→              </Select>
+   277→   277→            </div>
+   278→   278→          </div>
+   279→   279→          <div className="grid grid-cols-2 gap-3">
+   280→   280→            <div className="space-y-1.5">
+   281→   281→              <Label className="flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-amber-500" /> Teste até</Label>
+   282→   282→              <Input type="date" value={form.trialEndsAt} onChange={(e) => setForm({ ...form, trialEndsAt: e.target.value })} />
+   283→   283→            </div>
+   284→   284→            <div className="space-y-1.5">
+   285→   285→              <Label className="flex items-center gap-1.5"><CalendarClock className="h-3.5 w-3.5 text-primary" /> Vencimento</Label>
+   286→   286→              <Input type="date" value={form.currentPeriodEnd} onChange={(e) => setForm({ ...form, currentPeriodEnd: e.target.value })} />
+   287→   287→            </div>
+   288→   288→          </div>
+   289→   289→          <div className="space-y-1.5">
+   290→   290→            <Label>Notas internas</Label>
+   291→   291→            <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Ex.: negociação de renovação, contato financeiro…" />
+   292→   292→          </div>
+   293→   293→          <div className="flex flex-wrap gap-2 rounded-lg border bg-muted/40 p-2.5">
+   294→   294→            <Button
+   295→   295→              size="sm"
+   296→   296→              variant="outline"
+   297→   297→              className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+   298→   298→              disabled={save.isPending}
+   299→   299→              onClick={() => save.mutate({ plan: form.plan, markPaidNow: true })}
+   300→   300→            >
+   301→   301→              <Wallet className="h-3.5 w-3.5" /> Registrar pagamento agora
+   302→   302→            </Button>
+   303→   303→            <Button size="sm" variant="outline" disabled={save.isPending} onClick={() => save.mutate({ extendDays: 30 })}>
+   304→   304→              <RefreshCw className="h-3.5 w-3.5" /> Estender 30 dias
+   305→   305→            </Button>
+   306→   306→          </div>
+   307→   307→        </div>
+   308→   308→        <DialogFooter>
+   309→   309→          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+   310→   310→          <Button
+   311→   311→            onClick={() =>
+   312→   312→              save.mutate({
+   313→   313→                plan: form.plan,
+   314→   314→                billingStatus: form.billingStatus,
+   315→   315→                trialEndsAt: form.trialEndsAt || null,
+   316→   316→                currentPeriodEnd: form.currentPeriodEnd || null,
+   317→   317→                notes: form.notes,
+   318→   318→              })
+   319→   319→            }
+   320→   320→            disabled={save.isPending}
+   321→   321→          >
+   322→   322→            {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+   323→   323→            Salvar cobrança
+   324→   324→          </Button>
+   325→   325→        </DialogFooter>
+   326→   326→      </DialogContent>
+   327→   327→    </Dialog>
+   328→   328→  )
+   329→   329→}
+   330→   330→
+   331→   331→/** ---------- Diálogo: permissões por tela × cargo ---------- */
+   332→   332→function PermissionsDialog({ est, onClose }: { est: EstablishmentRow | null; onClose: () => void }) {
+   333→   333→  const queryClient = useQueryClient()
+   334→   334→  const [matrix, setMatrix] = useState<Record<string, string[]>>({})
+   335→   335→  const [loadedFor, setLoadedFor] = useState<string | null>(null)
+   336→   336→  if (est && loadedFor !== est.id) {
+   337→   337→    setLoadedFor(est.id)
+   338→   338→    // Efetivo = padrão + overrides salvos
+   339→   339→    let overrides: Record<string, string[]> = {}
+   340→   340→    try { overrides = JSON.parse(est.permissions || '{}') } catch { /* ignora */ }
+   341→   341→    const effective: Record<string, string[]> = {}
+   342→   342→    for (const v of MATRIX_VIEWS) {
+   343→   343→      effective[v.key] = overrides[v.key] ?? DEFAULT_VIEW_ROLES[v.key]
+   344→   344→    }
+   345→   345→    setMatrix(effective)
+   346→   346→  }
+   347→   347→
+   348→   348→  const save = useMutation({
+   349→   349→    mutationFn: (permissions: Record<string, string[]>) =>
+   350→   350→      apiPatch(`/api/platform/establishments/${est!.id}`, { permissions }),
+   351→   351→    onSuccess: () => {
+   352→   352→      toast.success('Permissões atualizadas — sessões dos usuários aplicam no próximo carregamento')
+   353→   353→      void queryClient.invalidateQueries({ queryKey: ['platform'] })
+   354→   354→      onClose()
+   355→   355→    },
+   356→   356→    onError: (e: Error) => toast.error(e.message),
+   357→   357→  })
+   358→   358→
+   359→   359→  const toggle = (view: string, role: string) => {
+   360→   360→    setMatrix((m) => {
+   361→   361→      const cur = m[view] ?? []
+   362→   362→      return { ...m, [view]: cur.includes(role) ? cur.filter((r) => r !== role) : [...cur, role] }
+   363→   363→    })
+   364→   364→  }
+   365→   365→
+   366→   366→  const customized = est ? hasPermissionOverrides(est.permissions) : false
+   367→   367→
+   368→   368→  return (
+   369→   369→    <Dialog open={!!est} onOpenChange={(v) => !v && onClose()}>
+   370→   370→      <DialogContent className="sm:max-w-2xl">
+   371→   371→        <DialogHeader>
+   372→   372→          <DialogTitle className="flex items-center gap-2">
+   373→   373→            <ShieldCheck className="h-4 w-4 text-primary" /> Permissões · {est?.name}
+   374→   374→            {customized && <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">Customizado</Badge>}
+   375→   375→          </DialogTitle>
+   376→   376→          <DialogDescription>
+   377→   377→            Define quais cargos acessam cada tela deste estabelecimento. Deixe igual ao padrão para herdar a configuração base.
+   378→   378→            Desenvolvedor CEO, Administrador e Gerente têm acesso irrestrito a todas as telas.
+   379→   379→          </DialogDescription>
+   380→   380→        </DialogHeader>
+   381→   381→        <div className="overflow-x-auto max-h-[52vh] overflow-y-auto">
+   382→   382→          <Table>
+   383→   383→            <TableHeader>
+   384→   384→              <TableRow>
+   385→   385→                <TableHead className="pl-1">Tela</TableHead>
+   386→   386→                {TENANT_ROLE_LIST.map((r) => (
+   387→   387→                  <TableHead key={r} className="text-center text-[11px]">{TENANT_ROLE_LABELS[r]}</TableHead>
+   388→   388→                ))}
+   389→   389→              </TableRow>
+   390→   390→            </TableHeader>
+   391→   391→            <TableBody>
+   392→   392→              {MATRIX_VIEWS.map((v) => (
+   393→   393→                <TableRow key={v.key}>
+   394→   394→                  <TableCell className="pl-1 font-medium text-xs">{v.label}</TableCell>
+   395→   395→                  {TENANT_ROLE_LIST.map((r) => (
+   396→   396→                    <TableCell key={r} className="text-center">
+   397→   397→                      <Checkbox
+   398→   398→                        checked={(matrix[v.key] ?? []).includes(r)}
+   399→   399→                        onCheckedChange={() => toggle(v.key, r)}
+   400→   400→                        aria-label={`${v.label} para ${TENANT_ROLE_LABELS[r]}`}
+   401→   401→                      />
+   402→   402→                    </TableCell>
+   403→   403→                  ))}
+   404→   404→                </TableRow>
+   405→   405→              ))}
+   406→   406→            </TableBody>
+   407→   407→          </Table>
+   408→   408→        </div>
+   409→   409→        <DialogFooter className="gap-2">
+   410→   410→          <Button
+   411→   411→            variant="outline"
+   412→   412→            onClick={() => {
+   413→   413→              const defaults: Record<string, string[]> = {}
+   414→   414→              for (const v of MATRIX_VIEWS) defaults[v.key] = [...DEFAULT_VIEW_ROLES[v.key]]
+   415→   415→              setMatrix(defaults)
+   416→   416→              save.mutate({}) // limpa overrides → volta a herdar o padrão
+   417→   417→            }}
+   418→   418→            disabled={save.isPending}
+   419→   419→          >
+   420→   420→            Restaurar padrão
+   421→   421→          </Button>
+   422→   422→          <Button onClick={() => save.mutate(matrix)} disabled={save.isPending}>
+   423→   423→            {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+   424→   424→            Salvar permissões
+   425→   425→          </Button>
+   426→   426→        </DialogFooter>
+   427→   427→      </DialogContent>
+   428→   428→    </Dialog>
+   429→   429→  )
+   430→   430→}
+   431→   431→
+   432→   432→/** ---------- Diálogo: novo estabelecimento ---------- */
+   433→   433→function CreateDialog({ open, plans, onClose }: { open: boolean; plans: PlanRow[]; onClose: () => void }) {
+   434→   434→  const queryClient = useQueryClient()
+   435→   435→  const [form, setForm] = useState({ name: '', cnpj: '', logo: '🍴', plan: 'TRIAL', trialDays: 14 })
+   436→   436→
+   437→   437→  const create = useMutation({
+   438→   438→    mutationFn: () => apiPost('/api/platform/establishments', { ...form, trialDays: Number(form.trialDays) || 14 }),
+   439→   439→    onSuccess: () => {
+   440→   440→      toast.success('Estabelecimento criado')
+   441→   441→      void queryClient.invalidateQueries({ queryKey: ['platform'] })
+   442→   442→      setForm({ name: '', cnpj: '', logo: '🍴', plan: 'TRIAL', trialDays: 14 })
+   443→   443→      onClose()
+   444→   444→    },
+   445→   445→    onError: (e: Error) => toast.error(e.message),
+   446→   446→  })
+   447→   447→
+   448→   448→  return (
+   449→   449→    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+   450→   450→      <DialogContent className="sm:max-w-md">
+   451→   451→        <DialogHeader>
+   452→   452→          <DialogTitle className="flex items-center gap-2"><Plus className="h-4 w-4 text-primary" /> Novo estabelecimento</DialogTitle>
+   453→   453→          <DialogDescription>Criado manualmente pela equipe APEX. O primeiro usuário pode ser cadastrado pelo próprio restaurante.</DialogDescription>
+   454→   454→        </DialogHeader>
+   455→   455→        <div className="grid gap-3 py-1">
+   456→   456→          <div className="grid grid-cols-[1fr_72px] gap-3">
+   457→   457→            <div className="space-y-1.5">
+   458→   458→              <Label>Nome</Label>
+   459→   459→              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome comercial" />
+   460→   460→            </div>
+   461→   461→            <div className="space-y-1.5">
+   462→   462→              <Label>Logo</Label>
+   463→   463→              <Input value={form.logo} onChange={(e) => setForm({ ...form, logo: e.target.value })} className="text-center" />
+   464→   464→            </div>
+   465→   465→          </div>
+   466→   466→          <div className="grid grid-cols-2 gap-3">
+   467→   467→            <div className="space-y-1.5">
+   468→   468→              <Label>CNPJ (opcional)</Label>
+   469→   469→              <Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} placeholder="00.000.000/0000-00" />
+   470→   470→            </div>
+   471→   471→            <div className="space-y-1.5">
+   472→   472→              <Label>Plano inicial</Label>
+   473→   473→              <Select value={form.plan} onValueChange={(v) => setForm({ ...form, plan: v })}>
+   474→   474→                <SelectTrigger><SelectValue /></SelectTrigger>
+   475→   475→                <SelectContent>
+   476→   476→                  {plans.map((p) => (
+   477→   477→                    <SelectItem key={p.key} value={p.key}>{p.name}</SelectItem>
+   478→   478→                  ))}
+   479→   479→                </SelectContent>
+   480→   480→              </Select>
+   481→   481→            </div>
+   482→   482→          </div>
+   483→   483→          {form.plan === 'TRIAL' && (
+   484→   484→            <div className="space-y-1.5">
+   485→   485→              <Label>Dias de teste</Label>
+   486→   486→              <Input type="number" min={1} max={90} value={form.trialDays} onChange={(e) => setForm({ ...form, trialDays: Number(e.target.value) })} />
+   487→   487→            </div>
+   488→   488→          )}
+   489→   489→        </div>
+   490→   490→        <DialogFooter>
+   491→   491→          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+   492→   492→          <Button onClick={() => create.mutate()} disabled={create.isPending || form.name.trim().length < 2}>
+   493→   493→            {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+   494→   494→            Criar estabelecimento
+   495→   495→          </Button>
+   496→   496→        </DialogFooter>
+   497→   497→      </DialogContent>
+   498→   498→    </Dialog>
+   499→   499→  )
+   500→   500→}
+   501→   501→
+   502→   502→/** ---------- Diálogo: excluir ---------- */
+   503→   503→function DeleteDialog({ est, onClose }: { est: EstablishmentRow | null; onClose: () => void }) {
+   504→   504→  const queryClient = useQueryClient()
+   505→   505→  const del = useMutation({
+   506→   506→    mutationFn: () => apiDelete(`/api/platform/establishments/${est!.id}`),
+   507→   507→    onSuccess: () => {
+   508→   508→      toast.success(`Estabelecimento "${est?.name}" removido da plataforma`)
+   509→   509→      void queryClient.invalidateQueries({ queryKey: ['platform'] })
+   510→   510→      onClose()
+   511→   511→    },
+   512→   512→    onError: (e: Error) => toast.error(e.message),
+   513→   513→  })
+   514→   514→  return (
+   515→   515→    <Dialog open={!!est} onOpenChange={(v) => !v && onClose()}>
+   516→   516→      <DialogContent className="sm:max-w-md">
+   517→   517→        <DialogHeader>
+   518→   518→          <DialogTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
+   519→   519→            <AlertTriangle className="h-4 w-4" /> Remover estabelecimento
+   520→   520→          </DialogTitle>
+   521→   521→          <DialogDescription>
+   522→   522→            Isso exclui <span className="font-semibold text-foreground">{est?.name}</span> e todos os dados vinculados:
+   523→   523→            funcionários, comandas, produtos, mesas e configurações. A ação é irreversível.
+   524→   524→          </DialogDescription>
+   525→   525→        </DialogHeader>
+   526→   526→        <DialogFooter>
+   527→   527→          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+   528→   528→          <Button variant="destructive" onClick={() => del.mutate()} disabled={del.isPending}>
+   529→   529→            {del.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+   530→   530→            Excluir permanentemente
+   531→   531→          </Button>
+   532→   532→        </DialogFooter>
+   533→   533→      </DialogContent>
+   534→   534→    </Dialog>
+   535→   535→  )
+   536→   536→}
+   537→   537→
+   538→   538→/** ---------- Tela principal: Plataforma ---------- */
+   539→   539→export function PlatformView() {
+   540→   540→  const queryClient = useQueryClient()
+   541→   541→  const [search, setSearch] = useState('')
+   542→   542→  const [statusFilter, setStatusFilter] = useState('ALL')
+   543→   543→  const [tab, setTab] = useState('establishments')
+   544→   544→  const [createOpen, setCreateOpen] = useState(false)
+   545→   545→  const [editTarget, setEditTarget] = useState<EstablishmentRow | null>(null)
+   546→   546→  const [billingTarget, setBillingTarget] = useState<EstablishmentRow | null>(null)
+   547→   547→  const [permTarget, setPermTarget] = useState<EstablishmentRow | null>(null)
+   548→   548→  const [deleteTarget, setDeleteTarget] = useState<EstablishmentRow | null>(null)
+   549→   549→  const [planDialog, setPlanDialog] = useState<{ open: boolean; plan: PlanRow | null }>({ open: false, plan: null })
+   550→   550→
+   551→   551→  const { data, isLoading } = useQuery<PlatformData>({
+   552→   552→    queryKey: ['platform'],
+   553→   553→    queryFn: () => api<PlatformData>('/api/platform/establishments'),
+   554→   554→    refetchInterval: 15_000,
+   555→   555→  })
+   556→   556→
+   557→   557→  const toggleActive = useMutation({
+   558→   558→    mutationFn: ({ id, active }: { id: string; active: boolean }) => apiPatch(`/api/platform/establishments/${id}`, { active }),
+   559→   559→    onSuccess: (_d, vars) => {
+   560→   560→      toast.success(vars.active ? 'Estabelecimento reativado' : 'Estabelecimento suspenso — logins bloqueados')
+   561→   561→      void queryClient.invalidateQueries({ queryKey: ['platform'] })
+   562→   562→    },
+   563→   563→    onError: (e: Error) => toast.error(e.message),
+   564→   564→  })
+   565→   565→
+   566→   566→  const rows = useMemo(() => {
+   567→   567→    const list = data?.establishments ?? []
+   568→   568→    const q = search.trim().toLowerCase()
+   569→   569→    return list.filter((e) => {
+   570→   570→      const matchQ = !q || e.name.toLowerCase().includes(q) || e.cnpj.toLowerCase().includes(q)
+   571→   571→      const matchS =
+   572→   572→        statusFilter === 'ALL' ||
+   573→   573→        (statusFilter === 'ACTIVE' && e.active) ||
+   574→   574→        (statusFilter === 'SUSPENDED' && !e.active) ||
+   575→   575→        e.billingStatus === statusFilter
+   576→   576→      return matchQ && matchS
+   577→   577→    })
+   578→   578→  }, [data, search, statusFilter])
+   579→   579→
+   580→   580→  const kpis = data?.kpis
+   581→   581→  const plans = data?.plans ?? []
+   582→   582→
+   583→   583→  return (
+   584→   584→    <div className="space-y-4">
+   585→   585→      {/* Header */}
+   586→   586→      <div className="flex flex-wrap items-end justify-between gap-3">
+   587→   587→        <div>
+   588→   588→          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+   589→   589→            <Building2 className="h-6 w-6 text-primary" /> Plataforma
+   590→   590→          </h1>
+   591→   591→          <p className="text-sm text-muted-foreground mt-1">
+   592→   592→            Gestão dos estabelecimentos, planos e cobranças do APEX FOOD · painel do desenvolvedor CEO
+   593→   593→          </p>
+   594→   594→        </div>
+   595→   595→        <Button className="apex-gradient text-white hover:opacity-90" onClick={() => setCreateOpen(true)}>
+   596→   596→          <Plus className="h-4 w-4" /> Novo estabelecimento
+   597→   597→        </Button>
+   598→   598→      </div>
+   599→   599→
+   600→   600→      {/* KPIs */}
+   601→   601→      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+   602→   602→        {[
+   603→   603→          { icon: Building2, label: 'Restaurantes ativos', value: kpis ? `${kpis.active}` : '—', hint: kpis ? `${kpis.total} no total · ${kpis.suspended} suspensos` : '', tone: 'text-primary' },
+   604→   604→          { icon: Sparkles, label: 'Em teste (trial)', value: kpis ? `${kpis.trialing}` : '—', hint: 'período gratuito em andamento', tone: 'text-amber-500' },
+   605→   605→          { icon: AlertTriangle, label: 'Vencidos / inadimplentes', value: kpis ? `${kpis.overdue}` : '—', hint: 'requerem cobrança', tone: 'text-red-500' },
+   606→   606→          { icon: Wallet, label: 'Receita recorrente', value: kpis ? currency(kpis.mrr) : '—', hint: kpis ? `${kpis.paid} assinantes pagantes` : '', tone: 'text-emerald-500' },
+   607→   607→        ].map((k) => {
+   608→   608→          const Icon = k.icon
+   609→   609→          return (
+   610→   610→            <Card key={k.label}>
+   611→   611→              <CardContent className="p-4">
+   612→   612→                <div className="flex items-center gap-2 text-muted-foreground">
+   613→   613→                  <Icon className={cn('h-4 w-4', k.tone)} />
+   614→   614→                  <p className="text-xs font-medium">{k.label}</p>
+   615→   615→                </div>
+   616→   616→                <p className="text-2xl font-bold tracking-tight mt-1.5">{k.value}</p>
+   617→   617→                <p className="text-[11px] text-muted-foreground mt-0.5">{k.hint}</p>
+   618→   618→              </CardContent>
+   619→   619→            </Card>
+   620→   620→          )
+   621→   621→        })}
+   622→   622→      </div>
+   623→   623→
+   624→   624→      <Tabs value={tab} onValueChange={setTab}>
+   625→   625→        <TabsList>
+   626→   626→          <TabsTrigger value="establishments"><Store className="h-3.5 w-3.5 mr-1.5" /> Estabelecimentos</TabsTrigger>
+   627→   627→          <TabsTrigger value="plans"><Wallet className="h-3.5 w-3.5 mr-1.5" /> Planos</TabsTrigger>
+   628→   628→        </TabsList>
+   629→   629→
+   630→   630→        {/* ---------- Estabelecimentos ---------- */}
+   631→   631→        <TabsContent value="establishments" className="mt-3 space-y-3">
+   632→   632→          <div className="flex flex-wrap items-center gap-2">
+   633→   633→            <div className="relative flex-1 min-w-52">
+   634→   634→              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+   635→   635→              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nome ou CNPJ…" className="pl-9" />
+   636→   636→            </div>
+   637→   637→            <Select value={statusFilter} onValueChange={setStatusFilter}>
+   638→   638→              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+   639→   639→              <SelectContent>
+   640→   640→                <SelectItem value="ALL">Todos os status</SelectItem>
+   641→   641→                <SelectItem value="ACTIVE">Somente ativos</SelectItem>
+   642→   642→                <SelectItem value="SUSPENDED">Suspensos</SelectItem>
+   643→   643→                <SelectItem value="PAID">Pagos</SelectItem>
+   644→   644→                <SelectItem value="TRIAL">Em teste</SelectItem>
+   645→   645→                <SelectItem value="OVERDUE">Vencidos</SelectItem>
+   646→   646→                <SelectItem value="CANCELED">Cancelados</SelectItem>
+   647→   647→              </SelectContent>
+   648→   648→            </Select>
+   649→   649→          </div>
+   650→   650→
+   651→   651→          <Card>
+   652→   652→            <CardContent className="p-0">
+   653→   653→              {isLoading ? (
+   654→   654→                <div className="py-14 flex items-center justify-center text-muted-foreground gap-2">
+   655→   655→                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando estabelecimentos…
+   656→   656→                </div>
+   657→   657→              ) : rows.length === 0 ? (
+   658→   658→                <p className="py-14 text-center text-sm text-muted-foreground">Nenhum estabelecimento encontrado para o filtro atual.</p>
+   659→   659→              ) : (
+   660→   660→                <Table>
+   661→   661→                  <TableHeader>
+   662→   662→                    <TableRow>
+   663→   663→                      <TableHead className="pl-4">Estabelecimento</TableHead>
+   664→   664→                      <TableHead>Plano</TableHead>
+   665→   665→                      <TableHead>Cobrança</TableHead>
+   666→   666→                      <TableHead className="text-right">Equipe</TableHead>
+   667→   667→                      <TableHead className="text-right">Comandas</TableHead>
+   668→   668→                      <TableHead className="text-right">Catálogo</TableHead>
+   669→   669→                      <TableHead className="text-center">Ativo</TableHead>
+   670→   670→                      <TableHead className="pr-4 text-right">Ações</TableHead>
+   671→   671→                    </TableRow>
+   672→   672→                  </TableHeader>
+   673→   673→                  <TableBody>
+   674→   674→                    {rows.map((e) => {
+   675→   675→                      const dl = deadlineLabel(e)
+   676→   676→                      return (
+   677→   677→                        <TableRow key={e.id}>
+   678→   678→                          <TableCell className="pl-4">
+   679→   679→                            <div className="flex items-center gap-3">
+   680→   680→                              <span className="h-9 w-9 rounded-lg border bg-muted/40 flex items-center justify-center text-lg shrink-0" aria-hidden>{e.logo}</span>
+   681→   681→                              <div className="min-w-0">
+   682→   682→                                <p className="text-sm font-semibold leading-tight truncate max-w-56">{e.name}</p>
+   683→   683→                                <p className="text-[11px] text-muted-foreground">{e.cnpj || 'sem CNPJ'} · desde {fmtDate(e.createdAt)}</p>
+   684→   684→                              </div>
+   685→   685→                            </div>
+   686→   686→                          </TableCell>
+   687→   687→                          <TableCell>
+   688→   688→                            <PlanBadge plan={e.plan} />
+   689→   689→                            {e.monthlyPrice > 0 && <p className="text-[11px] text-muted-foreground mt-1">{currency(e.monthlyPrice)}/mês</p>}
+   690→   690→                          </TableCell>
+   691→   691→                          <TableCell>
+   692→   692→                            <BillingBadge status={e.billingStatus} />
+   693→   693→                            <p className={cn(
+   694→   694→                              'text-[11px] mt-1',
+   695→   695→                              dl.tone === 'ok' && 'text-emerald-600 dark:text-emerald-400',
+   696→   696→                              dl.tone === 'warn' && 'text-amber-600 dark:text-amber-400',
+   697→   697→                              dl.tone === 'bad' && 'text-red-600 dark:text-red-400',
+   698→   698→                              dl.tone === 'muted' && 'text-muted-foreground',
+   699→   699→                            )}>{dl.text}</p>
+   700→   700→                          </TableCell>
+   701→   701→                          <TableCell className="text-right tabular-nums">
+   702→   702→                            <span className="inline-flex items-center gap-1 text-sm"><Users className="h-3.5 w-3.5 text-muted-foreground" /> {e.counts.users}</span>
+   703→   703→                          </TableCell>
+   704→   704→                          <TableCell className="text-right tabular-nums">
+   705→   705→                            <span className="inline-flex items-center gap-1 text-sm"><ClipboardList className="h-3.5 w-3.5 text-muted-foreground" /> {e.counts.orders}</span>
+   706→   706→                          </TableCell>
+   707→   707→                          <TableCell className="text-right tabular-nums">
+   708→   708→                            <span className="inline-flex items-center gap-1 text-sm"><UtensilsCrossed className="h-3.5 w-3.5 text-muted-foreground" /> {e.counts.products}</span>
+   709→   709→                          </TableCell>
+   710→   710→                          <TableCell className="text-center">
+   711→   711→                            <Switch
+   712→   712→                              checked={e.active}
+   713→   713→                              onCheckedChange={(v) => toggleActive.mutate({ id: e.id, active: v })}
+   714→   714→                              disabled={toggleActive.isPending}
+   715→   715→                              aria-label={`Ativar ${e.name}`}
+   716→   716→                            />
+   717→   717→                          </TableCell>
+   718→   718→                          <TableCell className="pr-4 text-right">
+   719→   719→                            <DropdownMenu>
+   720→   720→                              <DropdownMenuTrigger asChild>
+   721→   721→                                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Ações para ${e.name}`}>
+   722→   722→                                  <MoreHorizontal className="h-4 w-4" />
+   723→   723→                                </Button>
+   724→   724→                              </DropdownMenuTrigger>
+   725→   725→                              <DropdownMenuContent align="end" className="w-52">
+   726→   726→                                <DropdownMenuItem onClick={() => setEditTarget(e)}>
+   727→   727→                                  <Pencil className="h-4 w-4" /> Editar dados
+   728→   728→                                </DropdownMenuItem>
+   729→   729→                                <DropdownMenuItem onClick={() => setBillingTarget(e)}>
+   730→   730→                                  <CreditCard className="h-4 w-4" /> Plano e cobrança
+   731→   731→                                </DropdownMenuItem>
+   732→   732→                                <DropdownMenuItem onClick={() => setPermTarget(e)}>
+   733→   733→                                  <ShieldCheck className="h-4 w-4" /> Permissões
+   734→   734→                                </DropdownMenuItem>
+   735→   735→                                <DropdownMenuSeparator />
+   736→   736→                                <DropdownMenuItem onClick={() => setDeleteTarget(e)} className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400">
+   737→   737→                                  <Trash2 className="h-4 w-4" /> Excluir estabelecimento
+   738→   738→                                </DropdownMenuItem>
+   739→   739→                              </DropdownMenuContent>
+   740→   740→                            </DropdownMenu>
+   741→   741→                          </TableCell>
+   742→   742→                        </TableRow>
+   743→   743→                      )
+   744→   744→                    })}
+   745→   745→                  </TableBody>
+   746→   746→                </Table>
+   747→   747→              )}
+   748→   748→            </CardContent>
+   749→   749→          </Card>
+   750→   750→        </TabsContent>
+   751→   751→
+   752→   752→        {/* ---------- Planos ---------- */}
+   753→   753→        <TabsContent value="plans" className="mt-3">
+   754→   754→          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+   755→   755→            {plans.map((p) => (
+   756→   756→              <Card key={p.id} className="flex flex-col">
+   757→   757→                <CardContent className="p-4 flex-1 flex flex-col">
+   758→   758→                  <div className="flex items-start justify-between gap-2">
+   759→   759→                    <div>
+   760→   760→                      <p className="font-bold text-sm">{p.name}</p>
+   761→   761→                      <p className="text-[11px] text-muted-foreground font-mono">{p.key}</p>
+   762→   762→                    </div>
+   763→   763→                    <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+   764→   764→                      {p.subscribers ?? 0} assinante(s)
+   765→   765→                    </Badge>
+   766→   766→                  </div>
+   767→   767→                  <p className="mt-3 text-2xl font-extrabold tracking-tight">
+   768→   768→                    {p.price > 0 ? currency(p.price) : 'Grátis'}
+   769→   769→                    {p.price > 0 && <span className="text-xs font-medium text-muted-foreground">/{p.duration} dias</span>}
+   770→   770→                  </p>
+   771→   771→                  <ul className="mt-3 space-y-1.5 flex-1">
+   772→   772→                    {p.features.split('\n').filter(Boolean).map((f) => (
+   773→   773→                      <li key={f} className="text-xs text-muted-foreground flex items-start gap-1.5">
+   774→   774→                        <span className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 shrink-0" aria-hidden /> {f}
+   775→   775→                      </li>
+   776→   776→                    ))}
+   777→   777→                  </ul>
+   778→   778→                  <Button variant="outline" size="sm" className="mt-4" onClick={() => setPlanDialog({ open: true, plan: p })}>
+   779→   779→                    <Pencil className="h-3.5 w-3.5" /> Editar plano
+   780→   780→                  </Button>
+   781→   781→                </CardContent>
+   782→   782→              </Card>
+   783→   783→            ))}
+   784→   784→          </div>
+   785→   785→        </TabsContent>
+   786→   786→      </Tabs>
+   787→   787→
+   788→   788→      {/* Diálogos */}
+   789→   789→      <CreateDialog open={createOpen} plans={plans} onClose={() => setCreateOpen(false)} />
+   790→   790→      <EditDataDialog est={editTarget} onClose={() => setEditTarget(null)} />
+   791→   791→      <BillingDialog est={billingTarget} plans={plans} onClose={() => setBillingTarget(null)} />
+   792→   792→      <PermissionsDialog est={permTarget} onClose={() => setPermTarget(null)} />
+   793→   793→      <DeleteDialog est={deleteTarget} onClose={() => setDeleteTarget(null)} />
+   794→   794→      <PlanEditDialog
+   795→   795→        target={planDialog}
+   796→   796→        onClose={() => setPlanDialog({ open: false, plan: null })}
+   797→   797→      />
+   798→   798→    </div>
+   799→   799→  )
+   800→   800→}
+   801→   801→
+   802→   802→/** ---------- Diálogo: criar/editar plano ---------- */
+   803→   803→function PlanEditDialog({ target, onClose }: { target: { open: boolean; plan: PlanRow | null }; onClose: () => void }) {
+   804→   804→  const queryClient = useQueryClient()
+   805→   805→  const isNew = !target.plan
+   806→   806→  const [form, setForm] = useState({ key: '', name: '', price: 0, duration: 30, features: '', sortOrder: 99 })
+   807→   807→  const [loadedFor, setLoadedFor] = useState<string | null>(null)
+   808→   808→  const p = target.plan
+   809→   809→  if (target.open && (p ? p.id : '__new__') !== loadedFor) {
+   810→   810→    setLoadedFor(p ? p.id : '__new__')
+   811→   811→    setForm({
+   812→   812→      key: p?.key ?? '',
+   813→   813→      name: p?.name ?? '',
+   814→   814→      price: p?.price ?? 0,
+   815→   815→      duration: p?.duration ?? 30,
+   816→   816→      features: p?.features ?? '',
+   817→   817→      sortOrder: p?.sortOrder ?? 99,
+   818→   818→    })
+   819→   819→  }
+   820→   820→
+   821→   821→  const save = useMutation({
+   822→   822→    mutationFn: () =>
+   823→   823→      isNew
+   824→   824→        ? apiPost('/api/platform/plans', form)
+   825→   825→        : apiPatch(`/api/platform/plans/${p!.id}`, { name: form.name, price: Number(form.price), duration: Number(form.duration), features: form.features, sortOrder: Number(form.sortOrder) }),
+   826→   826→    onSuccess: () => {
+   827→   827→      toast.success(isNew ? 'Plano criado' : 'Plano atualizado')
+   828→   828→      void queryClient.invalidateQueries({ queryKey: ['platform'] })
+   829→   829→      onClose()
+   830→   830→    },
+   831→   831→    onError: (e: Error) => toast.error(e.message),
+   832→   832→  })
+   833→   833→
+   834→   834→  return (
+   835→   835→    <Dialog open={target.open} onOpenChange={(v) => !v && onClose()}>
+   836→   836→      <DialogContent className="sm:max-w-md">
+   837→   837→        <DialogHeader>
+   838→   838→          <DialogTitle className="flex items-center gap-2"><Wallet className="h-4 w-4 text-primary" /> {isNew ? 'Novo plano' : `Editar plano ${p?.name}`}</DialogTitle>
+   839→   839→          <DialogDescription>Planos definem mensalidade, duração do período e recursos exibidos.</DialogDescription>
+   840→   840→        </DialogHeader>
+   841→   841→        <div className="grid gap-3 py-1">
+   842→   842→          <div className="grid grid-cols-2 gap-3">
+   843→   843→            <div className="space-y-1.5">
+   844→   844→              <Label>Chave</Label>
+   845→   845→              <Input value={form.key} onChange={(e) => setForm({ ...form, key: e.target.value.toUpperCase() })} disabled={!isNew} placeholder="EX: STARTER" className="font-mono" />
+   846→   846→            </div>
+   847→   847→            <div className="space-y-1.5">
+   848→   848→              <Label>Nome</Label>
+   849→   849→              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+   850→   850→            </div>
+   851→   851→          </div>
+   852→   852→          <div className="grid grid-cols-3 gap-3">
+   853→   853→            <div className="space-y-1.5">
+   854→   854→              <Label>Preço (R$)</Label>
+   855→   855→              <Input type="number" min={0} step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} />
+   856→   856→            </div>
+   857→   857→            <div className="space-y-1.5">
+   858→   858→              <Label>Duração (d)</Label>
+   859→   859→              <Input type="number" min={1} value={form.duration} onChange={(e) => setForm({ ...form, duration: Number(e.target.value) })} />
+   860→   860→            </div>
+   861→   861→            <div className="space-y-1.5">
+   862→   862→              <Label>Ordem</Label>
+   863→   863→              <Input type="number" min={0} value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })} />
+   864→   864→            </div>
+   865→   865→          </div>
+   866→   866→          <div className="space-y-1.5">
+   867→   867→            <Label>Recursos (um por linha)</Label>
+   868→   868→            <Textarea rows={4} value={form.features} onChange={(e) => setForm({ ...form, features: e.target.value })} placeholder={'Comandas ilimitadas\nRelatórios avançados'} />
+   869→   869→          </div>
+   870→   870→        </div>
+   871→   871→        <DialogFooter>
+   872→   872→          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+   873→   873→          <Button onClick={() => save.mutate()} disabled={save.isPending || !form.name.trim() || (isNew && !form.key.trim())}>
+   874→   874→            {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+   875→   875→            {isNew ? 'Criar plano' : 'Salvar plano'}
+   876→   876→          </Button>
+   877→   877→        </DialogFooter>
+   878→   878→      </DialogContent>
+   879→   879→    </Dialog>
+   880→   880→  )
+   881→   881→}
+   882→   882→

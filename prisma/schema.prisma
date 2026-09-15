@@ -34,7 +34,8 @@ model Establishment {
   plan             String    @default("TRIAL") // TRIAL | BASIC | PRO | PREMIUM (key do Plan)
   billingStatus    String    @default("TRIAL") // TRIAL | PAID | OVERDUE | CANCELED
   trialEndsAt      DateTime? // fim do período de teste
-  currentPeriodEnd DateTime? // vencimento do período pago
+  currentPeriodEnd DateTime? // vencimento do período pago (automático: periodStartAt + duração do plano)
+  periodStartAt    DateTime? // data de início do período atual — base do vencimento automático
   lastPaymentAt    DateTime?
   notes            String    @default("")
   // Overrides de permissão por tela: { "dashboard": ["ADMIN"], ... }
