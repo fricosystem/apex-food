@@ -361,12 +361,7 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
           />
         )}
         {displayPhase === 3 && liveOrder && (
-          <TrackingPhase
-            order={liveOrder}
-            onFinish={() => finish.mutate()}
-            finishing={finish.isPending}
-            onOrderMore={() => setPhase(1)}
-          />
+          <TrackingPhase order={liveOrder} onOrderMore={() => setPhase(1)} />
         )}
         {displayPhase === 4 && (
           <ClosingPhase data={data} tick={tick} token={token} onNew={() => { void refetch(); setPhase(1) }} onRated={() => void refetch()} />
@@ -393,6 +388,26 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
                 {cartCount > 0 && <Badge className="ml-1 bg-white/20 text-white hover:bg-white/20">{cartCount}</Badge>}
               </Button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Enviar ao caixa — mesmo tratamento de barra fixa e destaque das outras
+          ações principais (antes vinha como botão discreto perdido no fim da rolagem) */}
+      {displayPhase === 3 && liveOrder && (
+        <div className="fixed bottom-0 inset-x-0 z-20 border-t border-white/10 bg-[#0B0B0F]/85 p-3 backdrop-blur-xl">
+          <div className="max-w-md mx-auto space-y-1.5">
+            <Button
+              onClick={() => finish.mutate()}
+              disabled={finish.isPending}
+              className="apex-gradient apex-glow flex h-12 w-full items-center justify-center text-base font-semibold text-white transition-transform active:scale-[0.98]"
+            >
+              {finish.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
+              Concluir consumo — enviar ao caixa
+            </Button>
+            <p className="text-center text-[11px] text-muted-foreground">
+              A comanda será finalizada e encaminhada ao caixa para pagamento.
+            </p>
           </div>
         </div>
       )}
@@ -872,7 +887,7 @@ function itemProgress(status: string): number {
   return ((idx + 1) / ITEM_FLOW.length) * 100
 }
 
-function TrackingPhase({ order, onFinish, finishing, onOrderMore }: { order: ClientOrder; onFinish: () => void; finishing: boolean; onOrderMore: () => void }) {
+function TrackingPhase({ order, onOrderMore }: { order: ClientOrder; onOrderMore: () => void }) {
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
@@ -1017,19 +1032,6 @@ function TrackingPhase({ order, onFinish, finishing, onOrderMore }: { order: Cli
 
       {/* Animação de convite — penúltima etapa com atalho para pedir mais */}
       <OrderMoreBanner onOrderMore={onOrderMore} />
-
-      <Button
-        onClick={onFinish}
-        disabled={finishing}
-        variant="outline"
-        className="h-12 w-full border-white/15 bg-white/[0.04] text-base text-zinc-200 hover:bg-white/[0.08] hover:text-white"
-      >
-        {finishing ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5 text-emerald-400" />}
-        Concluir consumo — enviar ao caixa
-      </Button>
-      <p className="text-center text-[11px] text-muted-foreground">
-        A comanda será finalizada e encaminhada ao caixa para pagamento.
-      </p>
     </div>
   )
 }

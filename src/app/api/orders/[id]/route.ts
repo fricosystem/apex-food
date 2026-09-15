@@ -28,14 +28,16 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (!snap.exists) return bad('Comanda não encontrada', 404)
   const order = { id, ...(snap.data() as OrderDoc) }
 
-  // ---------- Assumir comanda (garçom atribui a si) ----------
+  // ---------- Assumir comanda (garçom atribui a si, ou gestão assume/repassa) ----------
   if (action === 'assign') {
     if (!ACTIVE_STATUSES.includes(order.status)) return bad('Comanda não está mais ativa')
-    const target = auth.role === 'WAITER' ? auth.id : body?.waiterId || order.waiterId
-    if (!target) return bad('Garçom inválido')
+    // Sem waiterId explícito no corpo: o próprio usuário se autoatribui — vale tanto
+    // para o garçom (comportamento de sempre) quanto para ADMIN/Gerente/Desenvolvedor
+    // cobrindo o salão (ex.: nenhum WAITER cadastrado ainda, comanda ficou sem dono).
+    const target = body?.waiterId || auth.id
     const targetSnap = await usersCol().doc(target).get()
     const targetUser = targetSnap.data() as { establishmentId?: string; role?: string; name?: string } | undefined
-    if (!targetSnap.exists || targetUser?.establishmentId !== auth.establishmentId || !['WAITER', 'ADMIN', 'MANAGER'].includes(targetUser?.role ?? '')) {
+    if (!targetSnap.exists || targetUser?.establishmentId !== auth.establishmentId || !['WAITER', 'ADMIN', 'MANAGER', 'DESENVOLVEDOR'].includes(targetUser?.role ?? '')) {
       return bad('Garçom inválido')
     }
     await ref.update({ waiterId: target, waiterName: targetUser?.name ?? null })

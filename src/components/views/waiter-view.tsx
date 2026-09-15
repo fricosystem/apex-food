@@ -78,9 +78,15 @@ function RemoveItemAction({ orderId, itemId, itemName }: { orderId: string; item
 }
 
 export function WaiterView({ user }: { user: SessionUser }) {
+  // ADMIN/Gerente/Desenvolvedor cobrem o salão inteiro (mesmo padrão de acesso pleno
+  // usado nas outras telas) — veem TODAS as comandas ativas, não só as atribuídas a
+  // eles. Sem isso, uma comanda sem garçom designado (nenhum WAITER cadastrado ainda,
+  // ou a distribuição automática não achou ninguém disponível) fica invisível pra
+  // todo mundo e trava esperando alguém "buscar" um prato que ninguém vê na tela.
+  const isManagement = user.role === 'ADMIN' || user.role === 'MANAGER' || user.role === 'DESENVOLVEDOR'
   const { data, isLoading } = useQuery<{ orders: OrderDTO[] }>({
-    queryKey: ['orders', 'waiter'],
-    queryFn: () => api(`/api/orders?status=${ACTIVE}&waiterId=${user.id}`),
+    queryKey: ['orders', 'waiter', isManagement ? 'all' : user.id],
+    queryFn: () => api(`/api/orders?status=${ACTIVE}${isManagement ? '' : `&waiterId=${user.id}`}`),
     refetchInterval: 5000,
   })
   const { data: queueData, isLoading: queueLoading } = useQuery<{ orders: OrderDTO[] }>({
@@ -90,7 +96,7 @@ export function WaiterView({ user }: { user: SessionUser }) {
   })
 
   const orders = data?.orders ?? []
-  const queue = (queueData?.orders ?? []).filter((o) => !o.waiterId || o.waiterId === user.id)
+  const queue = isManagement ? (queueData?.orders ?? []) : (queueData?.orders ?? []).filter((o) => !o.waiterId || o.waiterId === user.id)
   const readyOrders = orders.filter((o) => o.items.some((i) => i.status === 'READY'))
   const load = orders.filter((o) => o.status !== 'AWAITING_PAYMENT').length
 
