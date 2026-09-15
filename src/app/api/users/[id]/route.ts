@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { adminAuth } from '@/lib/firebase-admin'
+import { usersCol, ordersCol, goalsCol, countDocs } from '@/lib/fs'
 import { requireTenant, isResponse, readJson, bad } from '@/lib/api'
-import { hashPassword } from '@/lib/auth'
 import { broadcast } from '@/lib/realtime'
 import { TENANT_ROLES } from '@/lib/permissions'
 
@@ -12,29 +12,29 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (isResponse(auth)) return auth
   const { id } = await params
   const body = await readJson<{ name?: string; role?: string; active?: boolean; password?: string; status?: string }>(req)
-  const existing = await db.user.findUnique({ where: { id } })
-  if (!existing) return bad('Usuário não encontrado', 404)
-  // Isolamento: só edita usuários do próprio estabelecimento; nunca SUPER_ADMIN
-  if (existing.establishmentId !== auth.establishmentId || existing.role === 'SUPER_ADMIN') {
+  const ref = usersCol().doc(id)
+  const snap = await ref.get()
+  if (!snap.exists) return bad('Usuário não encontrado', 404)
+  const existing = snap.data() as { name: string; email: string; role: string; status: string; active: boolean; establishmentId?: string }
+  // Isolamento: só edita usuários do próprio estabelecimento; nunca DESENVOLVEDOR
+  if (existing.establishmentId !== auth.establishmentId || existing.role === 'DESENVOLVEDOR') {
     return bad('Usuário não encontrado', 404)
   }
-  if (existing.id === auth.id && body?.active === false) return bad('Você não pode desativar o próprio usuário')
+  if (id === auth.id && body?.active === false) return bad('Você não pode desativar o próprio usuário')
 
   const data: Record<string, unknown> = {
     name: body?.name?.trim() || existing.name,
     active: body?.active ?? existing.active,
   }
   if (body?.role && (TENANT_ROLES as readonly string[]).includes(body.role)) data.role = body.role
-  if (body?.password && body.password.length >= 4) data.password = hashPassword(body.password)
   if (body?.status && ['ONLINE', 'BUSY', 'OFFLINE'].includes(body.status)) data.status = body.status
+  if (body?.password && body.password.length >= 4) {
+    await adminAuth.updateUser(id, { password: body.password }).catch(() => {})
+  }
 
-  const user = await db.user.update({
-    where: { id },
-    data,
-    select: { id: true, name: true, email: true, role: true, status: true, active: true, createdAt: true },
-  })
+  await ref.update(data)
   broadcast('dados:alterados', { type: 'user' })
-  return NextResponse.json({ user })
+  return NextResponse.json({ user: { id, ...existing, ...data } })
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
@@ -42,19 +42,25 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
   if (isResponse(auth)) return auth
   const { id } = await params
   if (id === auth.id) return bad('Você não pode excluir o próprio usuário')
-  const existing = await db.user.findUnique({ where: { id } })
-  if (!existing) return bad('Usuário não encontrado', 404)
-  if (existing.establishmentId !== auth.establishmentId || existing.role === 'SUPER_ADMIN') {
+  const ref = usersCol().doc(id)
+  const snap = await ref.get()
+  if (!snap.exists) return bad('Usuário não encontrado', 404)
+  const existing = snap.data() as { establishmentId?: string; role?: string }
+  if (existing.establishmentId !== auth.establishmentId || existing.role === 'DESENVOLVEDOR') {
     return bad('Usuário não encontrado', 404)
   }
-  const orders = await db.order.count({ where: { waiterId: id } })
+  const orders = await countDocs(ordersCol(auth.establishmentId).where('waiterId', '==', id))
   if (orders > 0) {
-    await db.user.update({ where: { id }, data: { active: false } })
+    await ref.update({ active: false })
     broadcast('dados:alterados', { type: 'user' })
     return NextResponse.json({ ok: true, deactivated: true })
   }
-  await db.goal.deleteMany({ where: { userId: id } })
-  await db.user.delete({ where: { id } })
+  const goalsSnap = await goalsCol(auth.establishmentId).where('userId', '==', id).get()
+  const batch = ref.firestore.batch()
+  for (const d of goalsSnap.docs) batch.delete(d.ref)
+  batch.delete(ref)
+  await batch.commit()
+  await adminAuth.deleteUser(id).catch(() => {})
   broadcast('dados:alterados', { type: 'user' })
   return NextResponse.json({ ok: true })
 }

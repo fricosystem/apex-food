@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
@@ -43,7 +44,9 @@ export default function RootLayout({
           (antes do document_idle das extensões e antes da hidratação) e reverte na hora as
           mutações em nós que nasceram com hidden — sem tocar nos elementos da própria extensão.
         */}
-        <script
+        <Script
+          id="apex-anti-extension-guard"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `(function () {
   try {

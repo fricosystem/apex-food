@@ -20,7 +20,7 @@ export const useAppStore = create<AppState>((set) => ({
 }))
 
 export const DEFAULT_VIEW: Record<string, ViewKey> = {
-  SUPER_ADMIN: 'plataforma',
+  DESENVOLVEDOR: 'plataforma',
   ADMIN: 'dashboard',
   MANAGER: 'dashboard',
   WAITER: 'garcom',
@@ -34,7 +34,7 @@ export const DEFAULT_VIEW: Record<string, ViewKey> = {
  * que reflete os overrides configurados por estabelecimento no painel da plataforma.
  */
 export const VIEW_ROLES: Record<ViewKey, string[]> = {
-  plataforma: ['SUPER_ADMIN'],
+  plataforma: ['DESENVOLVEDOR'],
   dashboard: ['ADMIN', 'MANAGER'],
   garcom: ['ADMIN', 'MANAGER', 'WAITER'],
   cozinha: ['ADMIN', 'MANAGER', 'KITCHEN'],

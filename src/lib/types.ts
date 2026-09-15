@@ -1,4 +1,4 @@
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'WAITER' | 'KITCHEN' | 'CASHIER'
+export type Role = 'DESENVOLVEDOR' | 'ADMIN' | 'MANAGER' | 'WAITER' | 'KITCHEN' | 'CASHIER'
 
 export type ViewKey = 'plataforma' | 'dashboard' | 'garcom' | 'cozinha' | 'caixa' | 'gestao' | 'mesas' | 'relatorio' | 'administracao' | 'configuracoes'
 
@@ -46,7 +46,7 @@ export const TABLE_STATUS_LABELS: Record<string, string> = {
 }
 
 export const ROLE_LABELS: Record<Role, string> = {
-  SUPER_ADMIN: 'Desenvolvedor CEO',
+  DESENVOLVEDOR: 'Desenvolvedor CEO',
   ADMIN: 'Administrador',
   MANAGER: 'Gerente',
   WAITER: 'Garçom',

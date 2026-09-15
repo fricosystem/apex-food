@@ -49,8 +49,8 @@ const AREA_LABELS: Record<string, string> = {
   plataforma: 'Painel da plataforma (estabelecimentos, planos e cobranças)',
 }
 
-/** Cargos atribuíveis dentro de um estabelecimento (SUPER_ADMIN é exclusivo da plataforma) */
-const TENANT_ROLE_ENTRIES = Object.entries(ROLE_LABELS).filter(([k]) => k !== 'SUPER_ADMIN')
+/** Cargos atribuíveis dentro de um estabelecimento (DESENVOLVEDOR é exclusivo da plataforma) */
+const TENANT_ROLE_ENTRIES = Object.entries(ROLE_LABELS).filter(([k]) => k !== 'DESENVOLVEDOR')
 
 /** Todos os acessos do sistema — inclui o Desenvolvedor CEO (dono da plataforma) */
 const ALL_ROLE_ENTRIES = Object.entries(ROLE_LABELS)
@@ -157,27 +157,41 @@ function StaffTab({ user }: { user: SessionUser }) {
                     >
                       {STATUS_LABELS[u.status] ?? u.status}
                     </Badge>
-                    <Select
-                      value={u.role}
-                      onValueChange={(v) => changeRole.mutate({ id: u.id, role: v })}
-                      disabled={changeRole.isPending}
-                    >
-                      <SelectTrigger className="w-[128px] h-8 text-xs shrink-0"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {TENANT_ROLE_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Switch checked={u.active} onCheckedChange={() => toggle.mutate(u)} aria-label="Ativar funcionário" />
-                    <div className="flex items-center gap-0.5 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => setEditing(u)} aria-label={`Editar ${u.name}`}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      {user.role === 'ADMIN' && u.id !== user.id && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setRemoving(u)} aria-label={`Excluir ${u.name}`}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
+                    {u.role === 'DESENVOLVEDOR' ? (
+                      <Badge variant="outline" className="w-[128px] justify-center text-[10px] shrink-0 border-primary/40 text-primary">
+                        {ROLE_LABELS.DESENVOLVEDOR}
+                      </Badge>
+                    ) : (
+                      <Select
+                        value={u.role}
+                        onValueChange={(v) => changeRole.mutate({ id: u.id, role: v })}
+                        disabled={changeRole.isPending}
+                      >
+                        <SelectTrigger className="w-[128px] h-8 text-xs shrink-0"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {TENANT_ROLE_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {u.role === 'DESENVOLVEDOR' ? (
+                      // Conta do dono da plataforma: não é gerenciável por esta tela (nem pelo
+                      // próprio) — a API bloqueia qualquer PATCH/DELETE sobre ela de propósito.
+                      <div className="w-[68px] shrink-0" />
+                    ) : (
+                      <>
+                        <Switch checked={u.active} onCheckedChange={() => toggle.mutate(u)} aria-label="Ativar funcionário" />
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => setEditing(u)} aria-label={`Editar ${u.name}`}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          {(user.role === 'ADMIN' || user.role === 'DESENVOLVEDOR') && u.id !== user.id && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setRemoving(u)} aria-label={`Excluir ${u.name}`}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -191,15 +205,15 @@ function StaffTab({ user }: { user: SessionUser }) {
                 <ShieldCheck className="h-4 w-4 text-primary" />
                 <p className="font-semibold text-sm">Permissões por cargo</p>
               </div>
-              <p className="text-[11px] text-muted-foreground">Áreas que cada cargo acessa no sistema. Desenvolvedor CEO, Administrador e Gerente têm acesso completo a todas as telas</p>
+              <p className="text-[11px] text-muted-foreground">Áreas que cada cargo acessa no sistema. Desenvolvedor CEO tem acesso total à plataforma; Administrador e Gerente têm acesso completo às telas do estabelecimento</p>
               <div className="space-y-2.5">
                 {ALL_ROLE_ENTRIES.map(([role, roleLabel]) => {
-                  const areas = role === 'SUPER_ADMIN'
+                  const areas = role === 'DESENVOLVEDOR'
                     ? ['Todas as áreas do sistema — plataforma e restaurante, sem restrições']
                     : Object.entries(user.permissions).filter(([, roles]) => roles.includes(role)).map(([key]) => AREA_LABELS[key] ?? key)
                   return (
-                    <div key={role} className={cn('rounded-lg border p-2.5', role === 'SUPER_ADMIN' && 'border-dashed border-primary/40 bg-primary/5')}>
-                      <Badge variant="outline" className={cn('text-[10px] mb-1.5', role === 'SUPER_ADMIN' && 'border-primary/40 text-primary')}>{roleLabel}</Badge>
+                    <div key={role} className={cn('rounded-lg border p-2.5', role === 'DESENVOLVEDOR' && 'border-dashed border-primary/40 bg-primary/5')}>
+                      <Badge variant="outline" className={cn('text-[10px] mb-1.5', role === 'DESENVOLVEDOR' && 'border-primary/40 text-primary')}>{roleLabel}</Badge>
                       <p className="text-[11px] text-muted-foreground leading-relaxed">{areas.length > 0 ? areas.join(' · ') : 'Sem acessos configurados'}</p>
                     </div>
                   )
@@ -311,12 +325,16 @@ function EditUserDialog({ user, onClose }: { user: UserRow; onClose: () => void 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Cargo</Label>
-              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {TENANT_ROLE_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {form.role === 'DESENVOLVEDOR' ? (
+                <div className="h-9 flex items-center px-3 rounded-md border text-sm text-primary">{ROLE_LABELS.DESENVOLVEDOR}</div>
+              ) : (
+                <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {TENANT_ROLE_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Status</Label>

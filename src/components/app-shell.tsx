@@ -73,13 +73,19 @@ export function AppShell({ user }: { user: SessionUser }) {
   const estName = est?.name ?? 'APEX FOOD'
 
   // Permissões efetivas da sessão (padrões + overrides configurados no painel da plataforma).
-  // Cargos de gestão (Desenvolvedor CEO, Administrador e Gerente) não são filtrados:
-  // veem todas as opções do sidebar e acessam todas as telas, incluindo a plataforma.
+  // DESENVOLVEDOR (dono da plataforma) tem acesso de 100% a todas as telas, sem excessão,
+  // e é o ÚNICO papel que vê/acessa "Desenvolvedor CEO" — nunca ADMIN/MANAGER, mesmo que
+  // algum override de permissões tente liberar (resolveViewRoles já ignora overrides pra
+  // essa chave; aqui é a segunda barreira, agora no client). Administrador e Gerente têm
+  // acesso pleno às telas do ESTABELECIMENTO (não são filtrados por tela), mas nunca à
+  // plataforma. Os demais cargos seguem o mapa de permissões efetivo da sessão.
   const can = useCallback(
-    (view: ViewKey) =>
-      user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'MANAGER'
-        ? true
-        : (user.permissions[view] ?? []).includes(user.role),
+    (view: ViewKey) => {
+      if (user.role === 'DESENVOLVEDOR') return true
+      if (view === 'plataforma') return false
+      if (user.role === 'ADMIN' || user.role === 'MANAGER') return true
+      return (user.permissions[view] ?? []).includes(user.role)
+    },
     [user.permissions, user.role]
   )
 
@@ -434,8 +440,9 @@ export function AppShell({ user }: { user: SessionUser }) {
           </Dialog>
         )}
 
-        {/* Aviso de cobrança (teste/vencimento) — exclusivo de estabelecimentos */}
-        {est && (est.billingStatus === 'OVERDUE' || est.billingStatus === 'CANCELED' || (est.billingStatus === 'TRIAL' && est.trialEndsAt) || (est.currentPeriodEnd && new Date(est.currentPeriodEnd).getTime() < Date.now())) && (
+        {/* Aviso de cobrança (teste/vencimento) — exclusivo de estabelecimentos;
+            DESENVOLVEDOR nunca vê aviso de plano nem fica sujeito a limites do sistema */}
+        {est && user.role !== 'DESENVOLVEDOR' && (est.billingStatus === 'OVERDUE' || est.billingStatus === 'CANCELED' || (est.billingStatus === 'TRIAL' && est.trialEndsAt) || (est.currentPeriodEnd && new Date(est.currentPeriodEnd).getTime() < Date.now())) && (
           <BillingBanner billingStatus={est.billingStatus} trialEndsAt={est.trialEndsAt} currentPeriodEnd={est.currentPeriodEnd} />
         )}
 

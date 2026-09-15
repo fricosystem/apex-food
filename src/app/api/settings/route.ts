@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { establishmentsCol } from '@/lib/fs'
 import { requireTenant, isResponse } from '@/lib/api'
 import { broadcast } from '@/lib/realtime'
 
@@ -7,9 +7,8 @@ import { broadcast } from '@/lib/realtime'
 export async function GET() {
   const auth = await requireTenant()
   if (isResponse(auth)) return auth
-  const rows = await db.setting.findMany({ where: { establishmentId: auth.establishmentId } })
-  const settings: Record<string, string> = {}
-  for (const r of rows) settings[r.key] = r.value
+  const snap = await establishmentsCol().doc(auth.establishmentId).get()
+  const settings = (snap.data()?.settings ?? {}) as Record<string, string>
   return NextResponse.json({ settings, establishment: auth.establishment })
 }
 
@@ -29,6 +28,8 @@ export async function PATCH(req: NextRequest) {
     'acceptCredit', 'acceptDebit', 'acceptPix', 'acceptCash', 'defaultGoal',
   ])
 
+  const ref = establishmentsCol().doc(auth.establishmentId)
+
   // Dados cadastrais → Establishment (fonte da verdade multi-tenant)
   const estData: Record<string, string> = {}
   if (typeof body.establishmentName === 'string' && body.establishmentName.trim()) estData.name = body.establishmentName.trim().slice(0, 80)
@@ -37,22 +38,21 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.establishmentPhone === 'string') estData.phone = body.establishmentPhone.trim().slice(0, 32)
   if (typeof body.establishmentAddress === 'string') estData.address = body.establishmentAddress.trim().slice(0, 160)
   if (Object.keys(estData).length > 0) {
-    await db.establishment.update({ where: { id: auth.establishmentId }, data: estData })
+    await ref.update(estData)
   }
 
-  // Preferências operacionais → Setting por estabelecimento
+  // Preferências operacionais → map `settings` do estabelecimento
+  const settingsUpdate: Record<string, string> = {}
   for (const [key, value] of Object.entries(body)) {
     if (!allowed.has(key) || key.startsWith('establishment')) continue
-    await db.setting.upsert({
-      where: { establishmentId_key: { establishmentId: auth.establishmentId, key } },
-      create: { establishmentId: auth.establishmentId, key, value: String(value) },
-      update: { value: String(value) },
-    })
+    settingsUpdate[`settings.${key}`] = String(value)
+  }
+  if (Object.keys(settingsUpdate).length > 0) {
+    await ref.update(settingsUpdate)
   }
 
   broadcast('dados:alterados', { type: 'settings' })
-  const rows = await db.setting.findMany({ where: { establishmentId: auth.establishmentId } })
-  const settings: Record<string, string> = {}
-  for (const r of rows) settings[r.key] = r.value
-  return NextResponse.json({ settings, establishment: auth.establishment })
+  const snap = await ref.get()
+  const settings = (snap.data()?.settings ?? {}) as Record<string, string>
+  return NextResponse.json({ settings, establishment: { ...auth.establishment, ...estData } })
 }

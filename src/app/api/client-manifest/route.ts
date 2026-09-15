@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { qrLookupCol, tablesCol } from '@/lib/fs'
 
 /**
  * Manifest do PWA da tela do cliente — gerado por mesa.
@@ -15,13 +15,15 @@ export async function GET(req: Request) {
 
   if (/^[A-Za-z0-9]{4,64}$/.test(token)) {
     try {
-      const table = await db.restaurantTable.findUnique({
-        where: { qrToken: token },
-        select: { number: true },
-      })
-      if (table) {
-        name = `APEX FOOD — Mesa ${String(table.number).padStart(2, '0')}`
-        startUrl = `/#m/${token}`
+      const lookupSnap = await qrLookupCol().doc(token).get()
+      if (lookupSnap.exists) {
+        const { establishmentId, tableId } = lookupSnap.data() as { establishmentId: string; tableId: string }
+        const tableSnap = await tablesCol(establishmentId).doc(tableId).get()
+        const table = tableSnap.data() as { number: number } | undefined
+        if (table) {
+          name = `APEX FOOD — Mesa ${String(table.number).padStart(2, '0')}`
+          startUrl = `/#m/${token}`
+        }
       }
     } catch {
       // banco indisponível → manifest genérico

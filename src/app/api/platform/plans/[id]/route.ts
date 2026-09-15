@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { plansCol, establishmentsCol, countDocs } from '@/lib/fs'
 import { requireUser, isResponse, readJson, bad } from '@/lib/api'
 import { PLATFORM_ROLES } from '@/lib/permissions'
 
@@ -10,8 +10,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const auth = await requireUser([...PLATFORM_ROLES])
   if (isResponse(auth)) return auth
   const { id } = await params
-  const plan = await db.plan.findUnique({ where: { id } })
-  if (!plan) return bad('Plano não encontrado', 404)
+  const ref = plansCol().doc(id)
+  const snap = await ref.get()
+  if (!snap.exists) return bad('Plano não encontrado', 404)
+  const existing = snap.data()!
 
   const body = await readJson<{ name?: string; price?: number; duration?: number; features?: string; sortOrder?: number }>(req)
   if (!body) return bad('Payload inválido')
@@ -23,8 +25,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (typeof body.features === 'string') data.features = body.features.slice(0, 1000)
   if (typeof body.sortOrder === 'number') data.sortOrder = Math.round(body.sortOrder)
 
-  const updated = await db.plan.update({ where: { id }, data })
-  return NextResponse.json({ plan: updated })
+  await ref.update(data)
+  return NextResponse.json({ plan: { id, ...existing, ...data } })
 }
 
 /** DELETE /api/platform/plans/[id] — remove plano sem assinantes (cargos de gestão da plataforma) */
@@ -32,10 +34,11 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const auth = await requireUser([...PLATFORM_ROLES])
   if (isResponse(auth)) return auth
   const { id } = await params
-  const plan = await db.plan.findUnique({ where: { id } })
-  if (!plan) return bad('Plano não encontrado', 404)
-  const inUse = await db.establishment.count({ where: { plan: plan.key } })
+  const ref = plansCol().doc(id)
+  const snap = await ref.get()
+  if (!snap.exists) return bad('Plano não encontrado', 404)
+  const inUse = await countDocs(establishmentsCol().where('plan', '==', id))
   if (inUse > 0) return bad(`Este plano está em uso por ${inUse} estabelecimento(s)`, 409)
-  await db.plan.delete({ where: { id } })
+  await ref.delete()
   return NextResponse.json({ ok: true })
 }

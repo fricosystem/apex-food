@@ -1,11 +1,20 @@
 import type { ViewKey } from '@/lib/types'
 
 /**
- * Cargos de gestão com acesso pleno: Desenvolvedor CEO, Administrador e Gerente.
- * Não são filtrados pelas permissões por tela — veem todas as opções do sidebar
- * e acessam inclusive o painel da plataforma.
+ * Cargo exclusivo do dono da plataforma (Desenvolvedor CEO) — acesso de servidor
+ * ao painel da plataforma (`/api/platform/**`). Nenhum outro cargo, nem ADMIN nem
+ * MANAGER de um estabelecimento, tem acesso a essas rotas: só existe um jeito de
+ * entrar nelas, é sendo DESENVOLVEDOR. Ver também PLATFORM_VIEW_ROLES abaixo.
  */
-export const PLATFORM_ROLES = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'] as const
+export const PLATFORM_ROLES = ['DESENVOLVEDOR'] as const
+
+/**
+ * Cargos de gestão de estabelecimento com acesso pleno às telas do restaurante
+ * (Administrador e Gerente). Não são filtrados pelas permissões por tela — veem
+ * todas as opções do sidebar do estabelecimento. NÃO inclui o painel da
+ * plataforma: esse é exclusivo de DESENVOLVEDOR (ver PLATFORM_ROLES).
+ */
+export const MANAGEMENT_ROLES = ['ADMIN', 'MANAGER'] as const
 
 /** Papéis padrão autorizados por tela (sem override do estabelecimento) */
 export const DEFAULT_VIEW_ROLES: Record<ViewKey, string[]> = {
@@ -20,7 +29,13 @@ export const DEFAULT_VIEW_ROLES: Record<ViewKey, string[]> = {
   configuracoes: ['ADMIN', 'MANAGER', 'WAITER', 'KITCHEN', 'CASHIER'],
 }
 
-/** Tela do painel do desenvolvedor — aberta aos cargos de gestão (PLATFORM_ROLES) */
+/**
+ * Tela do painel do desenvolvedor — exclusiva de DESENVOLVEDOR. Fica fora de
+ * DEFAULT_VIEW_ROLES de propósito: o loop de overrides em resolveViewRoles só
+ * aplica overrides para chaves presentes em DEFAULT_VIEW_ROLES, então mesmo um
+ * ADMIN com acesso ao painel da plataforma nunca consegue liberar 'plataforma'
+ * para si via override de permissões — está hardcoded aqui, sem exceção.
+ */
 export const PLATFORM_VIEW_ROLES: Record<string, string[]> = {
   plataforma: [...PLATFORM_ROLES],
 }

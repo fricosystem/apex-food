@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { qrLookupCol, tablesCol, categoriesCol, productsCol, establishmentsCol } from '@/lib/fs'
 
 type Ctx = { params: Promise<{ token: string }> }
 
@@ -9,32 +9,34 @@ type Ctx = { params: Promise<{ token: string }> }
  */
 export async function GET(_req: NextRequest, { params }: Ctx) {
   const { token } = await params
-  const table = await db.restaurantTable.findUnique({
-    where: { qrToken: token },
-    select: { id: true, active: true, establishmentId: true, establishment: { select: { active: true, name: true, logo: true, type: true } } },
-  })
-  if (!table) return NextResponse.json({ error: 'Mesa não encontrada. Chame um funcionário.' }, { status: 404 })
-  if (!table.active) return NextResponse.json({ error: 'Mesa desativada. Chame um funcionário.' }, { status: 403 })
-  if (table.establishment && !table.establishment.active) {
-    return NextResponse.json({ error: 'Estabelecimento indisponível no momento.' }, { status: 403 })
-  }
+  const lookupSnap = await qrLookupCol().doc(token).get()
+  if (!lookupSnap.exists) return NextResponse.json({ error: 'Mesa não encontrada. Chame um funcionário.' }, { status: 404 })
+  const { establishmentId: estId, tableId } = lookupSnap.data() as { establishmentId: string; tableId: string }
 
-  const categories = await db.category.findMany({
-    where: { active: true, ...(table.establishmentId ? { establishmentId: table.establishmentId } : {}) },
-    orderBy: { sortOrder: 'asc' },
-    select: {
-      id: true, name: true, sector: true, icon: true, sortOrder: true,
-      products: {
-        where: { active: true },
-        orderBy: { createdAt: 'asc' },
-        select: {
-          id: true, name: true, description: true, emoji: true, image: true,
-          price: true, prepTime: true, categoryId: true,
-          category: { select: { id: true, name: true, sector: true, icon: true } },
-        },
-      },
-    },
-  })
+  const [tableSnap, estSnap] = await Promise.all([tablesCol(estId).doc(tableId).get(), establishmentsCol().doc(estId).get()])
+  const table = tableSnap.data() as { active: boolean } | undefined
+  if (!tableSnap.exists) return NextResponse.json({ error: 'Mesa não encontrada. Chame um funcionário.' }, { status: 404 })
+  if (!table?.active) return NextResponse.json({ error: 'Mesa desativada. Chame um funcionário.' }, { status: 403 })
+  const est = estSnap.data() as { active: boolean; name: string; logo: string; type: string } | undefined
+  if (est && !est.active) return NextResponse.json({ error: 'Estabelecimento indisponível no momento.' }, { status: 403 })
 
-  return NextResponse.json({ categories, establishment: table.establishment ? { name: table.establishment.name, logo: table.establishment.logo, type: table.establishment.type } : null })
+  const [catsSnap, prodsSnap] = await Promise.all([
+    categoriesCol(estId).where('active', '==', true).orderBy('sortOrder', 'asc').get(),
+    productsCol(estId).where('active', '==', true).orderBy('createdAt', 'asc').get(),
+  ])
+  const cats = catsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as { id: string; name: string; sector: string; icon: string; sortOrder: number })
+  const products = prodsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as { id: string; categoryId: string; active: boolean } & Record<string, unknown>)
+
+  const categories = cats.map((c) => ({
+    id: c.id, name: c.name, sector: c.sector, icon: c.icon, sortOrder: c.sortOrder,
+    products: products
+      .filter((p) => p.categoryId === c.id)
+      .map((p) => ({
+        id: p.id, name: p.name, description: p.description, emoji: p.emoji, image: p.image,
+        price: p.price, prepTime: p.prepTime, categoryId: p.categoryId,
+        category: { id: c.id, name: c.name, sector: c.sector, icon: c.icon },
+      })),
+  }))
+
+  return NextResponse.json({ categories, establishment: est ? { name: est.name, logo: est.logo, type: est.type } : null })
 }

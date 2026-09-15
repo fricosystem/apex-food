@@ -43,7 +43,7 @@ const EST_TYPES = [
 ]
 
 const PERMISSION_MATRIX = [
-  { area: 'Painel da plataforma (gestão dos estabelecimentos)', roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER'] },
+  { area: 'Painel da plataforma (gestão dos estabelecimentos)', roles: ['DESENVOLVEDOR'] },
   { area: 'Dashboard analítico', roles: ['ADMIN', 'MANAGER'] },
   { area: 'Tela do garçom', roles: ['ADMIN', 'MANAGER', 'WAITER'] },
   { area: 'Cozinha', roles: ['ADMIN', 'MANAGER', 'KITCHEN'] },
@@ -83,7 +83,7 @@ export function SettingsView({ user }: { user: SessionUser }) {
   const { setActiveView } = useAppStore()
 
   const isCompact = user.role === 'WAITER' || user.role === 'KITCHEN' || user.role === 'CASHIER'
-  const isAdminish = user.role === 'ADMIN' || user.role === 'MANAGER'
+  const isAdminish = user.role === 'ADMIN' || user.role === 'MANAGER' || user.role === 'DESENVOLVEDOR'
 
   const [formEdits, setFormEdits] = useState<{ name?: string; type?: string; logo?: string }>({})
 

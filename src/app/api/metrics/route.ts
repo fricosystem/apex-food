@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { requireTenant, isResponse } from '@/lib/api'
+import { ordersCol, tablesCol } from '@/lib/fs'
+import { requireTenant, isResponse, type OrderDoc } from '@/lib/api'
 
 type Bucket = { key: string; label: string; revenue: number; orders: number }
+type PaidOrder = OrderDoc & { id: string; createdAt: Date; confirmedAt: Date | null; paidAt: Date }
 
 function inTurn(date: Date, turn: string): boolean {
   const h = date.getHours()
@@ -19,6 +20,11 @@ function parseLocalDate(s: string, endOfDay = false): Date | null {
   return endOfDay
     ? new Date(Number(y), Number(mo) - 1, Number(d), 23, 59, 59, 999)
     : new Date(Number(y), Number(mo) - 1, Number(d), 0, 0, 0, 0)
+}
+
+function toDate(v: unknown): Date | null {
+  const t = v as { toDate?: () => Date } | null
+  return t?.toDate ? t.toDate() : null
 }
 
 /** GET /api/metrics?period=today|week|month|year|custom&from=&to=&days=&turn=
@@ -56,38 +62,37 @@ export async function GET(req: NextRequest) {
   const spanDays = spanMs / 86_400_000
   const granularity: 'hour' | 'day' | 'month' = spanDays <= 2 ? 'hour' : spanDays <= 62 ? 'day' : 'month'
 
-  const paid = await db.order.findMany({
-    where: { status: 'PAID', paidAt: { gte: start, lte: end }, establishmentId: estId },
-    include: {
-      waiter: { select: { id: true, name: true } },
-      payments: { select: { method: true } },
-      items: { select: { productId: true, productName: true, quantity: true, unitPrice: true, station: true } },
-    },
-    orderBy: { paidAt: 'asc' },
-  })
-  const paidInTurn = paid.filter((o) => o.paidAt && inTurn(o.paidAt, turn))
-
-  // ---- KPIs em tempo real ----
-  const [openOrders, tables] = await Promise.all([
-    db.order.count({ where: { status: { in: ['PENDING_CONFIRM', 'IN_KITCHEN'] }, establishmentId: estId } }),
-    db.restaurantTable.findMany({ where: { active: true, establishmentId: estId }, select: { status: true } }),
+  // Busca todas as comandas PAGAS do estabelecimento e filtra a janela em memória
+  // (evita depender de índice composto status+paidAt; volume por tenant é modesto)
+  const [allPaidSnap, allOrdersSnap, tablesSnap] = await Promise.all([
+    ordersCol(estId).where('status', '==', 'PAID').get(),
+    ordersCol(estId).where('status', 'in', ['PENDING_CONFIRM', 'IN_KITCHEN']).get(),
+    tablesCol(estId).where('active', '==', true).get(),
   ])
+  const allPaid: PaidOrder[] = allPaidSnap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as OrderDoc) }))
+    .map((o) => ({ ...o, createdAt: toDate(o.createdAt) as Date, confirmedAt: toDate(o.confirmedAt), paidAt: toDate(o.paidAt) as Date }))
+    .filter((o) => o.paidAt)
+
+  const paid = allPaid.filter((o) => o.paidAt >= start && o.paidAt <= end)
+  const paidInTurn = paid.filter((o) => inTurn(o.paidAt, turn))
+
+  const openOrders = allOrdersSnap.size
+  const tables = tablesSnap.docs.map((d) => d.data() as { status: string })
   const occupiedTables = tables.filter((t) => t.status === 'OCCUPIED').length
 
   const serviceTimes = paidInTurn
-    .filter((o) => o.confirmedAt && o.paidAt)
-    .map((o) => (o.paidAt!.getTime() - o.confirmedAt!.getTime()) / 60000)
+    .filter((o) => o.confirmedAt)
+    .map((o) => (o.paidAt.getTime() - o.confirmedAt!.getTime()) / 60000)
   const avgService = serviceTimes.length ? serviceTimes.reduce((a, b) => a + b, 0) / serviceTimes.length : 0
   const avgTicket = paidInTurn.length ? paidInTurn.reduce((a, o) => a + o.total, 0) / paidInTurn.length : 0
 
   // ---- Série de faturamento (hora/dia/mês conforme o período) ----
   const buckets: Bucket[] = []
   if (granularity === 'hour') {
-    for (let h = 0; h < 24; h++) {
-      buckets.push({ key: String(h), label: `${String(h).padStart(2, '0')}h`, revenue: 0, orders: 0 })
-    }
+    for (let h = 0; h < 24; h++) buckets.push({ key: String(h), label: `${String(h).padStart(2, '0')}h`, revenue: 0, orders: 0 })
     for (const o of paidInTurn) {
-      const b = buckets[o.paidAt!.getHours()]
+      const b = buckets[o.paidAt.getHours()]
       b.revenue += o.total
       b.orders += 1
     }
@@ -96,7 +101,7 @@ export async function GET(req: NextRequest) {
     while (cursor <= end) {
       const next = new Date(cursor)
       next.setDate(next.getDate() + 1)
-      const rows = paidInTurn.filter((o) => o.paidAt && o.paidAt >= cursor && o.paidAt < next)
+      const rows = paidInTurn.filter((o) => o.paidAt >= cursor && o.paidAt < next)
       buckets.push({
         key: cursor.toISOString().slice(0, 10),
         label: cursor.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
@@ -109,7 +114,7 @@ export async function GET(req: NextRequest) {
     const cursor = new Date(start.getFullYear(), start.getMonth(), 1)
     while (cursor <= end) {
       const next = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
-      const rows = paidInTurn.filter((o) => o.paidAt && o.paidAt >= cursor && o.paidAt < next)
+      const rows = paidInTurn.filter((o) => o.paidAt >= cursor && o.paidAt < next)
       buckets.push({
         key: `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`,
         label: `${cursor.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')} ${String(cursor.getFullYear()).slice(2)}`,
@@ -125,7 +130,7 @@ export async function GET(req: NextRequest) {
   const byHour: Array<{ hour: number; label: string; revenue: number; orders: number }> = []
   for (let h = 0; h < 24; h++) byHour.push({ hour: h, label: `${String(h).padStart(2, '0')}h`, revenue: 0, orders: 0 })
   for (const o of paidInTurn) {
-    const b = byHour[o.paidAt!.getHours()]
+    const b = byHour[o.paidAt.getHours()]
     b.revenue += o.total
     b.orders += 1
   }
@@ -134,11 +139,8 @@ export async function GET(req: NextRequest) {
   const WEEKDAY_LABELS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
   const byWeekday = WEEKDAY_LABELS.map((label, weekday) => ({ weekday, label, revenue: 0, orders: 0 }))
   const heatmap: Array<{ weekday: number; hour: number; orders: number; revenue: number }> = []
-  for (let w = 0; w < 7; w++) {
-    for (let h = 0; h < 24; h++) heatmap.push({ weekday: w, hour: h, orders: 0, revenue: 0 })
-  }
+  for (let w = 0; w < 7; w++) for (let h = 0; h < 24; h++) heatmap.push({ weekday: w, hour: h, orders: 0, revenue: 0 })
   for (const o of paidInTurn) {
-    if (!o.paidAt) continue
     const w = o.paidAt.getDay()
     const h = o.paidAt.getHours()
     const wd = byWeekday[w]
@@ -151,14 +153,10 @@ export async function GET(req: NextRequest) {
   for (const w of byWeekday) w.revenue = Math.round(w.revenue * 100) / 100
 
   // ---- Período anterior (mesma duração, imediatamente anterior) ----
-  // Consulta própria: `paid` contém apenas a janela atual, então o prev precisa buscar no banco.
   const prevEnd = new Date(start.getTime() - 1)
   const prevStart = new Date(prevEnd.getTime() - spanMs)
-  const prevPaid = await db.order.findMany({
-    where: { status: 'PAID', paidAt: { gte: prevStart, lte: prevEnd }, establishmentId: estId },
-    select: { total: true, paidAt: true },
-  })
-  const prevInTurn = prevPaid.filter((o) => o.paidAt && inTurn(o.paidAt, turn))
+  const prevPaid = allPaid.filter((o) => o.paidAt >= prevStart && o.paidAt <= prevEnd)
+  const prevInTurn = prevPaid.filter((o) => inTurn(o.paidAt, turn))
   const prev = {
     revenue: Math.round(prevInTurn.reduce((a, o) => a + o.total, 0) * 100) / 100,
     orders: prevInTurn.length,
@@ -167,7 +165,7 @@ export async function GET(req: NextRequest) {
   // ---- Produtos mais vendidos ----
   const productAgg = new Map<string, { name: string; qty: number; revenue: number }>()
   for (const o of paidInTurn) {
-    for (const it of o.items) {
+    for (const it of o.items ?? []) {
       const cur = productAgg.get(it.productId) ?? { name: it.productName, qty: 0, revenue: 0 }
       cur.qty += it.quantity
       cur.revenue += it.quantity * it.unitPrice
@@ -179,15 +177,15 @@ export async function GET(req: NextRequest) {
   // ---- Desempenho por garçom ----
   const waiterAgg = new Map<string, { name: string; orders: number; revenue: number; responseSum: number; responseCount: number }>()
   for (const o of paidInTurn) {
-    if (!o.waiter) continue
-    const cur = waiterAgg.get(o.waiter.id) ?? { name: o.waiter.name, orders: 0, revenue: 0, responseSum: 0, responseCount: 0 }
+    if (!o.waiterId || !o.waiterName) continue
+    const cur = waiterAgg.get(o.waiterId) ?? { name: o.waiterName, orders: 0, revenue: 0, responseSum: 0, responseCount: 0 }
     cur.orders += 1
     cur.revenue += o.total
     if (o.confirmedAt) {
       cur.responseSum += (o.confirmedAt.getTime() - o.createdAt.getTime()) / 60000
       cur.responseCount += 1
     }
-    waiterAgg.set(o.waiter.id, cur)
+    waiterAgg.set(o.waiterId, cur)
   }
   const waiterPerformance = [...waiterAgg.values()]
     .map((w) => ({
@@ -198,48 +196,36 @@ export async function GET(req: NextRequest) {
     }))
     .sort((a, b) => b.orders - a.orders)
 
-  // ---- Eficiência da cozinha (itens prontos no período) ----
-  const readyItems = await db.orderItem.findMany({
-    where: {
-      status: { in: ['READY', 'SERVED'] },
-      startedAt: { not: null },
-      readyAt: { not: null },
-      order: { status: 'PAID', paidAt: { gte: start }, establishmentId: estId },
-    },
-    take: 800,
-  })
-  const itemsInTurn = readyItems.filter((it) => it.readyAt && inTurn(it.readyAt, turn))
+  // ---- Eficiência da cozinha (itens prontos das comandas pagas no período, com startedAt/readyAt) ----
   const kitchenAgg = new Map<string, { product: string; registered: number; actualSum: number; count: number }>()
-  for (const it of itemsInTurn) {
-    const cur = kitchenAgg.get(it.productName) ?? { product: it.productName, registered: it.prepTime, actualSum: 0, count: 0 }
-    cur.actualSum += (it.readyAt!.getTime() - (it.startedAt?.getTime() ?? it.readyAt!.getTime())) / 60000
-    cur.count += 1
-    kitchenAgg.set(it.productName, cur)
+  for (const o of paid.filter((x) => x.paidAt >= start)) {
+    for (const it of o.items ?? []) {
+      if (!['READY', 'SERVED'].includes(it.status)) continue
+      const readyAt = toDate(it.readyAt)
+      const startedAt = toDate(it.startedAt)
+      if (!readyAt) continue
+      if (!inTurn(readyAt, turn)) continue
+      const cur = kitchenAgg.get(it.productName) ?? { product: it.productName, registered: it.prepTime, actualSum: 0, count: 0 }
+      cur.actualSum += (readyAt.getTime() - (startedAt?.getTime() ?? readyAt.getTime())) / 60000
+      cur.count += 1
+      kitchenAgg.set(it.productName, cur)
+    }
   }
   const kitchenEfficiency = [...kitchenAgg.values()]
-    .map((k) => ({
-      product: k.product,
-      registered: k.registered,
-      actual: Math.round((k.actualSum / k.count) * 10) / 10,
-      count: k.count,
-    }))
+    .map((k) => ({ product: k.product, registered: k.registered, actual: Math.round((k.actualSum / k.count) * 10) / 10, count: k.count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 6)
 
   // ---- Métodos de pagamento ----
   const payAgg = new Map<string, number>()
   for (const o of paidInTurn) {
-    for (const p of o.payments) {
-      payAgg.set(p.method, (payAgg.get(p.method) ?? 0) + o.total)
-    }
+    if (o.payment) payAgg.set(o.payment.method, (payAgg.get(o.payment.method) ?? 0) + o.total)
   }
 
   // ---- Faturamento por estação ----
   const stationAgg = new Map<string, number>()
   for (const o of paidInTurn) {
-    for (const it of o.items) {
-      stationAgg.set(it.station, (stationAgg.get(it.station) ?? 0) + it.quantity * it.unitPrice)
-    }
+    for (const it of o.items ?? []) stationAgg.set(it.station, (stationAgg.get(it.station) ?? 0) + it.quantity * it.unitPrice)
   }
 
   return NextResponse.json({

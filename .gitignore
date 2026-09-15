@@ -52,3 +52,7 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Gerados automaticamente pelo next.config.ts (agentRules) a cada `next dev`/`next build`
+/AGENTS.md
+/CLAUDE.md

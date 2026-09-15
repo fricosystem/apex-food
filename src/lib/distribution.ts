@@ -1,4 +1,4 @@
-import { db } from '@/lib/db'
+import { usersCol, establishmentsCol, ordersCol, countDocs } from '@/lib/fs'
 
 /**
  * Distribuição inteligente de comandas.
@@ -8,33 +8,38 @@ import { db } from '@/lib/db'
  * Retorna o id do garçom escolhido (ou null se não houver garçom disponível).
  */
 export async function pickWaiter(rule: string = 'least_active', establishmentId?: string | null): Promise<string | null> {
-  const waiters = await db.user.findMany({
-    where: { role: 'WAITER', active: true, ...(establishmentId ? { establishmentId } : {}) },
-    select: { id: true },
-  })
-  if (waiters.length === 0) return null
+  if (!establishmentId) return null
+  const waitersSnap = await usersCol()
+    .where('establishmentId', '==', establishmentId)
+    .where('role', '==', 'WAITER')
+    .where('active', '==', true)
+    .get()
+  if (waitersSnap.empty) return null
 
   const activeStatuses = ['PENDING_CONFIRM', 'IN_KITCHEN', 'AWAITING_PAYMENT']
   const startOfDay = new Date()
   startOfDay.setHours(0, 0, 0, 0)
+  const orders = ordersCol(establishmentId)
 
   const scores = await Promise.all(
-    waiters.map(async (w) => {
-      const activeOrders = await db.order.count({
-        where: { waiterId: w.id, status: { in: activeStatuses } },
-      })
+    waitersSnap.docs.map(async (w) => {
+      const activeOrders = await countDocs(
+        orders.where('waiterId', '==', w.id).where('status', 'in', activeStatuses),
+      )
       let load = activeOrders
       if (rule === 'least_load') {
-        const dayOrders = await db.order.count({
-          where: { waiterId: w.id, createdAt: { gte: startOfDay } },
-        })
-        const preparingItems = await db.orderItem.count({
-          where: { status: 'IN_PREPARATION', order: { waiterId: w.id } },
-        })
+        const dayOrders = await countDocs(orders.where('waiterId', '==', w.id).where('createdAt', '>=', startOfDay))
+        // itens "em preparo" ficam embutidos no array `items` de cada comanda ativa —
+        // aproximamos somando os itens IN_PREPARATION das comandas ativas já contadas acima
+        const activeSnap = await orders.where('waiterId', '==', w.id).where('status', 'in', activeStatuses).get()
+        const preparingItems = activeSnap.docs.reduce((sum, d) => {
+          const items = (d.data().items ?? []) as Array<{ status: string }>
+          return sum + items.filter((it) => it.status === 'IN_PREPARATION').length
+        }, 0)
         load = activeOrders * 2 + dayOrders + preparingItems
       }
       return { id: w.id, load }
-    })
+    }),
   )
 
   scores.sort((a, b) => a.load - b.load)
@@ -43,8 +48,7 @@ export async function pickWaiter(rule: string = 'least_active', establishmentId?
 
 export async function getSetting(key: string, fallback: string, establishmentId?: string | null): Promise<string> {
   if (!establishmentId) return fallback
-  const s = await db.setting.findUnique({
-    where: { establishmentId_key: { establishmentId, key } },
-  })
-  return s?.value ?? fallback
+  const snap = await establishmentsCol().doc(establishmentId).get()
+  const settings = (snap.data()?.settings ?? {}) as Record<string, string>
+  return settings[key] ?? fallback
 }

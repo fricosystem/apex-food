@@ -1,11 +1,11 @@
-import crypto from 'crypto'
 import { cookies } from 'next/headers'
-import { db } from '@/lib/db'
+import { adminAuth } from '@/lib/firebase-admin'
+import { usersCol, establishmentsCol, tsToIso } from '@/lib/fs'
 import { resolveViewRoles } from '@/lib/permissions'
 
-const SECRET = process.env.AUTH_SECRET || 'apex-food-2026-secret-key'
 export const SESSION_COOKIE = 'apex_session'
-const SESSION_HOURS = 12
+const SESSION_DAYS = 5
+const SESSION_MS = SESSION_DAYS * 24 * 3600 * 1000
 
 /**
  * Atributos do cookie de sessão.
@@ -17,7 +17,7 @@ export function sessionCookieAttributes(proto: string | null | undefined) {
   return {
     httpOnly: true as const,
     path: '/',
-    maxAge: SESSION_HOURS * 3600,
+    maxAge: SESSION_DAYS * 86_400,
     ...(isHttps
       ? { sameSite: 'none' as const, secure: true, partitioned: true as const }
       : { sameSite: 'lax' as const }),
@@ -57,7 +57,7 @@ export function buildSessionUser(user: {
   establishment?: {
     id: string; name: string; cnpj: string; logo: string; type: string; phone: string; address: string
     active: boolean; plan: string; billingStatus: string
-    trialEndsAt: Date | null; currentPeriodEnd: Date | null; lastPaymentAt: Date | null
+    trialEndsAt: unknown; currentPeriodEnd: unknown; lastPaymentAt: unknown
     notes: string; permissions: string
   } | null
 }): SessionUser {
@@ -80,9 +80,9 @@ export function buildSessionUser(user: {
           active: est.active,
           plan: est.plan,
           billingStatus: est.billingStatus,
-          trialEndsAt: est.trialEndsAt?.toISOString() ?? null,
-          currentPeriodEnd: est.currentPeriodEnd?.toISOString() ?? null,
-          lastPaymentAt: est.lastPaymentAt?.toISOString() ?? null,
+          trialEndsAt: tsToIso(est.trialEndsAt),
+          currentPeriodEnd: tsToIso(est.currentPeriodEnd),
+          lastPaymentAt: tsToIso(est.lastPaymentAt),
           notes: est.notes,
         }
       : null,
@@ -90,73 +90,75 @@ export function buildSessionUser(user: {
   }
 }
 
-export function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(16).toString('hex')
-  const hash = crypto.scryptSync(password, salt, 32).toString('hex')
-  return `${salt}:${hash}`
-}
-
-export function verifyPassword(password: string, stored: string): boolean {
-  try {
-    const [salt, hash] = stored.split(':')
-    const candidate = crypto.scryptSync(password, salt, 32).toString('hex')
-    return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(candidate, 'hex'))
-  } catch {
-    return false
+/** Busca o doc users/{uid} + (se houver) o estabelecimento vinculado, prontos para buildSessionUser */
+export async function loadUserForSession(uid: string) {
+  const snap = await usersCol().doc(uid).get()
+  if (!snap.exists) return null
+  const u = snap.data() as {
+    name: string; email: string; role: string; status: string; active: boolean; establishmentId?: string | null
   }
-}
-
-function sign(payload: string): string {
-  return crypto.createHmac('sha256', SECRET).update(payload).digest('base64url')
-}
-
-export function createToken(userId: string): string {
-  const exp = Date.now() + SESSION_HOURS * 3600 * 1000
-  const payload = Buffer.from(JSON.stringify({ uid: userId, exp })).toString('base64url')
-  return `${payload}.${sign(payload)}`
-}
-
-export function readToken(token: string | undefined): string | null {
-  if (!token) return null
-  const [payload, sig] = token.split('.')
-  if (!payload || !sig) return null
-  const expected = sign(payload)
-  if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null
-  try {
-    const data = JSON.parse(Buffer.from(payload, 'base64url').toString())
-    if (!data.uid || Date.now() > data.exp) return null
-    return data.uid
-  } catch {
-    return null
+  if (!u.active) return null
+  let establishment = null
+  if (u.establishmentId) {
+    const estSnap = await establishmentsCol().doc(u.establishmentId).get()
+    if (!estSnap.exists) return null
+    const e = estSnap.data() as { active: boolean }
+    // DESENVOLVEDOR nunca é bloqueado por estabelecimento suspenso/vencido — sem
+    // aviso de plano e sem limite do sistema para esse cargo (mesmo se vinculado
+    // a um estabelecimento, ex.: conta de testes).
+    if (!e.active && u.role !== 'DESENVOLVEDOR') return null
+    establishment = { id: estSnap.id, ...(estSnap.data() as object) } as NonNullable<
+      Parameters<typeof buildSessionUser>[0]['establishment']
+    >
   }
+  return { id: uid, name: u.name, email: u.email, role: u.role, status: u.status, establishment }
 }
 
 export async function getSessionUser(): Promise<SessionUser | null> {
   const store = await cookies()
-  const uid = readToken(store.get(SESSION_COOKIE)?.value)
-  if (!uid) return null
-  const user = await db.user.findUnique({
-    where: { id: uid },
-    select: {
-      id: true, name: true, email: true, role: true, status: true, active: true,
-      establishment: {
-        select: {
-          id: true, name: true, cnpj: true, logo: true, type: true, phone: true, address: true,
-          active: true, plan: true, billingStatus: true,
-          trialEndsAt: true, currentPeriodEnd: true, lastPaymentAt: true,
-          notes: true, permissions: true,
-        },
-      },
-    },
-  })
-  if (!user || !user.active) return null
-  // Estabelecimento desativado (suspenso pela plataforma) → sessão inválida
-  if (user.establishment && !user.establishment.active) return null
+  const cookie = store.get(SESSION_COOKIE)?.value
+  if (!cookie) return null
+  let uid: string
+  try {
+    const decoded = await adminAuth.verifySessionCookie(cookie, true)
+    uid = decoded.uid
+  } catch {
+    return null
+  }
+  const user = await loadUserForSession(uid)
+  if (!user) return null
   return buildSessionUser(user)
 }
 
+/** Troca um idToken (obtido via signInWithPassword) por um cookie de sessão httpOnly */
+export async function createSessionCookie(idToken: string): Promise<string> {
+  return adminAuth.createSessionCookie(idToken, { expiresIn: SESSION_MS })
+}
+
+/**
+ * Verifica e-mail/senha contra o Firebase Authentication.
+ * O Admin SDK não expõe "signIn" (isso é uma operação de client) — usamos a REST
+ * pública do Identity Toolkit a partir do servidor, com a Web API Key (pública).
+ * https://firebase.google.com/docs/reference/rest/auth#section-sign-in-email-password
+ */
+export async function signInWithPassword(email: string, password: string): Promise<{ idToken: string; uid: string } | null> {
+  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+  if (!apiKey) throw new Error('NEXT_PUBLIC_FIREBASE_API_KEY não configurada')
+  const res = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, returnSecureToken: true }),
+    },
+  )
+  if (!res.ok) return null
+  const data = (await res.json()) as { idToken: string; localId: string }
+  return { idToken: data.idToken, uid: data.localId }
+}
+
 export const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: 'Desenvolvedor CEO',
+  DESENVOLVEDOR: 'Desenvolvedor CEO',
   ADMIN: 'Administrador',
   MANAGER: 'Gerente',
   WAITER: 'Garçom',
