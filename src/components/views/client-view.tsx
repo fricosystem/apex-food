@@ -571,14 +571,10 @@ function ProductCard({ product, inCart, onAdd }: { product: Product; inCart: num
   return (
     <Card className="group overflow-hidden border-white/10 bg-white/[0.04] backdrop-blur transition-all duration-300 hover:border-[#FF6B1A]/40 hover:shadow-lg hover:shadow-[#FF6B1A]/10">
       <CardContent className="flex p-0">
-        {product.image ? (
+        {product.image && (
           <img src={product.image} alt={product.name} className="h-24 w-24 shrink-0 object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
-        ) : (
-          <div className="apex-gradient-soft flex h-24 w-24 shrink-0 items-center justify-center border-r border-white/10">
-            <span className="text-4xl transition-transform duration-500 group-hover:scale-110" aria-hidden>{product.emoji}</span>
-          </div>
         )}
-        <div className="min-w-0 flex-1 p-3">
+        <div className="min-w-0 flex-1 p-3.5">
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm font-semibold leading-tight">{product.name}</p>
             <Badge variant="outline" className="shrink-0 gap-1 border-white/15 text-[10px] text-zinc-400">
@@ -604,9 +600,7 @@ function ProductCard({ product, inCart, onAdd }: { product: Product; inCart: num
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-[340px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base">
-              <span className="text-xl">{product.emoji}</span> {product.name}
-            </DialogTitle>
+            <DialogTitle className="text-base">{product.name}</DialogTitle>
           </DialogHeader>
           <p className="text-xs text-muted-foreground">{product.description}</p>
           <NotesField notes={notes} onChange={setNotes} />
@@ -753,9 +747,9 @@ function ReviewPhase({
         return (
           <Card key={line.uid} className="border-white/10 bg-white/[0.04] backdrop-blur">
             <CardContent className="flex items-start gap-3 p-3">
-              <div className="apex-gradient-soft flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-[#FF6B1A]/20 text-2xl">
-                {p.emoji}
-              </div>
+              {p.image && (
+                <img src={p.image} alt={p.name} className="h-14 w-14 shrink-0 rounded-xl object-cover border border-[#FF6B1A]/20" />
+              )}
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold leading-tight">{p.name}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
@@ -957,16 +951,13 @@ function TrackingPhase({ order, onOrderMore }: { order: ClientOrder; onOrderMore
           <Card key={item.id} className={cn('border-white/10 bg-white/[0.04] backdrop-blur', overdue && 'border-red-500/50')}>
             <CardContent className="space-y-3 p-4">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{item.emoji}</span>
-                  <div>
-                    <p className="text-sm font-semibold leading-tight">
-                      {item.quantity}× {item.productName}
-                    </p>
-                    {item.notes && <p className="mt-0.5 text-[11px] text-amber-400">“{item.notes}”</p>}
-                    <div className="mt-1.5">
-                      <ItemLockChip />
-                    </div>
+                <div>
+                  <p className="text-sm font-semibold leading-tight">
+                    {item.quantity}× {item.productName}
+                  </p>
+                  {item.notes && <p className="mt-0.5 text-[11px] text-amber-400">“{item.notes}”</p>}
+                  <div className="mt-1.5">
+                    <ItemLockChip />
                   </div>
                 </div>
                 <Badge
@@ -1104,7 +1095,6 @@ function ClosingPhase({ data, tick, token, onNew, onRated }: { data: ClientData;
             <div className="mt-3 space-y-2">
               {order.items.map((i) => (
                 <div key={i.id} className="flex items-center gap-2 text-sm">
-                  <span>{i.emoji}</span>
                   <span className="flex-1 truncate">{i.quantity}× {i.productName}</span>
                   <span className="font-medium tabular-nums">{currency(i.unitPrice * i.quantity)}</span>
                 </div>

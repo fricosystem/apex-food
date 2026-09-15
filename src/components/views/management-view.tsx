@@ -106,10 +106,8 @@ function ProductsTab() {
           {allProducts.map((p) => (
             <Card key={p.id} className={cn(!p.active && 'opacity-55')}>
               <CardContent className="p-4 flex gap-3">
-                {p.image ? (
+                {p.image && (
                   <img src={p.image} alt={p.name} className="h-16 w-16 rounded-lg object-cover shrink-0" />
-                ) : (
-                  <div className="h-16 w-16 rounded-lg apex-gradient-soft flex items-center justify-center text-3xl shrink-0">{p.emoji}</div>
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
@@ -212,7 +210,7 @@ function ProductDialog({ open, product, onClose }: { open: boolean; product: Pro
             <Label>Descrição</Label>
             <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="min-h-[60px] text-sm" placeholder="Ingredientes e diferenciais" />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Preço (R$)</Label>
               <Input value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="49.90" inputMode="decimal" />
@@ -220,10 +218,6 @@ function ProductDialog({ open, product, onClose }: { open: boolean; product: Pro
             <div className="space-y-1.5">
               <Label>Preparo (min)</Label>
               <Input value={form.prepTime} onChange={(e) => setForm({ ...form, prepTime: e.target.value.replace(/\D/g, '') })} inputMode="numeric" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Emoji</Label>
-              <Input value={form.emoji} onChange={(e) => setForm({ ...form, emoji: e.target.value.slice(0, 2) })} />
             </div>
           </div>
           <div className="space-y-1.5">
