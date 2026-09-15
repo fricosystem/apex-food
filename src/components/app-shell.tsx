@@ -151,14 +151,16 @@ export function AppShell({ user }: { user: SessionUser }) {
         {!sidebarCollapsed && (
           <div className="min-w-0">
             <p className="font-bold tracking-tight leading-none text-sidebar-foreground">APEX <span className="text-[#FF7B2E]">FOOD</span></p>
-            {est ? (
+            {user.role === 'DESENVOLVEDOR' ? (
+              <p className="text-[10px] font-semibold text-primary mt-0.5 truncate tracking-wide">
+                {ROLE_LABELS[user.role as keyof typeof ROLE_LABELS]}
+              </p>
+            ) : est ? (
               <>
                 <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{estName}</p>
                 <p className="text-[9px] font-semibold text-primary mt-0.5 truncate tracking-wide">CNPJ {est.cnpj || '—'}</p>
               </>
-            ) : (
-              <p className="text-[10px] font-semibold text-primary mt-0.5 truncate tracking-wide">Painel do desenvolvedor CEO</p>
-            )}
+            ) : null}
           </div>
         )}
       </div>
@@ -388,9 +390,12 @@ export function AppShell({ user }: { user: SessionUser }) {
                 <p className="text-xs text-muted-foreground truncate hidden sm:block">{currentMeta?.description}</p>
               </div>
               {/* Badge "Tempo real" removido a pedido — status de conexão segue disponível no menu do perfil */}
-              <Badge variant="outline" className="hidden lg:inline-flex text-[11px] text-muted-foreground border-border">
-                {ROLE_LABELS[user.role as keyof typeof ROLE_LABELS]}
-              </Badge>
+              {/* Cargo Desenvolvedor CEO não aparece mais aqui — vive como texto no sidebar, abaixo do APEX FOOD */}
+              {user.role !== 'DESENVOLVEDOR' && (
+                <Badge variant="outline" className="hidden lg:inline-flex text-[11px] text-muted-foreground border-border">
+                  {ROLE_LABELS[user.role as keyof typeof ROLE_LABELS]}
+                </Badge>
+              )}
             </>
           )}
         </header>

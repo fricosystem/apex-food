@@ -205,6 +205,13 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
     }
   }, [])
 
+  // Troca de mesa sem remount (ex.: "Simular" na tela de Mesas & QR, que só muda o hash
+  // na mesma aba) — sem isso, a fase ficava presa na mesa anterior (ex.: "Acompanhamento"
+  // de uma comanda que não existe na mesa nova, dando tela em branco).
+  useEffect(() => {
+    setPhase(0)
+  }, [token])
+
   // PWA da mesa: manifest por mesa + metas de instalação + service worker — apenas no modo cliente.
   // Em navegadores sem beforeinstallprompt (ex.: iOS), o cliente usa "Adicionar à Tela de Início".
   useEffect(() => {
@@ -535,7 +542,7 @@ function MenuPhase({
                 : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:border-white/25 hover:text-zinc-200'
             )}
           >
-            <span>{c.icon}</span> {c.name}
+            {c.name}
           </button>
         ))}
       </div>

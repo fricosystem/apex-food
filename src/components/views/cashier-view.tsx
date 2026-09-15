@@ -118,7 +118,6 @@ export function CashierView({ user }: { user: SessionUser }) {
                     <div className="space-y-1">
                       {o.items.map((i) => (
                         <div key={i.id} className="flex items-center gap-2 text-sm">
-                          <span>{i.emoji}</span>
                           <span className="flex-1 truncate">{i.quantity}× {i.productName}</span>
                           <span className="text-muted-foreground text-xs">{currency(i.unitPrice * i.quantity)}</span>
                         </div>

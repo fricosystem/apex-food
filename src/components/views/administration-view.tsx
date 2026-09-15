@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   Plus, Pencil, Trash2, Package, Users, UtensilsCrossed, SlidersHorizontal,
-  Loader2, Image as ImageIcon, Clock, ShieldCheck, Search, KeyRound, Building2,
+  Loader2, Clock, ShieldCheck, Search, KeyRound, Building2, Tags,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
@@ -62,12 +62,14 @@ export function AdministrationView({ user }: { user: SessionUser }) {
       <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/60">
         <TabsTrigger value="funcionarios" className="gap-1.5"><Users className="h-4 w-4" /> Funcionários</TabsTrigger>
         <TabsTrigger value="geral" className="gap-1.5"><Building2 className="h-4 w-4" /> Gestão geral</TabsTrigger>
+        <TabsTrigger value="categorias" className="gap-1.5"><Tags className="h-4 w-4" /> Categorias & Tipos</TabsTrigger>
         <TabsTrigger value="produtos" className="gap-1.5"><Package className="h-4 w-4" /> Produtos</TabsTrigger>
         <TabsTrigger value="refeicoes" className="gap-1.5"><UtensilsCrossed className="h-4 w-4" /> Refeições</TabsTrigger>
       </TabsList>
 
       <TabsContent value="funcionarios"><StaffTab user={user} /></TabsContent>
       <TabsContent value="geral"><GeneralTab /></TabsContent>
+      <TabsContent value="categorias"><CategoriesTab /></TabsContent>
       <TabsContent value="produtos"><CatalogTab key="produtos" kind="PRODUCT" /></TabsContent>
       <TabsContent value="refeicoes"><CatalogTab key="refeicoes" kind="MEAL" /></TabsContent>
     </Tabs>
@@ -507,6 +509,167 @@ function GeneralTab() {
   )
 }
 
+/* ==================== CATEGORIAS & TIPOS ==================== */
+const SECTOR_ENTRIES = Object.entries(SECTOR_LABELS)
+type CategoryRow = Category & { products?: Array<{ id: string }> }
+
+function CategoriesTab() {
+  const qc = useQueryClient()
+  const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<CategoryRow | null>(null)
+  const [removing, setRemoving] = useState<CategoryRow | null>(null)
+
+  const { data, isLoading } = useQuery<{ categories: CategoryRow[] }>({
+    queryKey: ['categories', 'all'],
+    queryFn: () => api('/api/categories?all=1'),
+  })
+  const categories = data?.categories ?? []
+
+  const toggle = useMutation({
+    mutationFn: (c: CategoryRow) => apiPatch(`/api/categories/${c.id}`, { active: !c.active }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['categories'] })
+      toast.success('Categoria atualizada')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const remove = useMutation({
+    mutationFn: (id: string) => apiDelete(`/api/categories/${id}`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['categories'] })
+      toast.success('Categoria removida')
+      setRemoving(null)
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm text-muted-foreground">
+          {categories.length} categoria(s) · cada categoria define o tipo/estação de produção usado nos produtos e refeições
+        </p>
+        <Button onClick={() => setCreating(true)} className="apex-gradient text-white shrink-0">
+          <Plus className="h-4 w-4" /> Nova categoria
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <Skeleton className="h-72 rounded-xl" />
+      ) : categories.length === 0 ? (
+        <Card><CardContent className="p-10 text-center text-sm text-muted-foreground">Nenhuma categoria cadastrada ainda.</CardContent></Card>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {categories.map((c) => (
+            <Card key={c.id} className={cn(!c.active && 'opacity-55')}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-base leading-tight truncate">{c.name}</p>
+                    <Switch checked={c.active} onCheckedChange={() => toggle.mutate(c)} aria-label="Ativar categoria" />
+                  </div>
+                  <Badge variant="outline" className="text-xs mt-1.5">{SECTOR_LABELS[c.sector] ?? c.sector}</Badge>
+                  <p className="text-xs text-muted-foreground mt-1.5">{c.products?.length ?? 0} item(ns) vinculado(s)</p>
+                  <div className="flex items-center gap-2 mt-2.5">
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setEditing(c)}>
+                      <Pencil className="h-3.5 w-3.5" /> Editar
+                    </Button>
+                    <Button
+                      variant="outline" size="sm"
+                      className="h-8 gap-1.5 text-xs text-red-500 hover:text-red-500 hover:bg-red-500/10 border-red-500/30"
+                      onClick={() => setRemoving(c)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Excluir
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <CategoryDialog open={creating || !!editing} category={editing} onClose={() => { setCreating(false); setEditing(null) }} />
+
+      <Dialog open={!!removing} onOpenChange={(v) => !v && setRemoving(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Excluir categoria</DialogTitle>
+            <DialogDescription>
+              Remover {removing?.name}? Categorias com produtos ou refeições vinculados não podem ser excluídas — desative-as nesse caso.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemoving(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={() => removing && remove.mutate(removing.id)} disabled={remove.isPending}>
+              {remove.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+function CategoryDialog({ open, category, onClose }: { open: boolean; category: CategoryRow | null; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState({ name: '', sector: 'KITCHEN' })
+
+  const [loadedFor, setLoadedFor] = useState<CategoryRow | null>(null)
+  if (open && category && loadedFor !== category) {
+    setLoadedFor(category)
+    setForm({ name: category.name, sector: category.sector })
+  }
+  if (open && !category && loadedFor !== null) {
+    setLoadedFor(null)
+    setForm({ name: '', sector: 'KITCHEN' })
+  }
+
+  const save = useMutation({
+    mutationFn: () => {
+      const payload = { name: form.name, sector: form.sector }
+      return category ? apiPatch(`/api/categories/${category.id}`, payload) : apiPost('/api/categories', payload)
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['categories'] })
+      toast.success(category ? 'Categoria atualizada' : 'Categoria criada')
+      onClose()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{category ? 'Editar categoria' : 'Nova categoria'}</DialogTitle>
+          <DialogDescription>Usada para organizar produtos e refeições no catálogo, no cardápio e na cozinha</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3.5">
+          <div className="space-y-1.5">
+            <Label>Nome</Label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Pratos quentes" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Tipo (estação de produção)</Label>
+            <Select value={form.sector} onValueChange={(v) => setForm({ ...form, sector: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {SECTOR_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button className="w-full apex-gradient text-white font-semibold" onClick={() => save.mutate()} disabled={save.isPending || !form.name}>
+            {save.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 /* ==================== CATÁLOGO: PRODUTOS & REFEIÇÕES ==================== */
 function CatalogTab({ kind }: { kind: ProductKind }) {
   const qc = useQueryClient()
@@ -577,19 +740,23 @@ function CatalogTab({ kind }: { kind: ProductKind }) {
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="font-semibold text-sm leading-tight truncate">{p.name}</p>
+                    <p className="font-semibold text-base leading-tight truncate">{p.name}</p>
                     <Switch checked={p.active} onCheckedChange={() => toggle.mutate(p)} aria-label="Ativar item" />
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{p.category.icon} {p.category.name} · {SECTOR_LABELS[p.category.sector] ?? p.category.sector}</p>
-                  <p className="text-sm font-bold text-primary mt-1">{currency(p.price)}</p>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <Badge variant="outline" className="text-[10px] gap-1"><Clock className="h-3 w-3" /> {p.prepTime} min</Badge>
-                    <button className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1" onClick={() => setEditing(p)}>
-                      <Pencil className="h-3 w-3" /> editar
-                    </button>
-                    <button className="text-[11px] text-red-500 hover:text-red-400 flex items-center gap-1" onClick={() => remove.mutate(p.id)}>
-                      <Trash2 className="h-3 w-3" /> excluir
-                    </button>
+                  <p className="text-xs text-muted-foreground mt-1">{p.category.name} · {SECTOR_LABELS[p.category.sector] ?? p.category.sector}</p>
+                  <p className="text-base font-bold text-primary mt-1.5">{currency(p.price)}</p>
+                  <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                    <Badge variant="outline" className="text-xs gap-1 py-1"><Clock className="h-3.5 w-3.5" /> {p.prepTime} min</Badge>
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setEditing(p)}>
+                      <Pencil className="h-3.5 w-3.5" /> Editar
+                    </Button>
+                    <Button
+                      variant="outline" size="sm"
+                      className="h-8 gap-1.5 text-xs text-red-500 hover:text-red-500 hover:bg-red-500/10 border-red-500/30"
+                      onClick={() => remove.mutate(p.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Excluir
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -611,7 +778,7 @@ function CatalogDialog({ open, item, onClose }: { open: boolean; item: Product |
     enabled: open,
   })
 
-  const [form, setForm] = useState({ name: '', description: '', price: '', prepTime: '15', emoji: '🍽️', image: '', categoryId: '', kind: 'MEAL' as ProductKind })
+  const [form, setForm] = useState({ name: '', description: '', price: '', prepTime: '15', emoji: '🍽️', categoryId: '', kind: 'MEAL' as ProductKind })
 
   // Recarga no render (padrão das outras views): monta o form quando abre para um item
   const [loadedFor, setLoadedFor] = useState<Product | null>(null)
@@ -619,13 +786,13 @@ function CatalogDialog({ open, item, onClose }: { open: boolean; item: Product |
     setLoadedFor(item)
     setForm({
       name: item.name, description: item.description, price: String(item.price),
-      prepTime: String(item.prepTime), emoji: item.emoji, image: item.image ?? '',
+      prepTime: String(item.prepTime), emoji: item.emoji,
       categoryId: item.categoryId, kind: item.kind,
     })
   }
   if (open && !item && loadedFor !== null) {
     setLoadedFor(null)
-    setForm({ name: '', description: '', price: '', prepTime: '15', emoji: '🍽️', image: '', categoryId: '', kind: 'MEAL' })
+    setForm({ name: '', description: '', price: '', prepTime: '15', emoji: '🍽️', categoryId: '', kind: 'MEAL' })
   }
 
   const save = useMutation({
@@ -636,7 +803,6 @@ function CatalogDialog({ open, item, onClose }: { open: boolean; item: Product |
         price: Number(form.price.replace(',', '.')),
         prepTime: Number(form.prepTime),
         emoji: form.emoji || '🍽️',
-        image: form.image || null,
         categoryId: form.categoryId,
         kind: form.kind,
       }
@@ -674,7 +840,7 @@ function CatalogDialog({ open, item, onClose }: { open: boolean; item: Product |
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   {(data?.categories ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -697,10 +863,6 @@ function CatalogDialog({ open, item, onClose }: { open: boolean; item: Product |
               <Label>Preparo (min)</Label>
               <Input value={form.prepTime} onChange={(e) => setForm({ ...form, prepTime: e.target.value.replace(/\D/g, '') })} inputMode="numeric" />
             </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="flex items-center gap-1.5"><ImageIcon className="h-3.5 w-3.5" /> URL da imagem (opcional)</Label>
-            <Input value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} placeholder="https://…" />
           </div>
         </div>
         <DialogFooter>

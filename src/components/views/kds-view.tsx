@@ -154,12 +154,9 @@ function TicketCard({
           return (
             <div key={i.id} className={cn('rounded-lg border p-2.5 space-y-2', overdue && 'border-red-500/60 bg-red-500/5')}>
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-medium leading-tight flex items-start gap-1.5">
-                  <span className="text-base">{i.emoji}</span>
-                  <span>
-                    {i.quantity}× {i.productName}
-                    {i.notes && <span className="block text-[11px] text-amber-600 dark:text-amber-400 font-normal">“{i.notes}”</span>}
-                  </span>
+                <p className="text-sm font-medium leading-tight">
+                  {i.quantity}× {i.productName}
+                  {i.notes && <span className="block text-[11px] text-amber-600 dark:text-amber-400 font-normal">“{i.notes}”</span>}
                 </p>
                 <Badge variant="outline" className="text-[9px] gap-1 shrink-0">
                   {i.station === 'GRILL' ? <Flame className="h-3 w-3" /> : i.station === 'BAR' ? <Martini className="h-3 w-3" /> : i.station === 'PIZZERIA' ? <Waves className="h-3 w-3" /> : <Utensils className="h-3 w-3" />}

@@ -114,7 +114,7 @@ function ProductsTab() {
                     <p className="font-semibold text-sm leading-tight truncate">{p.name}</p>
                     <Switch checked={p.active} onCheckedChange={() => toggle.mutate(p)} aria-label="Ativar produto" />
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{p.category.icon} {p.category.name}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{p.category.name}</p>
                   <p className="text-sm font-bold text-primary mt-1">{currency(p.price)}</p>
                   <div className="flex items-center gap-2 mt-1.5">
                     <Badge variant="outline" className="text-[10px] gap-1"><Clock className="h-3 w-3" /> {p.prepTime} min</Badge>
@@ -200,7 +200,7 @@ function ProductDialog({ open, product, onClose }: { open: boolean; product: Pro
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   {(data?.categories ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -239,7 +239,7 @@ function ProductDialog({ open, product, onClose }: { open: boolean; product: Pro
 function CategoriesTab() {
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ name: '', sector: 'KITCHEN', icon: '🍽️' })
+  const [form, setForm] = useState({ name: '', sector: 'KITCHEN' })
 
   const { data, isLoading } = useQuery<{ categories: Array<Category & { products: Product[] }> }>({
     queryKey: ['categories', 'all'],
@@ -252,7 +252,7 @@ function CategoriesTab() {
       void qc.invalidateQueries({ queryKey: ['categories'] })
       toast.success('Categoria criada')
       setOpen(false)
-      setForm({ name: '', sector: 'KITCHEN', icon: '🍽️' })
+      setForm({ name: '', sector: 'KITCHEN' })
     },
     onError: (e: Error) => toast.error(e.message),
   })
@@ -274,7 +274,6 @@ function CategoriesTab() {
           {(data?.categories ?? []).map((c) => (
             <Card key={c.id} className={cn(!c.active && 'opacity-55')}>
               <CardContent className="p-4 flex items-center gap-3">
-                <div className="h-11 w-11 rounded-lg apex-gradient-soft flex items-center justify-center text-xl shrink-0">{c.icon}</div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm">{c.name}</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -293,17 +292,14 @@ function CategoriesTab() {
           <DialogHeader><DialogTitle>Nova categoria</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5"><Label>Nome</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Sobremesas" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Estação</Label>
-                <Select value={form.sector} onValueChange={(v) => setForm({ ...form, sector: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5"><Label>Ícone</Label><Input value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value.slice(0, 2) })} /></div>
+            <div className="space-y-1.5">
+              <Label>Estação</Label>
+              <Select value={form.sector} onValueChange={(v) => setForm({ ...form, sector: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

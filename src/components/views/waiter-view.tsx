@@ -208,7 +208,7 @@ function QueueTab({ queue, loading }: { queue: OrderDTO[]; loading: boolean }) {
               {o.items.map((i) => (
                 <div key={i.id} className="flex items-center gap-2">
                   <p className="flex-1 truncate text-sm">
-                    <span>{i.emoji}</span> {i.quantity}× {i.productName}
+                    {i.quantity}× {i.productName}
                     {i.notes && <span title={i.notes} className="ml-1.5 text-[10px] text-amber-500">obs</span>}
                   </p>
                   <RemoveItemAction orderId={o.id} itemId={i.id} itemName={`${i.quantity}× ${i.productName}`} />
@@ -279,7 +279,6 @@ function ActiveTab({ orders }: { orders: OrderDTO[] }) {
             <div className="space-y-1.5">
               {o.items.map((i) => (
                 <div key={i.id} className="flex items-center gap-2 text-sm">
-                  <span>{i.emoji}</span>
                   <span className="flex-1 truncate">
                     {i.quantity}× {i.productName}
                   </span>
@@ -350,10 +349,7 @@ function ReadyTab({ orders }: { orders: OrderDTO[] }) {
               <p className="font-bold">Mesa {String(order.tableNumber).padStart(2, '0')}</p>
               <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40">Pronto</Badge>
             </div>
-            <p className="text-sm flex items-center gap-2">
-              <span className="text-xl">{item.emoji}</span>
-              <span className="flex-1">{item.quantity}× {item.productName}</span>
-            </p>
+            <p className="text-sm">{item.quantity}× {item.productName}</p>
             <p className="text-[11px] text-muted-foreground">Comanda {order.code} · pronta às {item.readyAt ? clockTime(item.readyAt) : '--'}</p>
             <Button className="w-full" variant="outline" onClick={() => act.mutate({ orderId: order.id, itemId: item.id })}>
               <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Marcar como servido

@@ -46,7 +46,21 @@ const PERIOD_LABELS: Record<string, string> = {
 }
 /** Paleta da marca — mesma família do laranja #FF6B1A do Faturamento por período */
 const ORANGE_SHADES = ['#FF6B1A', '#FF8A47', '#FFB27A', '#FFD1AE', '#E5550F', '#FF9E66']
-const TOOLTIP_STYLE = { background: '#16161A', border: '1px solid #2E2E38', borderRadius: 10, fontSize: 12, color: '#F4F4F5' }
+/** Fundo escuro translúcido com leve blur — mesmo visual em ambos os temas, sempre com bom contraste */
+const TOOLTIP_STYLE = {
+  background: 'rgba(20, 20, 24, 0.82)',
+  backdropFilter: 'blur(8px)',
+  WebkitBackdropFilter: 'blur(8px)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: 10,
+  fontSize: 12,
+  color: '#FFFFFF',
+  boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+}
+/** Rótulo (data/categoria) do tooltip sempre branco, mesmo com o texto padrão herdado */
+const TOOLTIP_LABEL_STYLE = { color: '#FFFFFF', fontWeight: 600, marginBottom: 4 }
+/** Valores destacados em verde para leitura rápida */
+const TOOLTIP_ITEM_STYLE = { color: '#22C55E', fontWeight: 600 }
 const WEEKDAY_ROWS: Array<{ w: number; label: string }> = [
   { w: 0, label: 'dom' }, { w: 1, label: 'seg' }, { w: 2, label: 'ter' }, { w: 3, label: 'qua' },
   { w: 4, label: 'qui' }, { w: 5, label: 'sex' }, { w: 6, label: 'sáb' },
@@ -301,7 +315,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
                 <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} width={44} tickFormatter={(v) => `R$${v}`} />
                 <Tooltip
-                  contentStyle={TOOLTIP_STYLE}
+                  contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE}
                   formatter={(v: number, name) => (name === 'revenue' ? [currency(v), 'Faturamento'] : [v, 'Comandas'])}
                   labelFormatter={revLabelFmt}
                 />
@@ -336,7 +350,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
                 <YAxis tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} width={28} allowDecimals={false} />
                 <Tooltip
                   cursor={{ fill: 'rgba(255,107,26,0.06)' }}
-                  contentStyle={TOOLTIP_STYLE}
+                  contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE}
                   formatter={(v: number) => [`${v} comandas`, 'Concluídas']}
                 />
                 <Bar dataKey="orders" fill="url(#revBar)" radius={[5, 5, 0, 0]} barSize={10} animationDuration={900} />
@@ -369,7 +383,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
                   <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} />
                   <YAxis tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} width={52} tickFormatter={(v) => `R$${v}`} />
                   <Tooltip
-                    contentStyle={TOOLTIP_STYLE}
+                    contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE}
                     formatter={(v: number) => [currency(v), 'Ticket médio']}
                     labelFormatter={revLabelFmt}
                   />
@@ -413,7 +427,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
                   <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} />
                   <YAxis tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.6)" tickLine={false} axisLine={false} width={44} tickFormatter={(v) => `R$${v}`} />
                   <Tooltip
-                    contentStyle={TOOLTIP_STYLE}
+                    contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE}
                     formatter={(v: number, name) => (name === 'acc' ? [currency(v), 'Acumulado'] : [currency(v), 'No período'])}
                     labelFormatter={revLabelFmt}
                   />
@@ -446,7 +460,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
                   <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10 }} stroke="rgba(128,128,138,0.9)" tickLine={false} axisLine={false} />
                   <Tooltip
                     cursor={{ fill: 'rgba(255,107,26,0.06)' }}
-                    contentStyle={TOOLTIP_STYLE}
+                    contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE}
                     formatter={(v: number, _n, p) => [`${v} un · ${currency(Number(p?.payload?.revenue ?? 0))}`, 'Vendido']}
                   />
                   <Bar dataKey="qty" fill="#FF6B1A" radius={[0, 6, 6, 0]} barSize={14} animationDuration={900} />
@@ -472,7 +486,8 @@ export function DashboardView({ user }: { user: SessionUser }) {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Tooltip
-                        contentStyle={TOOLTIP_STYLE}
+                        contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE}
+                        wrapperStyle={{ zIndex: 50 }}
                         formatter={(v: number, _n, p) => [currency(v), String(p?.payload?.name ?? '')]}
                       />
                       <Pie
@@ -544,7 +559,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
                       <PolarAngleAxis type="number" domain={[0, weekdayMax]} tick={false} axisLine={false} />
                       <RadialBar dataKey="orders" background={{ fill: 'rgba(128,128,138,0.12)' }} cornerRadius={5} animationDuration={900} />
                       <Tooltip
-                        contentStyle={TOOLTIP_STYLE}
+                        contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE}
                         formatter={(v: number, _n, p) => [`${v} comandas · ${currency(Number(p?.payload?.revenue ?? 0))}`, String(p?.payload?.label ?? '')]}
                       />
                     </RadialBarChart>
@@ -644,7 +659,7 @@ export function DashboardView({ user }: { user: SessionUser }) {
                 <RadarChart data={radarData} outerRadius="72%">
                   <PolarGrid stroke="rgba(128,128,138,0.2)" />
                   <PolarAngleAxis dataKey="name" tick={{ fontSize: 10, fill: 'rgba(128,128,138,0.9)' }} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number, n) => [`${Math.round(v)}%`, String(n)]} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(v: number, n) => [`${Math.round(v)}%`, String(n)]} />
                   <Radar name="Comandas" dataKey="comandas" stroke="#FF6B1A" fill="#FF6B1A" fillOpacity={0.28} animationDuration={900} />
                   <Radar name="Receita" dataKey="receita" stroke="#FFB27A" fill="#FFB27A" fillOpacity={0.16} animationDuration={900} />
                 </RadarChart>
