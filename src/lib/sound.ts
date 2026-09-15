@@ -49,12 +49,12 @@ export type EventSoundKind =
   | 'avaliacao'
 
 export const EVENT_SOUNDS: Record<EventSoundKind, { file: string; label: string }> = {
-  'comanda-nova': { file: '/sounds/comanda-nova.wav', label: 'Sino duplo' },
-  'comanda-confirmada': { file: '/sounds/comanda-confirmada.wav', label: 'Três toques' },
-  'prato-pronto': { file: '/sounds/prato-pronto.wav', label: 'Arpejo de campanha' },
-  'encaminhada': { file: '/sounds/encaminhada.wav', label: 'Dois tons suaves' },
-  'pagamento': { file: '/sounds/pagamento.wav', label: 'Cha-ching de caixa' },
-  'alerta': { file: '/sounds/alerta.wav', label: 'Buzina dupla' },
+  'comanda-nova': { file: '/sounds/comanda-nova.wav', label: 'Sino de porta, dois toques' },
+  'comanda-confirmada': { file: '/sounds/comanda-confirmada.wav', label: 'Mallet, três notas subindo' },
+  'prato-pronto': { file: '/sounds/prato-pronto.wav', label: 'Sino de balcão, duas batidas' },
+  'encaminhada': { file: '/sounds/encaminhada.wav', label: 'Dois tons quentes descendo' },
+  'pagamento': { file: '/sounds/pagamento.wav', label: 'Arpejo + brilho de moedas' },
+  'alerta': { file: '/sounds/alerta.wav', label: 'Dois tons alternados' },
   'comanda-itens': { file: '/sounds/comanda-confirmada.wav', label: 'Itens adicionados à comanda' },
   'avaliacao': { file: '/sounds/prato-pronto.wav', label: 'Avaliação do cliente' },
 }
