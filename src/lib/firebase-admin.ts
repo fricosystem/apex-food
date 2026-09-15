@@ -17,11 +17,27 @@ import { getFirestore } from 'firebase-admin/firestore'
  */
 const globalForAdmin = globalThis as unknown as { firebaseAdminApp?: App }
 
+/**
+ * Limpa uma variável de ambiente colada manualmente (painel da Vercel, etc.):
+ * remove aspas externas que a UI não sabe que são só delimitador do .env
+ * (ex.: copiar `FIREBASE_PRIVATE_KEY="-----BEGIN...`  literalmente) e espaços
+ * nas pontas. Sem isso, a chave privada vem com `"` colada no PEM e o
+ * `cert()` falha silenciosamente com erro de parsing.
+ */
+function cleanEnvValue(v: string | undefined): string | undefined {
+  if (!v) return v
+  const trimmed = v.trim()
+  if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    return trimmed.slice(1, -1)
+  }
+  return trimmed
+}
+
 function buildApp(): App {
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+  const projectId = cleanEnvValue(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID)
+  const clientEmail = cleanEnvValue(process.env.FIREBASE_CLIENT_EMAIL)
   // .env costuma escapar as quebras de linha da private_key como "\n" literal
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+  const privateKey = cleanEnvValue(process.env.FIREBASE_PRIVATE_KEY)?.replace(/\\n/g, '\n')
 
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
@@ -30,9 +46,18 @@ function buildApp(): App {
     )
   }
 
-  return initializeApp({
-    credential: cert({ projectId, clientEmail, privateKey }),
-  })
+  try {
+    return initializeApp({
+      credential: cert({ projectId, clientEmail, privateKey }),
+    })
+  } catch (e) {
+    // Erro mais comum aqui: FIREBASE_PRIVATE_KEY colada com aspas extras ou
+    // com as quebras de linha reais removidas ao copiar/colar na Vercel.
+    throw new Error(
+      `Firebase Admin SDK: falha ao inicializar com as credenciais fornecidas (${(e as Error).message}). ` +
+        'Confira se FIREBASE_PRIVATE_KEY foi colada sem aspas extras e com o PEM completo (-----BEGIN...-----END-----).',
+    )
+  }
 }
 
 export const firebaseAdminApp = globalForAdmin.firebaseAdminApp ?? getApps()[0] ?? buildApp()
