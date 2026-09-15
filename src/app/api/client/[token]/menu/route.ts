@@ -20,12 +20,17 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const est = estSnap.data() as { active: boolean; name: string; logo: string; type: string } | undefined
   if (est && !est.active) return NextResponse.json({ error: 'Estabelecimento indisponível no momento.' }, { status: 403 })
 
-  const [catsSnap, prodsSnap] = await Promise.all([
-    categoriesCol(estId).where('active', '==', true).orderBy('sortOrder', 'asc').get(),
-    productsCol(estId).where('active', '==', true).orderBy('createdAt', 'asc').get(),
-  ])
-  const cats = catsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as { id: string; name: string; sector: string; icon: string; sortOrder: number })
-  const products = prodsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as { id: string; categoryId: string; active: boolean } & Record<string, unknown>)
+  // Sem orderBy combinado ao where (evita exigir índice composto — ver plano_firebase.md,
+  // "Índices compostos do Firestore"): busca tudo e ordena em memória.
+  const [catsSnap, prodsSnap] = await Promise.all([categoriesCol(estId).get(), productsCol(estId).get()])
+  const cats = catsSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }) as { id: string; name: string; sector: string; icon: string; sortOrder: number; active: boolean })
+    .filter((c) => c.active)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  const products = prodsSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }) as { id: string; categoryId: string; active: boolean; createdAt: unknown } & Record<string, unknown>)
+    .filter((p) => p.active)
+    .sort((a, b) => (((a.createdAt as { toMillis?: () => number })?.toMillis?.() ?? 0) - ((b.createdAt as { toMillis?: () => number })?.toMillis?.() ?? 0)))
 
   const categories = cats.map((c) => ({
     id: c.id, name: c.name, sector: c.sector, icon: c.icon, sortOrder: c.sortOrder,
