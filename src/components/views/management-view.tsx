@@ -24,6 +24,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { api, apiPost, apiPatch, apiDelete } from '@/lib/fetcher'
 import { currency, SECTOR_LABELS, ROLE_LABELS } from '@/lib/types'
+import { SuffixedEmailField, withApexSuffix } from '@/components/email-field'
+
+/** Cargos atribuíveis dentro de um estabelecimento (DESENVOLVEDOR é exclusivo da plataforma) */
+const TENANT_ROLE_ENTRIES = Object.entries(ROLE_LABELS).filter(([k]) => k !== 'DESENVOLVEDOR')
 import type { SessionUser } from '@/lib/auth'
 
 type Category = { id: string; name: string; sector: string; icon: string; sortOrder: number; active: boolean }
@@ -326,7 +330,7 @@ function UsersTab() {
   const { data, isLoading } = useQuery<{ users: UserRow[] }>({ queryKey: ['users'], queryFn: () => api('/api/users') })
 
   const save = useMutation({
-    mutationFn: () => apiPost('/api/users', form),
+    mutationFn: () => apiPost('/api/users', { ...form, email: withApexSuffix(form.email) }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['users'] })
       toast.success('Funcionário cadastrado')
@@ -368,7 +372,7 @@ function UsersTab() {
                   <Select value={u.role} onValueChange={(v) => apiPatch(`/api/users/${u.id}`, { role: v }).then(() => { void qc.invalidateQueries({ queryKey: ['users'] }); toast.success('Cargo atualizado') })}>
                     <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {Object.entries(ROLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                      {TENANT_ROLE_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <Switch checked={u.active} onCheckedChange={() => toggle.mutate(u)} aria-label="Ativar usuário" />
@@ -384,14 +388,17 @@ function UsersTab() {
           <DialogHeader><DialogTitle>Novo funcionário</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5"><Label>Nome</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nome@apexfood.com" /></div>
+            <div className="space-y-1.5">
+              <Label>E-mail</Label>
+              <SuffixedEmailField value={form.email} onChange={(local) => setForm({ ...form, email: local })} />
+            </div>
             <div className="space-y-1.5"><Label>Senha inicial</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
             <div className="space-y-1.5">
               <Label>Cargo</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(ROLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  {TENANT_ROLE_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

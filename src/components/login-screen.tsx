@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
-  Loader2, Lock, Mail, ArrowRight, LayoutDashboard, ClipboardList,
+  Loader2, Lock, ArrowRight, LayoutDashboard, ClipboardList,
   ChefHat, CreditCard, Settings2, QrCode, BarChart3, RefreshCw,
   CalendarRange, Radar, Inbox, Users, BellRing, History, Columns3,
   Timer, Zap, Flame, ReceiptText, Gauge, Search, Package, UserCog,
@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { apiPost } from '@/lib/fetcher'
+import { SuffixedEmailField } from '@/components/email-field'
 import { playSound } from '@/lib/sound'
 import { pushSystemNotification } from '@/lib/notification-service'
 import { ROLE_LABELS } from '@/lib/types'
@@ -56,58 +57,6 @@ function clearRememberEmail() {
   } catch {
     // idem
   }
-}
-
-/** ---------- E-mail com sufixo fixo @apexfood.com ----------
- * O usuário digita apenas o nome (ex.: bruno.bm3051) e o domínio fixo do sistema
- * aparece como sufixo assim que algo é digitado. Qualquer "@dominio" digitado ou
- * colado é descartado — o único sufixo aceito é o próprio @apexfood.com.
- */
-function toEmailLocal(raw: string): string {
-  return (raw.trim().split('@')[0] ?? '').replace(/\s+/g, '')
-}
-
-/** Campo de e-mail APEX: digita-se só o nome; sufixo @apexfood.com fixo (não editável).
- *  Estrutura idêntica ao campo de senha: <Input> real do sistema dentro de div.relative,
- *  ícone absoluto à esquerda (Mail no lugar do Lock) e as mesmas classes pl-9 h-11
- *  bg-background text-foreground. O sufixo fica absoluto à direita e o pr-32 é aplicado
- *  somente enquanto ele aparece — o texto digitado nunca invade a área do sufixo.
- */
-function SuffixedEmailField({ id, value, onChange, autoComplete, required }: {
-  id: string
-  value: string
-  onChange: (local: string) => void
-  autoComplete?: string
-  required?: boolean
-}) {
-  const hasValue = value.trim() !== ''
-  return (
-    <div className="relative">
-      <Mail className="absolute left-3 top-1/2 z-10 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
-      <Input
-        id={id}
-        type="text"
-        inputMode="email"
-        autoCapitalize="none"
-        autoCorrect="off"
-        spellCheck={false}
-        autoComplete={autoComplete}
-        placeholder="Digite seu email"
-        required={required}
-        className={cn('pl-9 h-11 bg-background text-foreground', hasValue && 'pr-32')}
-        value={value}
-        onChange={(e) => onChange(toEmailLocal(e.target.value))}
-      />
-      {hasValue && (
-        <span
-          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 select-none text-sm text-muted-foreground"
-          aria-hidden
-        >
-          @apexfood.com
-        </span>
-      )}
-    </div>
-  )
 }
 
 const MODULE_SECTIONS: {

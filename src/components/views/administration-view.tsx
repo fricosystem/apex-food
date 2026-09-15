@@ -24,6 +24,7 @@ import { api, apiPost, apiPatch, apiDelete } from '@/lib/fetcher'
 import { currency, SECTOR_LABELS, ROLE_LABELS, PRODUCT_KIND_LABELS } from '@/lib/types'
 import type { ProductKind } from '@/lib/types'
 import type { SessionUser } from '@/lib/auth'
+import { SuffixedEmailField, withApexSuffix } from '@/components/email-field'
 
 type Category = { id: string; name: string; sector: string; icon: string; sortOrder: number; active: boolean }
 type Product = {
@@ -256,7 +257,7 @@ function UserDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'WAITER' })
 
   const save = useMutation({
-    mutationFn: () => apiPost('/api/users', form),
+    mutationFn: () => apiPost('/api/users', { ...form, email: withApexSuffix(form.email) }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['users'] })
       toast.success('Funcionário cadastrado')
@@ -272,7 +273,10 @@ function UserDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
         <DialogHeader><DialogTitle>Novo funcionário</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1.5"><Label>Nome</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-          <div className="space-y-1.5"><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nome@apexfood.com" /></div>
+          <div className="space-y-1.5">
+            <Label>E-mail</Label>
+            <SuffixedEmailField value={form.email} onChange={(local) => setForm({ ...form, email: local })} />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label>Senha inicial</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
             <div className="space-y-1.5">
