@@ -3,6 +3,7 @@ import { adminAuth } from '@/lib/firebase-admin'
 import { establishmentsCol, usersCol } from '@/lib/fs'
 import { signInWithPassword, createSessionCookie, SESSION_COOKIE, sessionCookieAttributes, buildSessionUser } from '@/lib/auth'
 import { readJson, bad } from '@/lib/api'
+import { checkRateLimit, clientIp } from '@/lib/rate-limit'
 
 const TRIAL_DAYS = 14
 
@@ -33,6 +34,11 @@ export async function POST(req: NextRequest) {
   if (!ownerName) return bad('Informe o seu nome')
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad('Informe um e-mail válido')
   if (!password || password.length < 6) return bad('A senha deve ter pelo menos 6 caracteres')
+
+  // 5 cadastros / hora por IP — cadastro cria conta + estabelecimento de verdade, é mais custoso que login
+  if (!checkRateLimit(`register:${clientIp(req)}`, 5, 60 * 60_000)) {
+    return bad('Muitas tentativas de cadastro. Aguarde um pouco e tente novamente.', 429)
+  }
 
   const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 86_400_000)
   const now = new Date()

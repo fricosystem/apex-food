@@ -8,7 +8,10 @@ function getSocket(): Socket | null {
   try {
     const g = globalThis as unknown as { __apexRealtimeSocket?: Socket }
     if (!g.__apexRealtimeSocket) {
-      g.__apexRealtimeSocket = io('http://127.0.0.1:3003', {
+      // REALTIME_URL permite apontar para um mini-services hospedado à parte
+      // (necessário na Vercel — serverless não roda um servidor persistente).
+      // Sem a variável, mantém o endereço local de sempre (dev).
+      g.__apexRealtimeSocket = io(process.env.REALTIME_URL || 'http://127.0.0.1:3003', {
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionAttempts: 20,

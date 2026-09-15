@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { Timestamp, type DocumentData, type Query } from 'firebase-admin/firestore'
 import { adminDb } from '@/lib/firebase-admin'
 
@@ -38,8 +39,15 @@ export function serializeTimestamps<T extends Record<string, unknown>>(obj: T, k
   return out
 }
 
+/**
+ * Token do QR Code da mesa — dá acesso (sem login) a ver/encerrar a comanda ativa
+ * daquela mesa (ver /api/client/[token]). Gerado com crypto.randomBytes (não
+ * Math.random, que não é seguro para um token que concede acesso). Hex puro
+ * (não base64url) porque o parser do hash da URL só aceita [A-Za-z0-9]
+ * (ver src/app/page.tsx).
+ */
 export function randomToken(): string {
-  return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10)
+  return randomBytes(20).toString('hex')
 }
 
 /** doc().id gera um ID novo sem precisar escrever — útil para pré-gerar IDs referenciados entre documentos */

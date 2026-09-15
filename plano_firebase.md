@@ -4,19 +4,17 @@
 > caseira por **Firebase Authentication** e **Cloud Firestore**, e remover
 > todos os dados fictícios (seed de demonstração) do sistema APEX FOOD.
 >
-> Status: **migração de código concluída e validada** (Fases 0–5). Todas as
-> ~25 rotas de API agora leem/escrevem no Firestore via Admin SDK; login,
+> Status: **migração concluída, testada e limpa** (Fases 0–7). Todas as
+> ~25 rotas de API leem/escrevem no Firestore via Admin SDK; login,
 > registro self-service e cadastro de funcionário usam o Firebase
-> Authentication. Testado de ponta a ponta (registro → login → mesa →
-> categoria/produto → comanda via QR → cozinha → caixa → métricas →
-> painel da plataforma) via curl e no navegador real, com uma conta criada
-> pelo próprio usuário durante a migração. Prisma/SQLite ainda estão no
-> projeto mas **nenhuma rota os usa mais** — remoção fica para a Fase 7,
-> só depois de você validar o sistema. Pendências: criar o usuário
-> `SUPER_ADMIN` (preciso do e-mail/senha que você quer usar) e, se
-> desejar, provisionar os índices compostos do Firestore que a seção 3
-> lista (o próprio erro do Firestore, quando aparecer, traz o link pronto
-> para criar cada um).
+> Authentication. Testado de ponta a ponta — incluindo os cargos
+> WAITER/KITCHEN/CASHIER individualmente e o KDS com múltiplas comandas
+> simultâneas — via curl e no navegador real. Prisma/SQLite foram
+> removidos do projeto (Fase 7): nenhum arquivo, dependência ou script
+> deles resta no sistema. Pendências: criar o usuário `SUPER_ADMIN`
+> (preciso do e-mail/senha que você quer usar) e, se desejar, provisionar
+> os índices compostos do Firestore que a seção 3 lista (o próprio erro do
+> Firestore, quando aparecer, traz o link pronto para criar cada um).
 
 ---
 
@@ -90,7 +88,7 @@ ajuste: `src/lib/api.ts` (helpers `requireUser`/`requireTenant`/
 | API REST (`/api/**`) | Mantida | **Mantida** — só troca o que cada rota usa por dentro (Prisma → Firestore) |
 | Front-end (views, Zustand, TanStack Query) | Mantido | **Sem mudança de UI** — continua chamando as mesmas rotas REST |
 | Tempo real (socket.io) | Mantido | **Mantido nesta fase** (migração para `onSnapshot` do Firestore é opcional/futura — Fase 6) |
-| Prisma/SQLite | Presente | Removido **só ao final**, depois de validar tudo (Fase 7) |
+| Prisma/SQLite | Presente | **Removido** (Fase 7) |
 
 Decisão de arquitetura: **não** vamos mover o front-end para falar
 diretamente com o Firestore client-side. Vamos manter a API do Next.js como
@@ -303,16 +301,20 @@ executado até você confirmar e enviar as credenciais (Fase 0).
   corrigido nesse processo: `createdAt` de categoria/produto/mesa/meta
   vinha como objeto interno do Firestore em vez de string ISO em alguns
   retornos — corrigido em todos os pontos.
-  - [ ] Ainda não testado manualmente: KDS com múltiplas comandas
-    simultâneas, relatório com grande volume de dados, e os cargos
-    WAITER/KITCHEN/CASHIER especificamente (só ADMIN foi exercitado).
+  - [x] KDS com múltiplas comandas simultâneas (3 mesas ao mesmo tempo),
+    Relatório Geral com dados reais, e os cargos WAITER/KITCHEN/CASHIER
+    testados individualmente via contas de teste (criadas e removidas
+    depois) — ciclo completo cliente → garçom → cozinha → garçom →
+    cliente → caixa validado nas 3 mesas, com 3 formas de pagamento
+    diferentes. Um bug real foi achado e corrigido: a tela do cliente
+    ficava em branco ao trocar de mesa pela ferramenta "Simular" (fase
+    da UI não resetava por token).
 
-- [ ] **Fase 7 — Limpeza final** *(só depois de tudo validado)*
-  - Remover `prisma`, `@prisma/client` do `package.json`; apagar
-    `prisma/schema.prisma`, `src/lib/db.ts`, `db/custom.db`.
-  - Remover scripts `db:push`/`db:generate`/`db:migrate`/`db:reset` do
-    `package.json` e as referências a eles em `.zscripts/*.sh`.
-  - Remover `DATABASE_URL` do `.env`.
+- [x] **Fase 7 — Limpeza final** — `prisma`/`@prisma/client` removidos do
+  `package.json`; `prisma/schema.prisma`, `src/lib/db.ts` e `db/custom.db`
+  apagados (nenhuma rota os usava mais); scripts `db:push`/`db:generate`/
+  `db:migrate`/`db:reset` removidos do `package.json`; `DATABASE_URL`
+  removida do `.env`.
 
 - [ ] **Fase 8 — Tempo real via Firestore (opcional, futura)**
   - Só depois de tudo estável: avaliar trocar o microserviço `socket.io`

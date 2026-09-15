@@ -12,7 +12,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { staleTime: 4000, retry: 1, refetchOnWindowFocus: true },
+          // refetchInterval é uma rede de segurança: sem o serviço de tempo
+          // real (mini-services), as telas só atualizavam ao focar a aba —
+          // agora seguem se atualizando sozinhas mesmo sem o socket conectado.
+          queries: { staleTime: 4000, retry: 1, refetchOnWindowFocus: true, refetchInterval: 15000 },
         },
       })
   )
