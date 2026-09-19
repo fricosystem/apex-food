@@ -402,11 +402,6 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
     e.preventDefault()
     // O estado guarda apenas o nome digitado — o domínio fixo completa o e-mail
     const fullEmail = email.trim() ? `${email.trim()}@apexfood.com` : ''
-    // Sem dados nos campos → entra como Administrador (acesso padrão do sistema)
-    if (!fullEmail && !password) {
-      login.mutate({ email: 'admin@apexfood.com', password: 'apex123', remember })
-      return
-    }
     if (!fullEmail || !password) {
       toast.error('Preencha e-mail e senha')
       return

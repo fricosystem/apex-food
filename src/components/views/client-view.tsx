@@ -183,7 +183,7 @@ function OrderMoreBanner({ onOrderMore }: { onOrderMore: () => void }) {
 function ItemLockChip() {
   return (
     <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[9.5px] font-medium text-zinc-400">
-      <Lock className="h-2.5 w-2.5" /> Somente o garçom pode remover
+      <Lock className="h-2.5 w-2.5" /> Para cancelar ou remover algum item, chame o garçom
     </span>
   )
 }
@@ -274,6 +274,11 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
       : !liveOrder && data?.lastPaid && phase >= 3
         ? 4
         : phase
+
+  // Só é possível concluir o consumo depois que o garçom serviu TODOS os itens
+  // (inclusive os de um "pedir mais" tardio) — nunca enquanto algo ainda está
+  // na fila, em preparo ou só pronto (aguardando o garçom levar à mesa).
+  const allItemsServed = !!liveOrder && liveOrder.items.length > 0 && liveOrder.items.every((i) => i.status === 'SERVED')
 
   const finish = useMutation({
     mutationFn: () => apiPost(`/api/client/${token}`, { action: 'finish', orderId }),
@@ -400,8 +405,10 @@ export function ClientView({ token, onExit }: { token: string; onExit: () => voi
       )}
 
       {/* Enviar ao caixa — mesmo tratamento de barra fixa e destaque das outras
-          ações principais (antes vinha como botão discreto perdido no fim da rolagem) */}
-      {displayPhase === 3 && liveOrder && (
+          ações principais (antes vinha como botão discreto perdido no fim da rolagem).
+          Só aparece depois que o garçom serviu tudo — antes disso o cliente ainda não
+          consumiu, e o botão ficaria disponível sem sentido nenhum. */}
+      {displayPhase === 3 && liveOrder && allItemsServed && (
         <div className="fixed bottom-0 inset-x-0 z-20 border-t border-white/10 bg-[#0B0B0F]/85 p-3 backdrop-blur-xl">
           <div className="max-w-md mx-auto space-y-1.5">
             <Button

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ChefHat, Play, PackageCheck, Timer, Flame, Waves, Utensils, Martini, LayoutGrid } from 'lucide-react'
+import { ChefHat, Play, PackageCheck, Timer, Flame, Waves, Utensils, Martini, LayoutGrid, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -171,12 +171,42 @@ function TicketCard({
                     style={{ width: i.status === 'PENDING' ? '4%' : `${pct}%` }}
                   />
                 </div>
-                <span className={cn('text-[11px] font-mono tabular-nums shrink-0', overdue ? 'apex-overdue' : 'text-muted-foreground')}>
+              </div>
+
+              {/* Contagem regressiva do preparo — selo de status (em atraso / no prazo /
+                  concluído) para o cozinheiro identificar de relance sem precisar calcular */}
+              <div className="flex items-center justify-between gap-2">
+                {i.status === 'IN_PREPARATION' ? (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-[10px] gap-1',
+                      overdue
+                        ? 'border-red-500/50 bg-red-500/10 text-red-600 dark:text-red-400'
+                        : 'border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    )}
+                  >
+                    {overdue ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                    {overdue ? 'Em atraso' : 'No prazo'}
+                  </Badge>
+                ) : i.status === 'READY' ? (
+                  <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="h-3 w-3" /> Concluído
+                  </Badge>
+                ) : (
+                  <span />
+                )}
+                <span
+                  className={cn(
+                    'font-mono tabular-nums shrink-0',
+                    i.status === 'IN_PREPARATION' ? cn('text-base font-bold', overdue ? 'apex-overdue' : 'text-foreground') : 'text-[11px] text-muted-foreground'
+                  )}
+                >
                   {i.status === 'PENDING'
                     ? `${i.prepTime}min`
                     : i.status === 'IN_PREPARATION'
                       ? overdue
-                        ? `+${Math.floor(elapsedMin - i.prepTime)}min atraso`
+                        ? `+${Math.floor(elapsedMin - i.prepTime)}min`
                         : `${remaining}min`
                       : `✓ ${i.prepTime}min`}
                 </span>

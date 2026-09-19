@@ -9,8 +9,11 @@ const SESSION_MS = SESSION_DAYS * 24 * 3600 * 1000
 
 /**
  * Atributos do cookie de sessão.
- * Em HTTPS (preview/proxy) usa SameSite=None + Partitioned + Secure para o cookie
- * funcionar dentro de iframes cross-site; em HTTP local mantém Lax.
+ * SameSite=Lax em qualquer ambiente: o app nunca é embutido em iframe de
+ * terceiros (next.config.ts já envia X-Frame-Options: DENY e
+ * frame-ancestors 'none'), então não há motivo para relaxar para
+ * SameSite=None — isso só abriria a sessão a requisições cross-site
+ * (CSRF) sem nenhum benefício real. Em HTTPS (produção) soma-se Secure.
  */
 export function sessionCookieAttributes(proto: string | null | undefined) {
   const isHttps = (proto ?? '').split(',')[0].trim() === 'https'
@@ -18,9 +21,8 @@ export function sessionCookieAttributes(proto: string | null | undefined) {
     httpOnly: true as const,
     path: '/',
     maxAge: SESSION_DAYS * 86_400,
-    ...(isHttps
-      ? { sameSite: 'none' as const, secure: true, partitioned: true as const }
-      : { sameSite: 'lax' as const }),
+    sameSite: 'lax' as const,
+    ...(isHttps ? { secure: true } : {}),
   }
 }
 

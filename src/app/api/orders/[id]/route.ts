@@ -64,17 +64,20 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   // ---------- Cliente conclui consumo → vai para o caixa ----------
   if (action === 'finish') {
     if (order.status !== 'IN_KITCHEN') return bad('Comanda não pode ser encerrada agora')
+    // Só pode ir ao caixa depois que o garçom serviu TODOS os itens — nunca antes
+    // (item ainda na fila/em preparo/pronto não foi consumido de verdade).
+    if (order.items.some((it) => it.status !== 'SERVED')) {
+      return bad('Ainda há itens não servidos — aguarde o garçom antes de encerrar', 409)
+    }
     const finishedAt = new Date()
-    // itens pendentes que nunca entraram em preparo podem ser cancelados; os demais seguem
-    const items = order.items.map((it) => (it.status === 'PENDING' ? { ...it, status: 'SERVED', servedAt: finishedAt } : it))
-    await ref.update({ status: 'AWAITING_PAYMENT', finishedAt, items })
+    await ref.update({ status: 'AWAITING_PAYMENT', finishedAt })
     await tablesCol(auth.establishmentId).doc(order.tableId).update({ status: 'AWAITING_PAYMENT' })
     broadcast('comanda:encaminhada', { orderId: id, code: order.code, tableNumber: order.tableNumber, total: order.total }, 'cashier')
     broadcast('item:atualizado', { orderId: id, status: 'AWAITING_PAYMENT' }, `client:${id}`)
     broadcast('comanda:encaminhada', { orderId: id }, 'waiters')
     broadcast('mesa:atualizada', { tableId: order.tableId })
     broadcast('comanda:encaminhada', { orderId: id }, 'dashboard')
-    return NextResponse.json({ order: serializeOrder({ ...order, status: 'AWAITING_PAYMENT', finishedAt, items }) })
+    return NextResponse.json({ order: serializeOrder({ ...order, status: 'AWAITING_PAYMENT', finishedAt }) })
   }
 
   // ---------- Caixa confirma pagamento ----------
@@ -101,9 +104,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (!['ADMIN', 'MANAGER'].includes(auth.role)) return bad('Sem permissão para cancelar comandas', 403)
     if (!ACTIVE_STATUSES.includes(order.status)) return bad('Comanda não pode mais ser cancelada')
     await ref.update({ status: 'CANCELLED' })
-    if (order.status !== 'AWAITING_PAYMENT') {
-      await tablesCol(auth.establishmentId).doc(order.tableId).update({ status: 'FREE' })
-    }
+    // A mesa sempre volta a ficar livre ao cancelar — inclusive quando a comanda já
+    // estava aguardando pagamento (senão a mesa ficava presa em "aguardando caixa"
+    // para sempre, sem nenhuma comanda ativa para justificar isso).
+    await tablesCol(auth.establishmentId).doc(order.tableId).update({ status: 'FREE' })
     broadcast('mesa:atualizada', { tableId: order.tableId })
     broadcast('item:atualizado', { orderId: id }, `client:${id}`)
     return NextResponse.json({ order: serializeOrder({ ...order, status: 'CANCELLED' }) })

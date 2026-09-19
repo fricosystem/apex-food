@@ -112,7 +112,7 @@ export function TablesView({ user }: { user: SessionUser }) {
                   </div>
 
                   {t.activeOrder ? (
-                    <div className="rounded-lg border bg-muted/40 p-2.5 text-[11px] space-y-0.5">
+                    <div className="apex-flash rounded-lg border border-primary/30 bg-primary/5 p-2.5 text-[11px] space-y-0.5">
                       <p className="font-medium">{t.activeOrder.code} · {t.activeOrder.itemCount} item(ns)</p>
                       <p className="text-muted-foreground flex items-center gap-1">
                         <Clock className="h-3 w-3" /> há {elapsedMinutes(t.activeOrder.createdAt)} min · {currency(t.activeOrder.total)}

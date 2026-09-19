@@ -79,10 +79,14 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const order = snap.exists ? { id: body.orderId, ...(snap.data() as OrderDoc) } : null
     if (!order || order.tableId !== tableId) return NextResponse.json({ error: 'Comanda inválida' }, { status: 404 })
     if (order.status !== 'IN_KITCHEN') return NextResponse.json({ error: 'Comanda não pode ser encerrada agora' }, { status: 409 })
+    // Só pode ir ao caixa depois que o garçom serviu TODOS os itens — nunca antes
+    // (item ainda na fila/em preparo/pronto não foi consumido de verdade).
+    if (order.items.some((it) => it.status !== 'SERVED')) {
+      return NextResponse.json({ error: 'Ainda há itens não servidos — aguarde o garçom antes de encerrar' }, { status: 409 })
+    }
 
     const finishedAt = new Date()
-    const items = order.items.map((it) => (it.status === 'PENDING' ? { ...it, status: 'SERVED', servedAt: finishedAt } : it))
-    await ref.update({ status: 'AWAITING_PAYMENT', finishedAt, items })
+    await ref.update({ status: 'AWAITING_PAYMENT', finishedAt })
     await tablesCol(estId).doc(tableId).update({ status: 'AWAITING_PAYMENT' })
 
     broadcast('comanda:encaminhada', { orderId: order.id, code: order.code, tableNumber: table.number, total: order.total }, 'cashier')
