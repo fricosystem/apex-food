@@ -136,11 +136,11 @@ function StaffTab({ user }: { user: SessionUser }) {
             <CardContent className="p-0">
               <div className="divide-y">
                 {users.map((u) => (
-                  <div key={u.id} className="flex items-center gap-3 p-3.5">
+                  <div key={u.id} className="flex flex-wrap items-center gap-3 p-3.5">
                     <div className={cn('h-9 w-9 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0', u.active ? 'apex-gradient' : 'bg-muted text-muted-foreground')}>
                       {u.name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-[150px]">
                       <p className="text-sm font-semibold leading-tight flex items-center gap-1.5">
                         <span className="truncate">{u.name}</span>
                         {!u.active && <Badge variant="outline" className="text-[9px] shrink-0">inativo</Badge>}
@@ -150,54 +150,56 @@ function StaffTab({ user }: { user: SessionUser }) {
                         <Badge variant="outline" className="md:hidden text-[9px] mt-1">{u.activeLoad} comanda(s) ativa(s)</Badge>
                       )}
                     </div>
-                    {u.activeLoad !== null && (
-                      <Badge variant="outline" className="hidden md:inline-flex text-[10px] shrink-0">{u.activeLoad} comanda(s)</Badge>
-                    )}
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        'hidden sm:inline-flex text-[10px] shrink-0',
-                        u.status === 'ONLINE' && 'text-emerald-600 dark:text-emerald-400',
-                        u.status === 'BUSY' && 'text-amber-600 dark:text-amber-400'
+                    <div className="flex flex-wrap items-center gap-2 ml-auto sm:ml-0">
+                      {u.activeLoad !== null && (
+                        <Badge variant="outline" className="hidden md:inline-flex text-[10px] shrink-0">{u.activeLoad} comanda(s)</Badge>
                       )}
-                    >
-                      {STATUS_LABELS[u.status] ?? u.status}
-                    </Badge>
-                    {u.role === 'DESENVOLVEDOR' ? (
-                      <Badge variant="outline" className="w-[128px] justify-center text-[10px] shrink-0 border-primary/40 text-primary">
-                        {ROLE_LABELS.DESENVOLVEDOR}
-                      </Badge>
-                    ) : (
-                      <Select
-                        value={u.role}
-                        onValueChange={(v) => changeRole.mutate({ id: u.id, role: v })}
-                        disabled={changeRole.isPending}
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'hidden sm:inline-flex text-[10px] shrink-0',
+                          u.status === 'ONLINE' && 'text-emerald-600 dark:text-emerald-400',
+                          u.status === 'BUSY' && 'text-amber-600 dark:text-amber-400'
+                        )}
                       >
-                        <SelectTrigger className="w-[128px] h-8 text-xs shrink-0"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {TENANT_ROLE_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    {u.role === 'DESENVOLVEDOR' ? (
-                      // Conta do dono da plataforma: não é gerenciável por esta tela (nem pelo
-                      // próprio) — a API bloqueia qualquer PATCH/DELETE sobre ela de propósito.
-                      <div className="w-[68px] shrink-0" />
-                    ) : (
-                      <>
-                        <Switch checked={u.active} onCheckedChange={() => toggle.mutate(u)} aria-label="Ativar funcionário" />
-                        <div className="flex items-center gap-0.5 shrink-0">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => setEditing(u)} aria-label={`Editar ${u.name}`}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          {(user.role === 'ADMIN' || user.role === 'DESENVOLVEDOR') && u.id !== user.id && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setRemoving(u)} aria-label={`Excluir ${u.name}`}>
-                              <Trash2 className="h-3.5 w-3.5" />
+                        {STATUS_LABELS[u.status] ?? u.status}
+                      </Badge>
+                      {u.role === 'DESENVOLVEDOR' ? (
+                        <Badge variant="outline" className="w-[128px] justify-center text-[10px] shrink-0 border-primary/40 text-primary">
+                          {ROLE_LABELS.DESENVOLVEDOR}
+                        </Badge>
+                      ) : (
+                        <Select
+                          value={u.role}
+                          onValueChange={(v) => changeRole.mutate({ id: u.id, role: v })}
+                          disabled={changeRole.isPending}
+                        >
+                          <SelectTrigger className="w-[128px] h-8 text-xs shrink-0"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {TENANT_ROLE_ENTRIES.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {u.role === 'DESENVOLVEDOR' ? (
+                        // Conta do dono da plataforma: não é gerenciável por esta tela (nem pelo
+                        // próprio) — a API bloqueia qualquer PATCH/DELETE sobre ela de propósito.
+                        <div className="w-[68px] shrink-0" />
+                      ) : (
+                        <>
+                          <Switch checked={u.active} onCheckedChange={() => toggle.mutate(u)} aria-label="Ativar funcionário" />
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => setEditing(u)} aria-label={`Editar ${u.name}`}>
+                              <Pencil className="h-3.5 w-3.5" />
                             </Button>
-                          )}
-                        </div>
-                      </>
-                    )}
+                            {(user.role === 'ADMIN' || user.role === 'DESENVOLVEDOR') && u.id !== user.id && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setRemoving(u)} aria-label={`Excluir ${u.name}`}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -803,10 +805,10 @@ function CatalogTab({ kind }: { kind: ProductKind }) {
         <p className="text-sm text-muted-foreground">
           {items.length} {nounPlural} · {activeCount} ativo(s) · o tempo de preparo alimenta a cozinha e o cliente
         </p>
-        <div className="flex items-center gap-2">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 min-w-[140px] sm:flex-none">
             <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Buscar ${noun}…`} className="h-9 w-44 pl-8 text-sm" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Buscar ${noun}…`} className="h-9 w-full sm:w-44 pl-8 text-sm" />
           </div>
           <Button onClick={() => setCreating(true)} className="apex-gradient text-white shrink-0">
             <Plus className="h-4 w-4" /> {isMeal ? 'Nova refeição' : 'Novo produto'}
