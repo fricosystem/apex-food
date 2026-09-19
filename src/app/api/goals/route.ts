@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { goalsCol, usersCol, ordersCol, countDocs } from '@/lib/fs'
+import { goalsCol, usersCol, ordersCol } from '@/lib/fs'
 import { requireTenant, isResponse, readJson, bad } from '@/lib/api'
 import { broadcast } from '@/lib/realtime'
 
@@ -15,18 +15,31 @@ export async function GET(req: NextRequest) {
   const goals = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as { id: string; userId: string; title: string; target: number; month: string })
 
   const usersSnap = await Promise.all(goals.map((g) => usersCol().doc(g.userId).get()))
-  const orders = ordersCol(auth.establishmentId)
 
-  const result = await Promise.all(
-    goals.map(async (g, i) => {
-      const u = usersSnap[i]
-      const achieved = await countDocs(
-        orders.where('waiterId', '==', g.userId).where('status', '==', 'PAID').where('paidAt', '>=', start).where('paidAt', '<', end),
-      )
-      const ud = u.data() as { name: string; role: string } | undefined
-      return { id: g.id, title: g.title, target: g.target, month: g.month, user: ud ? { id: g.userId, name: ud.name, role: ud.role } : null, achieved }
-    }),
-  )
+  // Uma única leitura do mês, filtrando só por paidAt (índice automático de campo único).
+  // Somar status + waiterId na mesma query exigiria um índice composto (era a causa do
+  // FAILED_PRECONDITION); status e waiterId são então filtrados aqui em memória.
+  const monthOrdersSnap = await ordersCol(auth.establishmentId).where('paidAt', '>=', start).where('paidAt', '<', end).get()
+  const achievedByWaiter = new Map<string, number>()
+  for (const doc of monthOrdersSnap.docs) {
+    const o = doc.data() as { waiterId?: string; status?: string }
+    if (o.status === 'PAID' && o.waiterId) {
+      achievedByWaiter.set(o.waiterId, (achievedByWaiter.get(o.waiterId) ?? 0) + 1)
+    }
+  }
+
+  const result = goals.map((g, i) => {
+    const u = usersSnap[i]
+    const ud = u.data() as { name: string; role: string } | undefined
+    return {
+      id: g.id,
+      title: g.title,
+      target: g.target,
+      month: g.month,
+      user: ud ? { id: g.userId, name: ud.name, role: ud.role } : null,
+      achieved: achievedByWaiter.get(g.userId) ?? 0,
+    }
+  })
   return NextResponse.json({ goals: result })
 }
 

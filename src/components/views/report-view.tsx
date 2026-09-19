@@ -89,7 +89,7 @@ function Delta({ current, previous }: { current: number; previous: number }) {
 /** Barra horizontal de participação (laranja da marca) */
 function MiniBar({ value }: { value: number }) {
   return (
-    <div className="h-1.5 w-full min-w-14 overflow-hidden rounded-full bg-muted">
+    <div className="h-1.5 w-full min-w-6 sm:min-w-14 overflow-hidden rounded-full bg-muted">
       <div
         className="h-full rounded-full bg-primary/80 transition-[width] duration-500"
         style={{ width: `${Math.max(2, Math.min(100, value))}%` }}
@@ -190,8 +190,8 @@ export function ReportView({ user }: { user: SessionUser }) {
       {/* Filtro periódico — idêntico ao da tela Dashboard */}
       <div className="flex flex-col gap-2 report-print-hide">
         <div className="flex flex-wrap items-center gap-2 justify-between">
-          <Tabs value={period} onValueChange={setPeriod}>
-            <TabsList className="max-w-full overflow-x-auto">
+          <Tabs value={period} onValueChange={setPeriod} className="w-full sm:w-auto">
+            <TabsList className="w-full sm:w-fit max-w-full overflow-x-auto">
               <TabsTrigger value="today">Hoje</TabsTrigger>
               <TabsTrigger value="week">Semana</TabsTrigger>
               <TabsTrigger value="month">Mês</TabsTrigger>
@@ -199,16 +199,16 @@ export function ReportView({ user }: { user: SessionUser }) {
               <TabsTrigger value="custom">Personalizado</TabsTrigger>
             </TabsList>
           </Tabs>
-          <div className="flex flex-wrap items-center gap-2">
-            <Tabs value={turn} onValueChange={setTurn}>
-              <TabsList className="max-w-full overflow-x-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <Tabs value={turn} onValueChange={setTurn} className="w-full sm:w-auto">
+              <TabsList className="w-full sm:w-fit max-w-full overflow-x-auto">
                 <TabsTrigger value="all">Todos os turnos</TabsTrigger>
                 <TabsTrigger value="morning">Manhã</TabsTrigger>
                 <TabsTrigger value="afternoon">Tarde</TabsTrigger>
                 <TabsTrigger value="night">Noite</TabsTrigger>
               </TabsList>
             </Tabs>
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>
+            <Button variant="outline" size="sm" className="gap-2 w-full sm:w-auto" onClick={() => window.print()}>
               <Printer className="h-4 w-4" /> Imprimir
             </Button>
           </div>
@@ -220,7 +220,7 @@ export function ReportView({ user }: { user: SessionUser }) {
               value={customFrom}
               max={customTo}
               onChange={(e) => setCustomFrom(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+              className="h-9 w-full sm:w-auto rounded-md border border-input bg-background px-3 text-sm text-foreground"
               aria-label="Data inicial"
             />
             <span className="text-xs">até</span>
@@ -230,7 +230,7 @@ export function ReportView({ user }: { user: SessionUser }) {
               min={customFrom}
               max={isoDate(new Date())}
               onChange={(e) => setCustomTo(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+              className="h-9 w-full sm:w-auto rounded-md border border-input bg-background px-3 text-sm text-foreground"
               aria-label="Data final"
             />
           </div>
@@ -240,10 +240,10 @@ export function ReportView({ user }: { user: SessionUser }) {
       <div className="report-print-area space-y-4">
         {/* Cabeçalho do relatório */}
         <Card className="border-primary/20 bg-gradient-to-r from-primary/[0.07] via-transparent to-transparent">
-          <CardContent className="p-5">
-            <div className="flex flex-wrap items-start justify-between gap-4">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
               <div className="flex items-center gap-3">
-                <span className={cn(CARD_ICON, 'h-11 w-11 rounded-xl')}>
+                <span className={cn(CARD_ICON, 'h-11 w-11 shrink-0 rounded-xl')}>
                   <FileText className="h-5 w-5" />
                 </span>
                 <div>
@@ -281,12 +281,12 @@ export function ReportView({ user }: { user: SessionUser }) {
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 [&>*]:min-w-0">
               {summaryCards.map((k) => (
                 <Card key={k.label} className="overflow-hidden">
-                  <CardContent className="p-4">
+                  <CardContent className="p-3 sm:p-4">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs text-muted-foreground">{k.label}</p>
                       <k.icon className="h-4 w-4 shrink-0 text-muted-foreground/60" />
                     </div>
-                    <p className="mt-2 text-2xl font-bold tracking-tight">{k.value}</p>
+                    <p className="mt-2 text-xl sm:text-2xl font-bold tracking-tight">{k.value}</p>
                     <div className="mt-1 flex items-center gap-2 flex-wrap">
                       {k.delta}
                       <p className="text-[10px] text-muted-foreground">{k.hint}</p>
@@ -298,7 +298,7 @@ export function ReportView({ user }: { user: SessionUser }) {
 
             {/* Detalhamento por hora/dia/mês */}
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="px-4 pb-2 sm:px-6">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Receipt className="h-4 w-4 text-primary" /> Detalhamento {GRAN_LABELS[granularity]}
                 </CardTitle>
@@ -354,45 +354,45 @@ export function ReportView({ user }: { user: SessionUser }) {
             {/* Dias da semana + formas de pagamento */}
             <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
               <Card>
-                <CardHeader className="pb-2">
+                <CardHeader className="px-4 pb-2 sm:px-6">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <CalendarDays className="h-4 w-4 text-primary" /> Comandas por dia da semana
                   </CardTitle>
                   <p className="text-[11px] text-muted-foreground">
                     {bestWeekday && bestWeekday.revenue > 0
                       ? <>melhor dia: <span className="font-semibold text-primary">{bestWeekday.label}</span> · {currency(bestWeekday.revenue)}</>
-                      : 'sem comandas concluídas no período'}
+                      : 'nenhuma comanda concluídas no período selecionado'}
                   </p>
                 </CardHeader>
-                <CardContent className="space-y-2.5">
+                <CardContent className="space-y-2.5 px-4 sm:px-6">
                   {weekdayRows.map((w) => (
-                    <div key={w.weekday} className="flex items-center gap-3 text-sm">
+                    <div key={w.weekday} className="flex items-center gap-2 sm:gap-3 text-sm">
                       <span className="w-8 shrink-0 text-xs font-semibold uppercase text-muted-foreground">{w.label}</span>
-                      <span className="w-16 shrink-0 text-xs tabular-nums text-muted-foreground">{w.orders} cmd</span>
+                      <span className="w-12 sm:w-16 shrink-0 text-[11px] sm:text-xs tabular-nums text-muted-foreground">{w.orders} cmd</span>
                       <div className="min-w-0 flex-1"><MiniBar value={(w.revenue / weekdayTotal) * 100} /></div>
-                      <span className="w-24 shrink-0 text-right text-xs font-medium tabular-nums">{currency(w.revenue)}</span>
+                      <span className="w-20 sm:w-24 shrink-0 text-right text-xs font-medium tabular-nums">{currency(w.revenue)}</span>
                     </div>
                   ))}
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="pb-2">
+                <CardHeader className="px-4 pb-2 sm:px-6">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <CreditCard className="h-4 w-4 text-primary" /> Formas de pagamento
                   </CardTitle>
                   <p className="text-[11px] text-muted-foreground">distribuição do faturamento por método</p>
                 </CardHeader>
-                <CardContent className="space-y-2.5">
+                <CardContent className="space-y-2.5 px-4 sm:px-6">
                   {paymentRows.length === 0 && (
                     <p className="py-6 text-center text-xs text-muted-foreground">sem pagamentos registrados no período</p>
                   )}
                   {paymentRows.map((p) => (
-                    <div key={p.key} className="flex items-center gap-3 text-sm">
-                      <span className="w-32 shrink-0 truncate text-xs font-medium">{p.label}</span>
+                    <div key={p.key} className="flex items-center gap-2 sm:gap-3 text-sm">
+                      <span className="w-20 sm:w-32 shrink-0 truncate text-xs font-medium">{p.label}</span>
                       <div className="min-w-0 flex-1"><MiniBar value={(p.value / paymentTotal) * 100} /></div>
-                      <span className="w-24 shrink-0 text-right text-xs font-medium tabular-nums">{currency(p.value)}</span>
-                      <span className="w-12 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{pctFmt((p.value / paymentTotal) * 100)}</span>
+                      <span className="w-16 sm:w-24 shrink-0 text-right text-xs font-medium tabular-nums">{currency(p.value)}</span>
+                      <span className="w-10 sm:w-12 shrink-0 text-right text-[11px] sm:text-xs tabular-nums text-muted-foreground">{pctFmt((p.value / paymentTotal) * 100)}</span>
                     </div>
                   ))}
                 </CardContent>
@@ -402,7 +402,7 @@ export function ReportView({ user }: { user: SessionUser }) {
             {/* Produtos + estações */}
             <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
               <Card>
-                <CardHeader className="pb-2">
+                <CardHeader className="px-4 pb-2 sm:px-6">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Flame className="h-4 w-4 text-primary" /> Produtos mais vendidos
                   </CardTitle>
@@ -435,22 +435,22 @@ export function ReportView({ user }: { user: SessionUser }) {
               </Card>
 
               <Card>
-                <CardHeader className="pb-2">
+                <CardHeader className="px-4 pb-2 sm:px-6">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Layers className="h-4 w-4 text-primary" /> Faturamento por estação
                   </CardTitle>
                   <p className="text-[11px] text-muted-foreground">cozinha, churrasqueira, pizzaria e bar</p>
                 </CardHeader>
-                <CardContent className="space-y-2.5">
+                <CardContent className="space-y-2.5 px-4 sm:px-6">
                   {stationRows.length === 0 && (
                     <p className="py-6 text-center text-xs text-muted-foreground">sem itens faturados no período</p>
                   )}
                   {stationRows.map((s) => (
-                    <div key={s.key} className="flex items-center gap-3 text-sm">
-                      <span className="w-28 shrink-0 truncate text-xs font-medium">{s.label}</span>
+                    <div key={s.key} className="flex items-center gap-2 sm:gap-3 text-sm">
+                      <span className="w-20 sm:w-28 shrink-0 truncate text-xs font-medium">{s.label}</span>
                       <div className="min-w-0 flex-1"><MiniBar value={(s.value / stationTotal) * 100} /></div>
-                      <span className="w-24 shrink-0 text-right text-xs font-medium tabular-nums">{currency(s.value)}</span>
-                      <span className="w-12 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{pctFmt((s.value / stationTotal) * 100)}</span>
+                      <span className="w-16 sm:w-24 shrink-0 text-right text-xs font-medium tabular-nums">{currency(s.value)}</span>
+                      <span className="w-10 sm:w-12 shrink-0 text-right text-[11px] sm:text-xs tabular-nums text-muted-foreground">{pctFmt((s.value / stationTotal) * 100)}</span>
                     </div>
                   ))}
                 </CardContent>
@@ -460,7 +460,7 @@ export function ReportView({ user }: { user: SessionUser }) {
             {/* Equipe + cozinha */}
             <div className="grid lg:grid-cols-2 gap-3 [&>*]:min-w-0">
               <Card>
-                <CardHeader className="pb-2">
+                <CardHeader className="px-4 pb-2 sm:px-6">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Users className="h-4 w-4 text-primary" /> Desempenho da equipe
                   </CardTitle>
@@ -497,7 +497,7 @@ export function ReportView({ user }: { user: SessionUser }) {
               </Card>
 
               <Card>
-                <CardHeader className="pb-2">
+                <CardHeader className="px-4 pb-2 sm:px-6">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <ChefHat className="h-4 w-4 text-primary" /> Eficiência da cozinha
                   </CardTitle>
@@ -536,11 +536,6 @@ export function ReportView({ user }: { user: SessionUser }) {
                   )}
                 </CardContent>
               </Card>
-            </div>
-
-            {/* Fecho do relatório */}
-            <div className="border-t pt-3 text-center text-[11px] text-muted-foreground">
-              Relatório gerado automaticamente pelo SISTEMA APEX FOOD · {user.establishment?.name ?? 'APEX FOOD'} · distribuição interna
             </div>
           </>
         )}
