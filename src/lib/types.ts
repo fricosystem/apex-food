@@ -1,6 +1,6 @@
 export type Role = 'DESENVOLVEDOR' | 'ADMIN' | 'MANAGER' | 'WAITER' | 'KITCHEN' | 'CASHIER'
 
-export type ViewKey = 'plataforma' | 'dashboard' | 'garcom' | 'cozinha' | 'caixa' | 'gestao' | 'mesas' | 'relatorio' | 'administracao' | 'configuracoes'
+export type ViewKey = 'plataforma' | 'dashboard' | 'garcom' | 'cozinha' | 'caixa' | 'mesas' | 'relatorio' | 'administracao' | 'configuracoes'
 
 /** Tipo do item do catálogo: refeição (prato) ou produto em geral (ex. bebida) */
 export type ProductKind = 'MEAL' | 'PRODUCT'

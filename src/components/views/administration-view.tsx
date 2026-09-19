@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   Plus, Pencil, Trash2, Package, Users, UtensilsCrossed, SlidersHorizontal,
-  Loader2, Clock, ShieldCheck, Search, KeyRound, Building2, Tags,
+  Loader2, Clock, ShieldCheck, Search, KeyRound, Building2, Tags, Target,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
@@ -18,6 +18,7 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { api, apiPost, apiPatch, apiDelete } from '@/lib/fetcher'
@@ -33,6 +34,7 @@ type Product = {
   category: Category
 }
 type UserRow = { id: string; name: string; email: string; role: string; status: string; active: boolean; activeLoad: number | null }
+type GoalRow = { id: string; title: string; target: number; month: string; achieved: number; user: { id: string; name: string; role: string } }
 
 const STATUS_LABELS: Record<string, string> = { ONLINE: 'Online', BUSY: 'Ocupado', OFFLINE: 'Offline' }
 
@@ -42,10 +44,9 @@ const AREA_LABELS: Record<string, string> = {
   garcom: 'Tela do garçom',
   cozinha: 'Cozinha (fila de preparo)',
   caixa: 'Caixa e pagamentos',
-  gestao: 'Gestão (produtos, equipe, metas)',
   mesas: 'Mesas e QR Codes',
   relatorio: 'Relatório Geral',
-  administracao: 'Administração (funcionários, gestão geral, catálogo)',
+  administracao: 'Administração (funcionários, gestão geral, catálogo e metas)',
   configuracoes: 'Configurações e notificações',
   plataforma: 'Painel da plataforma (estabelecimentos, planos e cobranças)',
 }
@@ -59,15 +60,17 @@ const ALL_ROLE_ENTRIES = Object.entries(ROLE_LABELS)
 export function AdministrationView({ user }: { user: SessionUser }) {
   return (
     <Tabs defaultValue="funcionarios" className="space-y-4">
-      <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/60">
-        <TabsTrigger value="funcionarios" className="gap-1.5"><Users className="h-4 w-4" /> Funcionários</TabsTrigger>
-        <TabsTrigger value="geral" className="gap-1.5"><Building2 className="h-4 w-4" /> Gestão geral</TabsTrigger>
-        <TabsTrigger value="categorias" className="gap-1.5"><Tags className="h-4 w-4" /> Categorias & Tipos</TabsTrigger>
-        <TabsTrigger value="produtos" className="gap-1.5"><Package className="h-4 w-4" /> Produtos</TabsTrigger>
-        <TabsTrigger value="refeicoes" className="gap-1.5"><UtensilsCrossed className="h-4 w-4" /> Refeições</TabsTrigger>
+      <TabsList className="w-full grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap h-auto gap-1 bg-muted/60 p-1 rounded-lg">
+        <TabsTrigger value="funcionarios" className="w-full gap-1.5 whitespace-normal text-center leading-tight py-1.5"><Users className="h-4 w-4 shrink-0" /> Funcionários</TabsTrigger>
+        <TabsTrigger value="metas" className="w-full gap-1.5 whitespace-normal text-center leading-tight py-1.5"><Target className="h-4 w-4 shrink-0" /> Metas</TabsTrigger>
+        <TabsTrigger value="geral" className="w-full gap-1.5 whitespace-normal text-center leading-tight py-1.5"><Building2 className="h-4 w-4 shrink-0" /> Gestão geral</TabsTrigger>
+        <TabsTrigger value="categorias" className="w-full gap-1.5 whitespace-normal text-center leading-tight py-1.5"><Tags className="h-4 w-4 shrink-0" /> Categorias & Tipos</TabsTrigger>
+        <TabsTrigger value="produtos" className="w-full gap-1.5 whitespace-normal text-center leading-tight py-1.5"><Package className="h-4 w-4 shrink-0" /> Produtos</TabsTrigger>
+        <TabsTrigger value="refeicoes" className="w-full gap-1.5 whitespace-normal text-center leading-tight py-1.5"><UtensilsCrossed className="h-4 w-4 shrink-0" /> Refeições</TabsTrigger>
       </TabsList>
 
       <TabsContent value="funcionarios"><StaffTab user={user} /></TabsContent>
+      <TabsContent value="metas"><GoalsTab /></TabsContent>
       <TabsContent value="geral"><GeneralTab /></TabsContent>
       <TabsContent value="categorias"><CategoriesTab /></TabsContent>
       <TabsContent value="produtos"><CatalogTab key="produtos" kind="PRODUCT" /></TabsContent>
@@ -364,6 +367,93 @@ function EditUserDialog({ user, onClose }: { user: UserRow; onClose: () => void 
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/* ==================== METAS ==================== */
+function GoalsTab() {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [form, setForm] = useState({ userId: '', target: '50', title: 'Comandas atendidas no mês' })
+
+  const { data, isLoading } = useQuery<{ goals: GoalRow[] }>({ queryKey: ['goals'], queryFn: () => api('/api/goals') })
+  const { data: usersData } = useQuery<{ users: UserRow[] }>({ queryKey: ['users'], queryFn: () => api('/api/users') })
+
+  const save = useMutation({
+    mutationFn: () => apiPost('/api/goals', { userId: form.userId, target: Number(form.target), title: form.title }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['goals'] })
+      toast.success('Meta criada')
+      setOpen(false)
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const remove = useMutation({
+    mutationFn: (id: string) => apiDelete(`/api/goals/${id}`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['goals'] })
+      toast.success('Meta removida')
+    },
+  })
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Metas mensais de comandas por funcionário</p>
+        <Button onClick={() => setOpen(true)} className="apex-gradient text-white"><Plus className="h-4 w-4" /> Nova meta</Button>
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-48 rounded-xl" />
+      ) : (data?.goals ?? []).length === 0 ? (
+        <Card><CardContent className="p-10 text-center text-sm text-muted-foreground">Nenhuma meta cadastrada para o mês atual.</CardContent></Card>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {(data?.goals ?? []).map((g) => {
+            const pct = Math.min(100, Math.round((g.achieved / Math.max(g.target, 1)) * 100))
+            return (
+              <Card key={g.id}>
+                <CardContent className="p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-sm">{g.user.name}</p>
+                    <button className="text-muted-foreground hover:text-red-500" onClick={() => remove.mutate(g.id)} aria-label="Excluir meta"><Trash2 className="h-3.5 w-3.5" /></button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">{g.title} · {g.month}</p>
+                  <Progress value={pct} className="h-2" />
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">{g.achieved}/{g.target} comandas</span>
+                    <span className="font-semibold">{pct}%</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Nova meta</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Funcionário</Label>
+              <Select value={form.userId} onValueChange={(v) => setForm({ ...form, userId: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {(usersData?.users ?? []).filter((u) => u.role === 'WAITER').map((u) => (
+                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5"><Label>Descrição</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Alvo (comandas/mês)</Label><Input value={form.target} onChange={(e) => setForm({ ...form, target: e.target.value.replace(/\D/g, '') })} inputMode="numeric" /></div>
+          </div>
+          <DialogFooter>
+            <Button className="w-full apex-gradient text-white" onClick={() => save.mutate()} disabled={!form.userId || save.isPending}>Criar meta</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }
 

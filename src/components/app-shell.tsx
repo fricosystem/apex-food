@@ -30,7 +30,6 @@ import { DashboardView } from '@/components/views/dashboard-view'
 import { WaiterView } from '@/components/views/waiter-view'
 import { KdsView } from '@/components/views/kds-view'
 import { CashierView } from '@/components/views/cashier-view'
-import { ManagementView } from '@/components/views/management-view'
 import { TablesView } from '@/components/views/tables-view'
 import { ReportView } from '@/components/views/report-view'
 import { AdministrationView } from '@/components/views/administration-view'
@@ -42,10 +41,9 @@ const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: typeof LayoutDashboa
   { key: 'garcom', label: 'Garçom', icon: ClipboardList, description: 'Fila de comandas e atendimentos ativos' },
   { key: 'cozinha', label: 'Cozinha', icon: ChefHat, description: 'Fila de preparo, cronômetro e estações' },
   { key: 'caixa', label: 'Caixa', icon: Wallet, description: 'Pagamentos e fechamento de comandas' },
-  { key: 'gestao', label: 'Gestão', icon: Settings2, description: 'Produtos, equipe, metas e operação' },
   { key: 'mesas', label: 'Mesas & QR', icon: Grid3x3, description: 'Mesas, QR Codes e status em tempo real' },
   { key: 'relatorio', label: 'Relatório Geral', icon: FileText, description: 'Relatório consolidado da operação por período e turno' },
-  { key: 'administracao', label: 'Administração', icon: ShieldCheck, description: 'Funcionários e permissões, gestão geral, produtos e refeições' },
+  { key: 'administracao', label: 'Administração', icon: ShieldCheck, description: 'Funcionários e permissões, gestão geral, produtos, refeições e metas' },
   { key: 'configuracoes', label: 'Configurações', icon: Settings2, description: 'Preferências, notificações e estabelecimento' },
   { key: 'plataforma', label: 'Desenvolvedor CEO', icon: Building2, description: 'Painel da plataforma — estabelecimentos, planos e cobranças' },
 ]
@@ -59,7 +57,7 @@ const NOTIF_VIEW: Record<NotifKind, ViewKey | null> = {
   'pagamento': 'caixa',
   'alerta': null,
   'comanda-itens': 'garcom',
-  'avaliacao': 'gestao',
+  'avaliacao': 'administracao',
 }
 
 export function AppShell({ user }: { user: SessionUser }) {
@@ -458,7 +456,6 @@ export function AppShell({ user }: { user: SessionUser }) {
             {current === 'garcom' && <WaiterView user={user} />}
             {current === 'cozinha' && <KdsView user={user} />}
             {current === 'caixa' && <CashierView user={user} />}
-            {current === 'gestao' && <ManagementView user={user} />}
             {current === 'mesas' && <TablesView user={user} />}
             {current === 'relatorio' && <ReportView user={user} />}
             {current === 'administracao' && <AdministrationView user={user} />}

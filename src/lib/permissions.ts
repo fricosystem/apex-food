@@ -22,7 +22,6 @@ export const DEFAULT_VIEW_ROLES: Record<ViewKey, string[]> = {
   garcom: ['ADMIN', 'MANAGER', 'WAITER'],
   cozinha: ['ADMIN', 'MANAGER', 'KITCHEN'],
   caixa: ['ADMIN', 'MANAGER', 'CASHIER'],
-  gestao: ['ADMIN', 'MANAGER'],
   mesas: ['ADMIN', 'MANAGER'],
   relatorio: ['ADMIN', 'MANAGER'],
   administracao: ['ADMIN', 'MANAGER'],

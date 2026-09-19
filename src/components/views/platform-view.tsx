@@ -76,7 +76,6 @@ const MATRIX_VIEWS: Array<{ key: ViewKey; label: string }> = [
   { key: 'garcom', label: 'Garçom' },
   { key: 'cozinha', label: 'Cozinha' },
   { key: 'caixa', label: 'Caixa' },
-  { key: 'gestao', label: 'Gestão' },
   { key: 'mesas', label: 'Mesas & QR' },
   { key: 'relatorio', label: 'Relatório Geral' },
   { key: 'administracao', label: 'Administração' },
