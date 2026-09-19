@@ -11,6 +11,8 @@
  * restrito à experiência do cliente na mesa.
  */
 
+import { useCallback, useEffect, useState } from 'react'
+
 const MARKER = 'data-apex-client-pwa'
 
 type Removable = () => void
@@ -133,4 +135,69 @@ export function isStandalone(): boolean {
     // iOS Safari
     (window.navigator as Navigator & { standalone?: boolean }).standalone === true
   )
+}
+
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
+/**
+ * Prompt de instalação do PWA principal (desktop, tablet e celular) — usado
+ * na tela de autenticação. Registra o service worker do app (fora do modo
+ * cliente) e escuta `beforeinstallprompt` (Chrome/Edge/Android/desktop).
+ * No iOS/Safari esse evento não existe: a instalação é sempre manual
+ * (Compartilhar → Adicionar à Tela de Início), então expomos `isIOS` para a
+ * tela mostrar essa instrução em vez de um botão.
+ */
+export function useInstallPrompt() {
+  const [deferred, setDeferred] = useState<InstallPromptEvent | null>(null)
+  const [installed, setInstalled] = useState(false)
+  const [isIOS] = useState(
+    () => typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window)
+  )
+  const [dismissed, setDismissed] = useState(
+    () => typeof window !== 'undefined' && sessionStorage.getItem('apex-install-dismissed') === '1'
+  )
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (isStandalone()) return
+
+    navigator.serviceWorker?.register('/sw-app.js', { scope: '/' }).catch(() => null)
+
+    const onPrompt = (e: Event) => {
+      e.preventDefault()
+      setDeferred(e as InstallPromptEvent)
+    }
+    const onInstalled = () => {
+      setDeferred(null)
+      setInstalled(true)
+    }
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    window.addEventListener('appinstalled', onInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt)
+      window.removeEventListener('appinstalled', onInstalled)
+    }
+  }, [])
+
+  const promptInstall = useCallback(async () => {
+    if (!deferred) return
+    await deferred.prompt()
+    await deferred.userChoice.catch(() => null)
+    setDeferred(null)
+  }, [deferred])
+
+  const dismiss = useCallback(() => {
+    setDismissed(true)
+    sessionStorage.setItem('apex-install-dismissed', '1')
+  }, [])
+
+  // Mostra o cartão de instalação quando: não instalado, não dispensado nesta sessão,
+  // e (Chrome/Edge/Android/desktop já disponibilizou o prompt) ou (é iOS, que nunca
+  // dispara beforeinstallprompt e depende só da instrução manual).
+  const canShow = !installed && !dismissed && (!!deferred || isIOS)
+
+  return { canShow, isIOS, canPrompt: !!deferred, promptInstall, dismiss }
 }

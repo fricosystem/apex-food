@@ -9,7 +9,7 @@ import {
   CalendarRange, Radar, Inbox, Users, BellRing, History, Columns3,
   Timer, Zap, Flame, ReceiptText, Gauge, Search, Package, UserCog,
   Target, SlidersHorizontal, Smartphone, ListChecks, Route,
-  Sparkles, Store, UserRound, ShieldCheck,
+  Sparkles, Store, UserRound, ShieldCheck, Download, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,7 @@ import { SuffixedEmailField } from '@/components/email-field'
 import { playSound } from '@/lib/sound'
 import { pushSystemNotification } from '@/lib/notification-service'
 import { ROLE_LABELS } from '@/lib/types'
+import { useInstallPrompt } from '@/lib/pwa-client'
 import type { SessionUser } from '@/lib/auth'
 
 type ModuleFeature = { icon: React.ElementType; title: string; desc: string }
@@ -298,6 +299,47 @@ function WelcomeNotification({ name, role }: { name: string; role: string }) {
           Notificação de teste
         </span>
       </div>
+    </div>
+  )
+}
+
+/** Cartão de instalação do PWA — mesmo componente em desktop, tablet e celular
+ * (renderizado dentro da coluna do formulário, visível em qualquer tamanho de tela).
+ * Some sozinho se o app já estiver instalado; no iOS mostra a instrução manual
+ * (Safari não dispara `beforeinstallprompt`), nos demais navegadores mostra um botão. */
+function InstallBanner() {
+  const { canShow, isIOS, canPrompt, promptInstall, dismiss } = useInstallPrompt()
+  if (!canShow) return null
+  return (
+    <div className="mt-6 flex items-start gap-3 rounded-xl border border-[#FF6B1A]/25 bg-[#FF6B1A]/[0.07] p-3.5">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#FF6B1A]/15 text-[#FF9A57]">
+        <Download className="h-4 w-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-white">Instale o APEX FOOD</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-white/60">
+          {isIOS
+            ? <>Toque em <strong className="text-white/80">Compartilhar</strong> e depois em <strong className="text-white/80">"Adicionar à Tela de Início"</strong>.</>
+            : 'Acesso rápido em tela cheia, no computador, tablet ou celular.'}
+        </p>
+        {!isIOS && (
+          <Button
+            size="sm"
+            onClick={promptInstall}
+            disabled={!canPrompt}
+            className="mt-2.5 h-8 apex-gradient text-xs font-semibold text-white"
+          >
+            <Download className="h-3.5 w-3.5" /> Instalar agora
+          </Button>
+        )}
+      </div>
+      <button
+        onClick={dismiss}
+        className="shrink-0 text-white/40 transition-colors hover:text-white/70"
+        aria-label="Dispensar aviso de instalação"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   )
 }
@@ -602,6 +644,8 @@ export function LoginScreen({ onLogin }: { onLogin: (u: SessionUser) => void }) 
 
           <h2 className="text-2xl font-bold tracking-tight">Bem-vindo à plataforma</h2>
           <p className="text-sm text-white/60 mt-1.5">Acesse a operação do seu restaurante ou crie uma conta.</p>
+
+          <InstallBanner />
 
           <Tabs defaultValue="entrar" className="mt-6">
             <TabsList className="grid grid-cols-2 w-full bg-white/[0.06] border border-white/10">

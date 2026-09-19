@@ -32,8 +32,8 @@ def make(size: int, name: str, scale: float) -> None:
 
 
 # 'any': logo maior (72% da altura)
-make(192, "icon-192.png", 0.72)
-make(512, "icon-512.png", 0.72)
+make(192, "icon-192.png", 1)
+make(512, "icon-512.png", 1)
 # 'maskable': zona segura circular (raio 40%) — logo a 62% da altura passa no círculo
 make(192, "icon-maskable-192.png", 0.62)
 make(512, "icon-maskable-512.png", 0.62)

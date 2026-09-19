@@ -19,6 +19,12 @@ export const metadata: Metadata = {
   description:
     "Plataforma SaaS de gestão e operação para restaurantes: comandas em tempo real, distribuição inteligente, cozinha, caixa e métricas analíticas.",
   keywords: ["APEX FOOD", "restaurante", "gestão", "comanda digital", "cozinha", "SaaS"],
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "APEX FOOD",
+  },
 };
 
 export const viewport: Viewport = {

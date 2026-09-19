@@ -131,6 +131,26 @@
   }
 }
 
+/* Texto do sistema não é selecionável (comportamento de app, não de página de
+   conteúdo) — campos de entrada e áreas editáveis continuam selecionáveis
+   normalmente, senão o usuário não consegue editar/copiar o que digitou. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea, [contenteditable="true"], [contenteditable=""] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* "Puxar para atualizar" só é desativado quando instalado como PWA (tela cheia,
+   sem a barra do navegador) — no navegador comum o gesto continua disponível. */
+@media (display-mode: standalone) {
+  html, body {
+    overscroll-behavior-y: contain;
+  }
+}
+
 /* Scrollbar premium */
 * {
   scrollbar-width: thin;
